@@ -20,7 +20,7 @@
 
 ### **1. Клонирование репозитория**  
 ```bash
-git clone https://github.com/your-username/seka-game.git
+git clone https://github.com/IvanZhutyaev/Seka-Card_Game.git
 cd seka-game
 ```
 
