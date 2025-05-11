@@ -1,0 +1,35 @@
+# Общие системные файлы
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp
+*.env
+
+# Frontend (React)
+/node_modules/
+/dist/
+/.next/
+/.cache/
+/build/
+.env.local
+*.env
+
+# Backend (Node.js)
+/server/node_modules/
+/server/.env
+/server/dist/
+/server/*.log
+
+# Бот (Python)
+/bot/__pycache__/
+/bot/.venv/
+/bot/*.pyc
+/bot/.env
+
+# Базы данных 
+*.sqlite
+*.dump
+
+# Docker
+docker-compose.override.yml
