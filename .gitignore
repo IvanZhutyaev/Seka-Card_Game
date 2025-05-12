@@ -15,12 +15,6 @@
 .env.local
 *.env
 
-# Backend (Node.js)
-/server/node_modules/
-/server/.env
-/server/dist/
-/server/*.log
-
 # Бот (Python)
 /bot/__pycache__/
 /bot/.venv/
