@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сека | Telegram Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --primary-color: #0088cc;
+            --border-color: #e0e0e0;
+            --cell-bg: #f5f5f5;
+        }
+
+        body.dark {
+            --bg-color: #212121;
+            --text-color: #ffffff;
+            --primary-color: #2b5278;
+            --border-color: #424242;
+            --cell-bg: #303030;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 24px;
+        }
+
+        #mainMenu {
+            display: block;
+        }
+
+        #gameScreen {
+            display: none;
+        }
+
+        .play-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 16px 32px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 80%;
+            max-width: 4000px;
+            margin: 0 auto;
+        }
+
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin: 20px auto;
+            max-width: 300px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background-color: var(--cell-bg);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .cell.revealed {
+            background-color: rgba(0, 136, 204, 0.1);
+        }
+
+        .cell.bomb {
+            background-color: #ff4444;
+            color: white;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            margin-top: 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Главное меню -->
+        <div id="mainMenu">
+            <h1>Сека</h1>
+            <button class="play-btn" id="playBtn">Играть</button>
+        </div>
+
+        <!-- Игровой экран -->
+        <div id="gameScreen">
+            <div class="stats">
+                <div>Флаги: <span id="flags">0</span></div>
+                <div>Время: <span id="timer">0</span>с</div>
+            </div>
+            <div class="game-board" id="board"></div>
+            <button class="back-btn" id="backBtn">← Назад</button>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // Настройка темы
+        function updateTheme() {
+            document.body.classList.toggle('dark', tg.colorScheme === 'dark');
+        }
+        tg.onEvent('themeChanged', updateTheme);
+        updateTheme();
+
+        // Элементы DOM
+        const playBtn = document.getElementById('playBtn');
+        const backBtn = document.getElementById('backBtn');
+        const mainMenu = document.getElementById('mainMenu');
+        const gameScreen = document.getElementById('gameScreen');
+        const boardEl = document.getElementById('board');
+        const flagsEl = document.getElementById('flags');
+        const timerEl = document.getElementById('timer');
+
+        // Игровые переменные
+        const BOARD_SIZE = 5;
+        const BOMBS_COUNT = 5;
+        let board = [];
+        let flags = 0;
+        let seconds = 0;
+        let timer = null;
+        let gameActive = false;
+
+        // Инициализация игры
+        function initGame() {
+            // Создаем пустое поле
+            board = Array(BOARD_SIZE).fill().map(() => 
+                Array(BOARD_SIZE).fill().map(() => ({
+                    isBomb: false,
+                    revealed: false,
+                    flagged: false,
+                    value: 0
+                }))
+            );
+
+            // Расставляем бомбы
+            let bombsPlaced = 0;
+            while (bombsPlaced < BOMBS_COUNT) {
+                const x = Math.floor(Math.random() * BOARD_SIZE);
+                const y = Math.floor(Math.random() * BOARD_SIZE);
+                
+                if (!board[x][y].isBomb) {
+                    board[x][y].isBomb = true;
+                    bombsPlaced++;
+                }
+            }
+
+            // Считаем соседние бомбы
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    if (!board[x][y].isBomb) {
+                        let count = 0;
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                const nx = x + dx;
+                                const ny = y + dy;
+                                if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE && board[nx][ny].isBomb) {
+                                    count++;
+                                }
+                            }
+                        }
+                        board[x][y].value = count;
+                    }
+                }
+            }
+
+            // Сбрасываем статистику
+            flags = 0;
+            seconds = 0;
+            flagsEl.textContent = flags;
+            timerEl.textContent = seconds;
+
+            // Отрисовываем поле
+            renderBoard();
+        }
+
+        // Отрисовка поля
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    if (board[x][y].revealed) {
+                        cell.classList.add('revealed');
+                        if (board[x][y].isBomb) {
+                            cell.classList.add('bomb');
+                            cell.textContent = '💣';
+                        } else if (board[x][y].value > 0) {
+                            cell.textContent = board[x][y].value;
+                        }
+                    } else if (board[x][y].flagged) {
+                        cell.textContent = '🚩';
+                    }
+
+                    cell.addEventListener('click', () => handleCellClick(x, y));
+                    cell.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        handleCellRightClick(x, y);
+                    });
+
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        // Обработка клика по клетке
+        function handleCellClick(x, y) {
+            if (!gameActive || board[x][y].revealed || board[x][y].flagged) return;
+
+            if (!timer) startTimer();
+
+            if (board[x][y].isBomb) {
+                // Проигрыш
+                revealAllBombs();
+                gameActive = false;
+                return;
+            }
+
+            revealCell(x, y);
+            checkWin();
+        }
+
+        // Обработка правого клика (флаг)
+        function handleCellRightClick(x, y) {
+            if (!gameActive || board[x][y].revealed) return;
+
+            board[x][y].flagged = !board[x][y].flagged;
+            flags += board[x][y].flagged ? 1 : -1;
+            flagsEl.textContent = flags;
+            renderBoard();
+        }
+
+        // Раскрытие клетки
+        function revealCell(x, y) {
+            if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE || board[x][y].revealed || board[x][y].flagged) {
+                return;
+            }
+
+            board[x][y].revealed = true;
+            renderBoard();
+
+            if (board[x][y].value === 0) {
+                // Раскрываем соседей для пустых клеток
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        revealCell(x + dx, y + dy);
+                    }
+                }
+            }
+        }
+
+        // Проверка победы
+        function checkWin() {
+            let unrevealedSafeCells = 0;
+            
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    if (!board[x][y].isBomb && !board[x][y].revealed) {
+                        unrevealedSafeCells++;
+                    }
+                }
+            }
+
+            if (unrevealedSafeCells === 0) {
+                // Победа!
+                gameActive = false;
+                clearInterval(timer);
+                alert('Поздравляем! Вы победили!');
+            }
+        }
+
+        // Показать все бомбы при проигрыше
+        function revealAllBombs() {
+            for (let x = 0; x < BOARD_SIZE; x++) {
+                for (let y = 0; y < BOARD_SIZE; y++) {
+                    if (board[x][y].isBomb) {
+                        board[x][y].revealed = true;
+                    }
+                }
+            }
+            renderBoard();
+            clearInterval(timer);
+            alert('БУМ! Вы проиграли');
+        }
+
+        // Таймер
+        function startTimer() {
+            clearInterval(timer);
+            seconds = 0;
+            timerEl.textContent = seconds;
+            timer = setInterval(() => {
+                seconds++;
+                timerEl.textContent = seconds;
+            }, 1000);
+        }
+
+        // Переключение экранов
+        playBtn.addEventListener('click', () => {
+            mainMenu.style.display = 'none';
+            gameScreen.style.display = 'block';
+            initGame();
+            gameActive = true;
+        });
+
+        backBtn.addEventListener('click', () => {
+            gameScreen.style.display = 'none';
+            mainMenu.style.display = 'block';
+            clearInterval(timer);
+            gameActive = false;
+        });
+    </script>
+</body>
+</html>
