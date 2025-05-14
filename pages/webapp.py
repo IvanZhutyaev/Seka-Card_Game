@@ -1,19 +1,25 @@
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
 
-class SingleFileHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/':
-            self.path = '/Game-start.html'
-        elif self.path != '/Game-start.html':
-            self.send_error(403, "Forbidden")
-            return
-        super().do_GET()
+app = FastAPI()
 
-HTTPServer(("", 8000), SingleFileHandler).serve_forever()
+# Разрешаем доступ только к Game-start.html
+@app.get("/")
+async def read_root():
+    return await read_game_file()
 
-# НУЖНО СДЕЛАТЬ ЧЕРЕЗ FASTAPI(САЙТ ЖЕ ДИНАМИЧЕСКИЙ)
-# from fastapi import FastAPI
-# from fastapi.staticfiles import StaticFiles
+@app.get("/Game-start.html")
+async def read_game_file():
+    if not os.path.exists("Game-start.html"):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse("Game-start.html")
 
-# app = FastAPI()
-# app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# Запрещаем все остальные пути
+@app.get("/{path:path}")
+async def deny_all(path: str):
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+# Для статических файлов (если нужно)
+# app.mount("/static", StaticFiles(directory="static"), name="static")
