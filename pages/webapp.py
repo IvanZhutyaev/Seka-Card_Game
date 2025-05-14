@@ -10,3 +10,10 @@ class SingleFileHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
 HTTPServer(("", 8000), SingleFileHandler).serve_forever()
+
+# НУЖНО СДЕЛАТЬ ЧЕРЕЗ FASTAPI(САЙТ ЖЕ ДИНАМИЧЕСКИЙ)
+# from fastapi import FastAPI
+# from fastapi.staticfiles import StaticFiles
+
+# app = FastAPI()
+# app.mount("/", StaticFiles(directory="static", html=True), name="static")
