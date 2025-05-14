@@ -130,30 +130,44 @@
             </button>
         </div>
 
-        <button class="btn btn-secondary" style="width: 100%;">
+        <button class="btn btn-secondary" style="width: 100%;" >
             <span class="btn-icon">💺</span>
             перевести другу
         </button>
     </div>
 
     <div class="menu">
-        <div class="menu-item">
+    <!-- Пункт 1 - Правила Игры -->
+    <div class="menu-item">
+        <button onclick="window.open('pages/documentation.html', '_blank')">
             <div class="checkbox"></div>
             <div class="menu-item-text">Правила Игры</div>
-        </div>
-        <div class="menu-item">
+        </button>
+    </div>
+
+    <!-- Пункт 2 - Настройки -->
+    <div class="menu-item">
+        <button onclick="window.open('/static/settings.html', '_blank')">
             <div class="checkbox"></div>
             <div class="menu-item-text">Настройки</div>
-        </div>
-        <div class="menu-item">
+        </button>
+    </div>
+
+    <!-- Остальные пункты -->
+    <div class="menu-item">
+        <button onclick="window.open('/static/game-history.html', '_blank')">
             <div class="checkbox"></div>
             <div class="menu-item-text">История Игры</div>
-        </div>
-        <div class="menu-item">
+        </button>
+    </div>
+
+    <div class="menu-item">
+        <button onclick="window.open('/static/transactions.html', '_blank')">
             <div class="checkbox"></div>
             <div class="menu-item-text">История Транзакций</div>
-        </div>
+        </button>
     </div>
+</div>
 
     <script>
         // Инициализация Telegram WebApp
@@ -168,6 +182,7 @@
                 });
             });
         }
+
     </script>
 </body>
 </html>
