@@ -5,21 +5,29 @@ import os
 
 app = FastAPI()
 
-# Разрешаем доступ только к Game-start.html
+# Разрешаем доступ только к указанным страницам
+ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html"]
+
+# Главная страница должна перенаправлять на Game-start.html
 @app.get("/")
 async def read_root():
-    return await read_game_file()
+    return await get_page("profile.html")
 
-@app.get("/Game-start.html")
-async def read_game_file():
-    if not os.path.exists("pages/Game-start.html"):
+# Обработка всех разрешенных страниц
+@app.get("/{page_name}")
+async def get_page(page_name: str):
+    if page_name not in ALLOWED_PAGES:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    file_path = os.path.join("pages", page_name)
+    if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse("pages/Game-start.html")
 
-# Запрещаем все остальные пути
-@app.get("/{path:path}")
-async def deny_all(path: str):
-    raise HTTPException(status_code=403, detail="Forbidden")
+    return FileResponse(file_path)
 
-# Для статических файлов (если нужно)
-app.mount("/pages", StaticFiles(directory="pages"), name="pages")
+
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

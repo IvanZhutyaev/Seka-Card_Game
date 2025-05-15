@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игровой профиль</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --border-color: #333;
+            --primary-btn: #1a73e8;
+            --secondary-btn: #333;
+            --checkbox-border: #555;
+            --hover-color: #2a2a2a;
+            --active-color: #3a3a3a;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 16px;
+            max-width: 100%;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        .profile-header {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .user-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-color);
+        }
+
+        .balance {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        .user-id {
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.8;
+            margin-bottom: 16px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-btn);
+            color: white;
+        }
+
+        .btn-primary:active {
+            background-color: #0d5bc0;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-btn);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:active {
+            background-color: #444;
+        }
+
+        .btn-icon {
+            margin-right: 6px;
+            font-size: 16px;
+        }
+
+        .menu {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item:hover {
+            background-color: var(--hover-color);
+        }
+
+        .menu-item:active {
+            background-color: var(--active-color);
+        }
+
+        .menu-item-content {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--checkbox-border);
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .menu-item-text {
+            font-size: 16px;
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-header">
+        <div class="user-name" id="user-name">Загрузка...</div>
+        <div class="balance">Баланс: 900.00 ₽</div>
+        <div class="user-id" id="user-id">ID: загрузка...</div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="openInTelegram('deposit.html')">
+                <span class="btn-icon">+</span>
+                Пополнить
+            </button>
+            <button class="btn btn-secondary" onclick="openInTelegram('withdraw.html')">
+                <span class="btn-icon">—</span>
+                Вывести
+            </button>
+        </div>
+
+        <button class="btn btn-secondary" style="width: 100%;" onclick="openInTelegram('transfer.html')">
+            <span class="btn-icon">💺</span>
+            перевести другу
+        </button>
+    </div>
+
+    <div class="menu">
+        <div class="menu-item" onclick="openInTelegram('rules.html')">
+            <div class="menu-item-content">
+                <div class="checkbox"></div>
+                <div class="menu-item-text">Правила Игры</div>
+            </div>
+        </div>
+
+        <div class="menu-item" onclick="openInTelegram('settings.html')">
+            <div class="menu-item-content">
+                <div class="checkbox"></div>
+                <div class="menu-item-text">Настройки</div>
+            </div>
+        </div>
+
+        <div class="menu-item" onclick="openInTelegram('history.html')">
+            <div class="menu-item-content">
+                <div class="checkbox"></div>
+                <div class="menu-item-text">История Игры</div>
+            </div>
+        </div>
+
+        <div class="menu-item" onclick="openInTelegram('transactions.html')">
+            <div class="menu-item-content">
+                <div class="checkbox"></div>
+                <div class="menu-item-text">История Транзакций</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Проверяем, что мы в Telegram WebApp
+            if (window.Telegram && Telegram.WebApp) {
+                console.log('Telegram WebApp detected');
+
+                // Включаем основные функции
+                Telegram.WebApp.expand();
+                Telegram.WebApp.enableClosingConfirmation();
+
+                // Проверяем наличие данных пользователя
+                if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                    const user = Telegram.WebApp.initDataUnsafe.user;
+                    console.log('User data:', user);
+
+                    // Формируем имя пользователя
+                    let userName = user.first_name || '';
+                    if (user.last_name) userName += ' ' + user.last_name;
+                    if (user.username) userName += ` (@${user.username})`;
+
+                    // Вставляем данные в DOM
+                    document.getElementById('user-name').textContent = userName || 'Анонимный пользователь';
+                    document.getElementById('user-id').textContent = `ID: ${user.id || 'не доступен'}`;
+                } else {
+                    console.warn('User data not available');
+                    document.getElementById('user-name').textContent = 'Гость (данные недоступны)';
+                }
+            } else {
+                console.warn('Not in Telegram WebApp');
+                document.getElementById('user-name').textContent = 'Гость (тестовый режим)';
+                document.getElementById('user-id').textContent = 'ID: 0000 (тестовый режим)';
+            }
+        });
+
+        // Функция для открытия страниц внутри Telegram WebApp
+        function openInTelegram(page) {
+            if (window.Telegram?.WebApp?.openLink) {
+                // Открываем локальный файл в Mini App
+                Telegram.WebApp.openLink(page);
+            } else {
+                // Фолбэк для браузера
+                window.location.href = page;
+            }
+        }
+    </script>
+</body>
+</html>
