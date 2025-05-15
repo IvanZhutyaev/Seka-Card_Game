@@ -135,41 +135,282 @@ class SekaGame:
         self.game_id = str(uuid.uuid4())
         self.player_ids = player_ids
         self.status = GameStatus.WAITING
+        self.pot = 0
+        self.current_bet = 0
+        self.bluffers = set()  # Игроки, использующие блеф
+        self.svara_pot = 0     # Дополнительный банк для свары
         
-        # Инициализируем игру в базах данных
+        # Инициализация в БД
         create_game_in_db(self.game_id, player_ids)
         for player_id in player_ids:
             set_player_online(player_id)
             record_transaction(self.game_id, player_id, 0, TransactionType.JOIN)
 
     def start_game(self):
-        """Начинаем игру, раздаем карты"""
+        """Начало игры с раздачей карт"""
         self.status = GameStatus.ACTIVE
         conn = get_db_connection()
         cur = conn.cursor()
         try:
-            # Генерируем колоду (4xA, K, Q, 10 + джокер 9♣)
+            # Создание колоды
             deck = [f"{rank}{suit}" for suit in ["♠", "♥", "♦", "♣"] 
                     for rank in ["A", "K", "Q", "10"]] + ["9♣"]
             random.shuffle(deck)
             
-            # Раздаем по 3 карты каждому игроку
+            # Раздача карт
             for player_id in self.player_ids:
                 cards = [deck.pop() for _ in range(3)]
                 cur.execute(
-                    "UPDATE game_players SET cards = %s "
+                    "UPDATE game_players SET cards = %s, bet = 0, folded = FALSE, score = NULL "
                     "WHERE game_id = %s AND player_id = %s",
                     (json.dumps(cards), self.game_id, player_id)
                 )
             
-            # Сохраняем оставшуюся колоду
+            # Сохранение состояния
             cur.execute(
-                "UPDATE games SET deck = %s, status = %s "
+                "UPDATE games SET deck = %s, status = %s, pot = 0 "
                 "WHERE id = %s",
                 (json.dumps(deck), GameStatus.ACTIVE.value, self.game_id)
             )
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def place_bet(self, player_id: str, amount: int, is_bluff: bool = False) -> bool:
+        """Обработка ставки игрока"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Проверяем баланс
+            cur.execute("SELECT balance FROM players WHERE id = %s", (player_id,))
+            balance = cur.fetchone()[0]
+            
+            if balance >= amount:
+                # Обновляем баланс и ставку
+                cur.execute(
+                    "UPDATE players SET balance = balance - %s WHERE id = %s",
+                    (amount, player_id)
+                )
+                
+                # Фиксируем ставку
+                self.pot += amount
+                self.current_bet = amount
+                
+                if is_bluff:
+                    self.bluffers.add(player_id)
+                
+                # Запись в БД
+                cur.execute(
+                    "UPDATE games SET pot = %s WHERE id = %s",
+                    (self.pot, self.game_id)
+                )
+                
+                record_transaction(
+                    self.game_id, player_id, amount, 
+                    TransactionType.BET if not is_bluff else TransactionType.SVARA
+                )
+                
+                conn.commit()
+                return True
+            return False
+        finally:
+            cur.close()
+            conn.close()
+
+    def fold(self, player_id: str):
+        """Игрок сбрасывает карты"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "UPDATE game_players SET folded = TRUE "
+                "WHERE game_id = %s AND player_id = %s",
+                (self.game_id, player_id)
+            )
+            record_transaction(self.game_id, player_id, 0, TransactionType.FOLD)
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def calculate_scores(self):
+        """Подсчет очков для всех активных игроков"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT player_id, cards FROM game_players "
+                "WHERE game_id = %s AND folded = FALSE",
+                (self.game_id,)
+            )
+            
+            for player_id, cards_json in cur.fetchall():
+                cards = json.loads(cards_json)
+                score = self._calculate_score(cards)
+                
+                # Обновляем счет игрока
+                cur.execute(
+                    "UPDATE game_players SET score = %s "
+                    "WHERE game_id = %s AND player_id = %s",
+                    (score, self.game_id, player_id)
+                )
             
             conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def _calculate_score(self, cards: List[str]) -> int:
+        """Приватный метод подсчета очков"""
+        suits = {}
+        for card in cards:
+            suit = card[-1]
+            rank = card[:-1]
+            suits.setdefault(suit, []).append(rank)
+        
+        max_score = 0
+        for suit, ranks in suits.items():
+            score = sum(
+                11 if (rank == "A" or card == "9♣") else 10
+                for card in ranks
+            )
+            max_score = max(max_score, score)
+        
+        # Проверка на "Два лба" (2 туза)
+        if sum(1 for card in cards if card.startswith("A")) >= 2:
+            max_score = max(max_score, 22)
+        
+        return max_score
+
+    def determine_winner(self):
+        """Определение победителя"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Получаем всех активных игроков с их счетами
+            cur.execute(
+                "SELECT player_id, score FROM game_players "
+                "WHERE game_id = %s AND folded = FALSE "
+                "ORDER BY score DESC",
+                (self.game_id,)
+            )
+            results = cur.fetchall()
+            
+            if not results:
+                return None
+                
+            max_score = results[0][1]
+            winners = [player_id for player_id, score in results if score == max_score]
+            
+            # Если один победитель
+            if len(winners) == 1:
+                winner_id = winners[0]
+                self._distribute_winnings(winner_id, self.pot + self.svara_pot)
+                return {"winner": winner_id, "score": max_score, "is_svara": False}
+            
+            # Если ничья - активируем свару
+            else:
+                self._initiate_svara(winners)
+                return {"winners": winners, "score": max_score, "is_svara": True}
+        finally:
+            cur.close()
+            conn.close()
+
+    def _initiate_svara(self, player_ids: List[str]):
+        """Инициализация свары"""
+        self.svara_pot = self.pot
+        self.pot = 0
+        self.status = GameStatus.SVARA
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Сбрасываем ставки и фолды, но сохраняем карты
+            for player_id in player_ids:
+                cur.execute(
+                    "UPDATE game_players SET bet = 0, folded = FALSE "
+                    "WHERE game_id = %s AND player_id = %s",
+                    (self.game_id, player_id)
+                )
+            
+            # Обновляем статус игры
+            cur.execute(
+                "UPDATE games SET status = %s, pot = 0, table_cards = '[]' "
+                "WHERE id = %s",
+                (GameStatus.SVARA.value, self.game_id)
+            )
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def _distribute_winnings(self, winner_id: str, amount: int):
+        """Выплата выигрыша"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Начисляем выигрыш
+            cur.execute(
+                "UPDATE players SET balance = balance + %s "
+                "WHERE id = %s",
+                (amount, winner_id)
+            )
+            
+            # Фиксируем завершение игры
+            self.status = GameStatus.FINISHED
+            cur.execute(
+                "UPDATE games SET status = %s, finished_at = NOW() "
+                "WHERE id = %s",
+                (GameStatus.FINISHED.value, self.game_id)
+            )
+            
+            record_transaction(self.game_id, winner_id, amount, TransactionType.WIN)
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+
+    def handle_bluff(self, player_id: str) -> bool:
+        """Обработка попытки блефа"""
+        if player_id not in self.bluffers:
+            self.bluffers.add(player_id)
+            return True
+        return False
+
+    def get_game_state(self):
+        """Получение текущего состояния игры"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT id, status, pot FROM games WHERE id = %s",
+                (self.game_id,)
+            )
+            game_data = cur.fetchone()
+            
+            cur.execute(
+                "SELECT player_id, cards, bet, folded, score FROM game_players "
+                "WHERE game_id = %s",
+                (self.game_id,)
+            )
+            players_data = cur.fetchall()
+            
+            return {
+                "game_id": game_data[0],
+                "status": game_data[1],
+                "pot": game_data[2],
+                "players": [
+                    {
+                        "player_id": p[0],
+                        "cards": json.loads(p[1]),
+                        "bet": p[2],
+                        "folded": p[3],
+                        "score": p[4]
+                    } for p in players_data
+                ],
+                "svara_pot": self.svara_pot
+            }
         finally:
             cur.close()
             conn.close()
