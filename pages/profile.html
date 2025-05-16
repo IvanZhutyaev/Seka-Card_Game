@@ -6,16 +6,19 @@
     <title>Игровой профиль</title>
     <style>
         :root {
-            --bg-color: #121212;
+            --bg-color: rgba(30, 30, 30, 0.6);
             --text-color: #e0e0e0;
-            --card-bg: #1e1e1e;
+            --card-bg: rgba(30, 30, 30, 0.8);
             --border-color: #333;
-            --primary-btn: #1a73e8;
-            --secondary-btn: #333;
-            --checkbox-border: #555;
-            --hover-color: #2a2a2a;
-            --active-color: #3a3a3a;
+            --green-btn: #34A853;
+            --red-btn: #EA4335;
+            --blue-btn: #4285F4;
+            --menu-btn: rgba(100, 181, 246, 0.3);
+            --menu-btn-hover: rgba(100, 181, 246, 0.5);
+            --menu-btn-active: rgba(100, 181, 246, 0.7);
+            --menu-border: rgba(100, 181, 246, 0.8);
             --shadow-color: rgba(0, 0, 0, 0.3);
+            --white: #ffffff;
         }
 
         * {
@@ -23,7 +26,7 @@
             padding: 0;
             box-sizing: border-box;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            transition: all 0.2s;
         }
 
         body {
@@ -33,14 +36,76 @@
             max-width: 100%;
             margin: 0 auto;
             min-height: 100vh;
+            background-image: url('https://i.pinimg.com/736x/12/23/5a/12235ac6c40ddc9800189129f9281390.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-blend-mode: multiply;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
         }
 
         .profile-header {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            background-color: transparent;
+            backdrop-filter: none;
+            box-shadow: none;
+            border: none;
+            padding: 8px 0;
             margin-bottom: 16px;
-            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .avatar-container {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 3px solid white;
+            overflow: hidden;
+            flex-shrink: 0;
+            background-color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .default-avatar {
+            font-size: 35px;
+            color: white;
+        }
+
+        .user-info {
+            flex-grow: 1;
         }
 
         .user-name {
@@ -85,21 +150,31 @@
         }
 
         .btn-primary {
-            background-color: var(--primary-btn);
+            background-color: var(--green-btn);
             color: white;
         }
 
         .btn-primary:active {
-            background-color: #0d5bc0;
+            background-color: #2d9248;
         }
 
         .btn-secondary {
-            background-color: var(--secondary-btn);
-            color: var(--text-color);
+            background-color: var(--red-btn);
+            color: white;
         }
 
         .btn-secondary:active {
-            background-color: #444;
+            background-color: #d33426;
+        }
+
+        .btn-transfer {
+            background-color: var(--blue-btn);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-transfer:active {
+            background-color: #3a7bd5;
         }
 
         .btn-icon {
@@ -108,134 +183,199 @@
         }
 
         .menu {
-            background-color: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background-color: transparent;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px var(--shadow-color);
+            margin-top: 16px;
         }
 
         .menu-item {
+            background-color: var(--menu-btn);
+            border-radius: 8px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
             display: flex;
             align-items: center;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background-color 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .menu-item:last-child {
-            border-bottom: none;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 4px var(--shadow-color);
+            border: 1px solid var(--menu-border);
+            margin-bottom: 8px;
         }
 
         .menu-item:hover {
-            background-color: var(--hover-color);
+            background-color: var(--menu-btn-hover);
+            border-color: rgba(100, 181, 246, 1);
+            transform: translateY(-1px);
         }
 
         .menu-item:active {
-            background-color: var(--active-color);
+            background-color: var(--menu-btn-active);
+            transform: translateY(0);
         }
 
-        .menu-item-content {
-            display: flex;
-            align-items: center;
-            width: 100%;
-        }
-
-        .checkbox {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--checkbox-border);
-            border-radius: 4px;
+        .menu-item-icon {
             margin-right: 12px;
-            flex-shrink: 0;
+            font-size: 20px;
         }
 
         .menu-item-text {
             font-size: 16px;
-            flex-grow: 1;
+            font-weight: 500;
+        }
+
+        /* Стили для выпадающего меню */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 16px;
+            top: 60px;
+            background-color: var(--white);
+            border-radius: 12px;
+            padding: 8px;
+            min-width: 200px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: #333;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .dropdown-icon {
+            margin-right: 12px;
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: #eee;
+            margin: 8px 0;
         }
     </style>
 </head>
 <body>
-    <div class="profile-header">
-        <div class="user-name" id="user-name">Загрузка...</div>
-        <div class="balance">Баланс: 900.00 ₽</div>
-        <div class="user-id" id="user-id">ID: загрузка...</div>
-
-        <div class="action-buttons">
-            <button class="btn btn-primary" onclick="openInTelegram('deposit.html')">
-                <span class="btn-icon">+</span>
-                Пополнить
-            </button>
-            <button class="btn btn-secondary" onclick="openInTelegram('withdraw.html')">
-                <span class="btn-icon">—</span>
-                Вывести
-            </button>
+    <div class="header">
+        <button class="back-button" onclick="goBack()">←</button>
+        <button class="menu-button" onclick="toggleDropdown()">⋮</button>
+        <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" onclick="openInTelegram('profile.html')">
+                <span class="dropdown-icon">👤</span>
+                Профиль
+            </div>
+            <div class="dropdown-item" onclick="openInTelegram('help.html')">
+                <span class="dropdown-icon">❓</span>
+                Помощь
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item" onclick="logout()" style="color: #EA4335;">
+                <span class="dropdown-icon">🚪</span>
+                Выйти
+            </div>
         </div>
+    </div>
 
-        <button class="btn btn-secondary" style="width: 100%;" onclick="openInTelegram('transfer.html')">
-            <span class="btn-icon">💺</span>
-            перевести другу
+    <div class="profile-header">
+        <div class="avatar-container" id="avatar-container">
+            <div class="default-avatar">👤</div>
+            <img class="avatar" id="user-avatar" style="display: none;">
+        </div>
+        
+        <div class="user-info">
+            <div class="user-name" id="user-name">Загрузка...</div>
+            <div class="balance">Баланс: 900.00 ₽</div>
+            <div class="user-id" id="user-id">ID: загрузка...</div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button class="btn btn-primary" onclick="openInTelegram('deposit.html')">
+            <span class="btn-icon">+</span>
+            Пополнить
+        </button>
+        <button class="btn btn-secondary" onclick="openInTelegram('withdraw.html')">
+            <span class="btn-icon">—</span>
+            Вывести
         </button>
     </div>
 
+    <button class="btn btn-transfer" onclick="openInTelegram('transfer.html')">
+        <span class="btn-icon">💺</span>
+        Перевести другу
+    </button>
+
     <div class="menu">
         <div class="menu-item" onclick="openInTelegram('rules.html')">
-            <div class="menu-item-content">
-                <div class="checkbox"></div>
-                <div class="menu-item-text">Правила Игры</div>
-            </div>
+            <span class="menu-item-icon">📜</span>
+            <div class="menu-item-text">Правила Игры</div>
         </div>
 
         <div class="menu-item" onclick="openInTelegram('settings.html')">
-            <div class="menu-item-content">
-                <div class="checkbox"></div>
-                <div class="menu-item-text">Настройки</div>
-            </div>
+            <span class="menu-item-icon">⚙️</span>
+            <div class="menu-item-text">Настройки</div>
         </div>
 
         <div class="menu-item" onclick="openInTelegram('history.html')">
-            <div class="menu-item-content">
-                <div class="checkbox"></div>
-                <div class="menu-item-text">История Игры</div>
-            </div>
+            <span class="menu-item-icon">🕒</span>
+            <div class="menu-item-text">История Игры</div>
         </div>
 
         <div class="menu-item" onclick="openInTelegram('transactions.html')">
-            <div class="menu-item-content">
-                <div class="checkbox"></div>
-                <div class="menu-item-text">История Транзакций</div>
-            </div>
+            <span class="menu-item-icon">💳</span>
+            <div class="menu-item-text">История Транзакций</div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Проверяем, что мы в Telegram WebApp
             if (window.Telegram && Telegram.WebApp) {
                 console.log('Telegram WebApp detected');
-
-                // Включаем основные функции
                 Telegram.WebApp.expand();
                 Telegram.WebApp.enableClosingConfirmation();
 
-                // Проверяем наличие данных пользователя
                 if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
                     const user = Telegram.WebApp.initDataUnsafe.user;
                     console.log('User data:', user);
 
-                    // Формируем имя пользователя
                     let userName = user.first_name || '';
                     if (user.last_name) userName += ' ' + user.last_name;
                     if (user.username) userName += ` (@${user.username})`;
 
-                    // Вставляем данные в DOM
                     document.getElementById('user-name').textContent = userName || 'Анонимный пользователь';
                     document.getElementById('user-id').textContent = `ID: ${user.id || 'не доступен'}`;
+
+                    // Загрузка аватара пользователя
+                    if (user.photo_url) {
+                        const avatarImg = document.getElementById('user-avatar');
+                        avatarImg.src = user.photo_url;
+                        avatarImg.style.display = 'block';
+                        document.querySelector('.default-avatar').style.display = 'none';
+                    }
                 } else {
                     console.warn('User data not available');
                     document.getElementById('user-name').textContent = 'Гость (данные недоступны)';
+                    document.getElementById('user-id').textContent = 'ID: не доступен';
                 }
             } else {
                 console.warn('Not in Telegram WebApp');
@@ -244,14 +384,45 @@
             }
         });
 
-        // Функция для открытия страниц внутри Telegram WebApp
         function openInTelegram(page) {
             if (window.Telegram?.WebApp?.openLink) {
-                // Открываем локальный файл в Mini App
                 Telegram.WebApp.openLink(page);
             } else {
-                // Фолбэк для браузера
                 window.location.href = page;
+            }
+        }
+
+        function goBack() {
+            if (window.Telegram?.WebApp?.close) {
+                Telegram.WebApp.close();
+            } else {
+                window.history.back();
+            }
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+        }
+
+        // Закрываем выпадающее меню при клике вне его
+        window.onclick = function(event) {
+            if (!event.target.matches('.menu-button')) {
+                const dropdowns = document.getElementsByClassName("dropdown-menu");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        function logout() {
+            // Здесь должна быть логика выхода
+            alert('Выход из системы');
+            if (window.Telegram?.WebApp?.close) {
+                Telegram.WebApp.close();
             }
         }
     </script>
