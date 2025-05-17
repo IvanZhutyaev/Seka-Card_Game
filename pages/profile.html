@@ -2,23 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Игровой профиль</title>
     <style>
         :root {
-            --bg-color: rgba(30, 30, 30, 0.6);
+            --bg-color: #0a1a2a; /* Темно-синий фон */
             --text-color: #e0e0e0;
-            --card-bg: rgba(30, 30, 30, 0.8);
-            --border-color: #333;
-            --green-btn: #34A853;
-            --red-btn: #EA4335;
-            --blue-btn: #4285F4;
-            --menu-btn: rgba(100, 181, 246, 0.3);
-            --menu-btn-hover: rgba(100, 181, 246, 0.5);
-            --menu-btn-active: rgba(100, 181, 246, 0.7);
-            --menu-border: rgba(100, 181, 246, 0.8);
-            --shadow-color: rgba(0, 0, 0, 0.3);
+            --blue-accent: #4285F4;
             --white: #ffffff;
+            --menu-btn: rgba(66, 133, 244, 0.3);
         }
 
         * {
@@ -31,18 +23,13 @@
 
         body {
             background-color: var(--bg-color);
+            background-image: url(media/background.png);
             color: var(--text-color);
             padding: 16px;
             max-width: 100%;
             margin: 0 auto;
             min-height: 100vh;
-            background-image: url('https://i.pinimg.com/736x/12/23/5a/12235ac6c40ddc9800189129f9281390.jpg');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            background-blend-mode: multiply;
         }
-
         .header {
             display: flex;
             justify-content: space-between;
@@ -54,30 +41,40 @@
             background: none;
             border: none;
             color: var(--text-color);
-            font-size: 24px;
+            font-size: 32px;
             cursor: pointer;
             padding: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .menu-button {
             background: none;
             border: none;
             color: var(--text-color);
-            font-size: 24px;
             cursor: pointer;
             padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-self: center;
+        }
+
+        .menu-line {
+            width: 24px;
+            height: 3px;
+            background-color: var(--text-color);
+            border-radius: 2px;
         }
 
         .profile-header {
             display: flex;
             gap: 16px;
             align-items: center;
-            background-color: transparent;
-            backdrop-filter: none;
-            box-shadow: none;
-            border: none;
-            padding: 8px 0;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .avatar-container {
@@ -118,15 +115,14 @@
         .balance {
             font-size: 24px;
             font-weight: 700;
-            margin-bottom: 12px;
             color: var(--text-color);
+            margin-bottom: 4px;
         }
 
         .user-id {
             font-size: 14px;
             color: var(--text-color);
             opacity: 0.8;
-            margin-bottom: 16px;
         }
 
         .action-buttons {
@@ -137,7 +133,7 @@
 
         .btn {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: none;
             font-weight: 500;
@@ -147,34 +143,22 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            color: white;
+            text-align: center;
         }
 
         .btn-primary {
-            background-color: var(--green-btn);
-            color: white;
-        }
-
-        .btn-primary:active {
-            background-color: #2d9248;
+            background-color: #34A853;
         }
 
         .btn-secondary {
-            background-color: var(--red-btn);
-            color: white;
-        }
-
-        .btn-secondary:active {
-            background-color: #d33426;
+            background-color: #EA4335;
         }
 
         .btn-transfer {
-            background-color: var(--blue-btn);
-            color: white;
+            background-color: #4285F4;
             width: 100%;
-        }
-
-        .btn-transfer:active {
-            background-color: #3a7bd5;
+            margin-bottom: 20px;
         }
 
         .btn-icon {
@@ -186,10 +170,6 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            background-color: transparent;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-top: 16px;
         }
 
         .menu-item {
@@ -198,24 +178,28 @@
             padding: 14px 16px;
             cursor: pointer;
             transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
             display: flex;
             align-items: center;
             backdrop-filter: blur(5px);
-            box-shadow: 0 2px 4px var(--shadow-color);
-            border: 1px solid var(--menu-border);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 181, 246, 0.8);
             margin-bottom: 8px;
         }
 
-        .menu-item:hover {
-            background-color: var(--menu-btn-hover);
-            border-color: rgba(100, 181, 246, 1);
-            transform: translateY(-1px);
-        }
-
-        .menu-item:active {
-            background-color: var(--menu-btn-active);
-            transform: translateY(0);
+        .menu-item {
+            background-color: var(--menu-btn);
+            border-radius: 8px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center; /* Выравнивание по вертикали */
+            justify-content: center; /* Добавьте это для горизонтального выравнивания */
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 181, 246, 0.8);
+            margin-bottom: 8px;
+            text-align: center; /* Дополнительное выравнивание текста */
         }
 
         .menu-item-icon {
@@ -228,19 +212,18 @@
             font-weight: 500;
         }
 
-        /* Стили для выпадающего меню */
         .dropdown-menu {
             display: none;
             position: absolute;
             right: 16px;
             top: 60px;
-            background-color: var(--white);
+            background-color: #0f2233;
             border-radius: 12px;
-            padding: 8px;
-            min-width: 200px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            padding: 8px 0;
+            min-width: 220px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             z-index: 1;
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .dropdown-menu.show {
@@ -252,13 +235,13 @@
             cursor: pointer;
             display: flex;
             align-items: center;
-            color: #333;
-            border-radius: 8px;
+            color: var(--text-color);
+            border-radius: 0;
             transition: background-color 0.2s;
         }
 
         .dropdown-item:hover {
-            background-color: #f5f5f5;
+            background-color: rgba(66, 133, 244, 0.2);
         }
 
         .dropdown-icon {
@@ -270,29 +253,60 @@
 
         .dropdown-divider {
             height: 1px;
-            background-color: #eee;
+            background-color: rgba(255, 255, 255, 0.1);
             margin: 8px 0;
+        }
+
+        .logout-item {
+            color: #EA4335;
+        }
+
+        @media (max-width: 400px) {
+            .balance {
+                font-size: 20px;
+            }
+            .avatar-container {
+                width: 60px;
+                height: 60px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
         <button class="back-button" onclick="goBack()">←</button>
-        <button class="menu-button" onclick="toggleDropdown()">⋮</button>
-        <div class="dropdown-menu" id="dropdownMenu">
-            <div class="dropdown-item" onclick="openInTelegram('profile.html')">
-                <span class="dropdown-icon">👤</span>
-                Профиль
-            </div>
-            <div class="dropdown-item" onclick="openInTelegram('help.html')">
-                <span class="dropdown-icon">❓</span>
-                Помощь
-            </div>
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-item" onclick="logout()" style="color: #EA4335;">
-                <span class="dropdown-icon">🚪</span>
-                Выйти
-            </div>
+        <button class="menu-button" onclick="toggleDropdown()">
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+        </button>
+    </div>
+
+    <div class="dropdown-menu" id="dropdownMenu">
+        <div class="dropdown-item" onclick="openPage('rules.html')">
+            <span class="dropdown-icon">📜</span>
+            Правила игры
+        </div>
+        <div class="dropdown-item" onclick="openPage('profile.html')">
+            <span class="dropdown-icon">👤</span>
+            Профиль и настройки
+        </div>
+        <div class="dropdown-item" onclick="openPage('bonuses.html')">
+            <span class="dropdown-icon">🎁</span>
+            Бонусы и акции
+        </div>
+        <div class="dropdown-item" onclick="openPage('history.html')">
+            <span class="dropdown-icon">📊</span>
+            История транзакций
+        </div>
+        <div class="dropdown-item" onclick="openPage('invite.html')">
+            <span class="dropdown-icon">👥</span>
+            Пригласить друга
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item logout-item" onclick="logout()">
+            <span class="dropdown-icon">🚪</span>
+            Выйти
         </div>
     </div>
 
@@ -303,9 +317,9 @@
         </div>
         
         <div class="user-info">
-            <div class="user-name" id="user-name">Загрузка...</div>
+            <div class="user-name" id="user-name">Игрок</div>
             <div class="balance">Баланс: 900.00 ₽</div>
-            <div class="user-id" id="user-id">ID: загрузка...</div>
+            <div class="user-id" id="user-id">ID: 123456</div>
         </div>
     </div>
 
@@ -326,27 +340,27 @@
     </button>
 
     <div class="menu">
-        <div class="menu-item" onclick="openInTelegram('rules.html')">
+        <div class="menu-item" onclick="openPage('rules.html')">
             <span class="menu-item-icon">📜</span>
             <div class="menu-item-text">Правила Игры</div>
         </div>
 
-        <div class="menu-item" onclick="openInTelegram('settings.html')">
+        <div class="menu-item" onclick="openPage('profile.html')">
             <span class="menu-item-icon">⚙️</span>
             <div class="menu-item-text">Профиль и настройки</div>
         </div>
 
-        <div class="menu-item" onclick="openInTelegram('history.html')">
-            <span class="menu-item-icon">🕒</span>
+        <div class="menu-item" onclick="openPage('bonuses.html')">
+            <span class="menu-item-icon">🎁</span>
             <div class="menu-item-text">Бонусы и акции</div>
         </div>
 
-        <div class="menu-item" onclick="openInTelegram('transactions.html')">
+        <div class="menu-item" onclick="openPage('history.html')">
             <span class="menu-item-icon">💳</span>
             <div class="menu-item-text">История Транзакций</div>
         </div>
 
-        <div class="menu-item" onclick="openInTelegram('invite_friend.html')">
+        <div class="menu-item" onclick="openPage('invite.html')">
             <span class="menu-item-icon">👥</span>
             <div class="menu-item-text">Пригласить друга</div>
         </div>
@@ -355,37 +369,26 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             if (window.Telegram && Telegram.WebApp) {
-                console.log('Telegram WebApp detected');
                 Telegram.WebApp.expand();
                 Telegram.WebApp.enableClosingConfirmation();
 
-                if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+                if (Telegram.WebApp.initDataUnsafe?.user) {
                     const user = Telegram.WebApp.initDataUnsafe.user;
-                    console.log('User data:', user);
-
+                    
                     let userName = user.first_name || '';
                     if (user.last_name) userName += ' ' + user.last_name;
                     if (user.username) userName += ` (@${user.username})`;
 
-                    document.getElementById('user-name').textContent = userName || 'Анонимный пользователь';
-                    document.getElementById('user-id').textContent = `ID: ${user.id || 'не доступен'}`;
+                    document.getElementById('user-name').textContent = userName || 'Игрок';
+                    document.getElementById('user-id').textContent = `ID: ${user.id || '123456'}`;
 
-                    // Загрузка аватара пользователя
                     if (user.photo_url) {
                         const avatarImg = document.getElementById('user-avatar');
                         avatarImg.src = user.photo_url;
                         avatarImg.style.display = 'block';
                         document.querySelector('.default-avatar').style.display = 'none';
                     }
-                } else {
-                    console.warn('User data not available');
-                    document.getElementById('user-name').textContent = 'Гость (данные недоступны)';
-                    document.getElementById('user-id').textContent = 'ID: не доступен';
                 }
-            } else {
-                console.warn('Not in Telegram WebApp');
-                document.getElementById('user-name').textContent = 'Гость (тестовый режим)';
-                document.getElementById('user-id').textContent = 'ID: 0000 (тестовый режим)';
             }
         });
 
@@ -395,6 +398,15 @@
             } else {
                 window.location.href = page;
             }
+        }
+
+        function openPage(page) {
+            if (window.Telegram?.WebApp?.openLink) {
+                Telegram.WebApp.openLink(page);
+            } else {
+                window.location.href = page;
+            }
+            document.getElementById('dropdownMenu').classList.remove('show');
         }
 
         function goBack() {
@@ -410,9 +422,8 @@
             dropdown.classList.toggle('show');
         }
 
-        // Закрываем выпадающее меню при клике вне его
         window.onclick = function(event) {
-            if (!event.target.matches('.menu-button')) {
+            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
                 const dropdowns = document.getElementsByClassName("dropdown-menu");
                 for (let i = 0; i < dropdowns.length; i++) {
                     const openDropdown = dropdowns[i];
@@ -424,10 +435,12 @@
         }
 
         function logout() {
-            // Здесь должна быть логика выхода
-            alert('Выход из системы');
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                if (window.Telegram?.WebApp?.close) {
+                    Telegram.WebApp.close();
+                } else {
+                    alert('Выход из системы');
+                }
             }
         }
     </script>
