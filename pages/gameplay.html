@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Игровое поле</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background-color: #18773C;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Arial Narrow', Arial, sans-serif;
+            position: relative;
+        }
+        
+        .main-area {
+            flex: 3;
+            position: relative;
+        }
+        
+        /* Кнопка меню слева */
+        .menu-button {
+            position: absolute;
+            top: 15px;
+            left: 35px;
+            width: 40px;
+            height: 40px;
+            background: url('static/dropdownMenuGameplay.png') no-repeat center;
+            background-size: contain;
+            border: none;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        /* Белый закруглённый блок */
+        .center-block {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 520px;
+            height: 40px;
+            background-color: white;
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 90;
+        }
+        
+        .player-turn-info {
+            font-size: 16px;
+            font-weight: normal;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90%;
+        }
+        
+        /* Кнопки справа */
+        .top-right-buttons {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .sound-button, .exit-button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .sound-button {
+            background: url('static/volumeGameplay.png') no-repeat center;
+            background-size: contain;
+        }
+        
+        .exit-button {
+            background: url('static/exitGameplay.png') no-repeat center;
+            background-size: contain;
+        }
+        
+        /* Блоки игроков */
+        .players-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            display: flex;
+            justify-content: space-between;
+            z-index: 50;
+        }
+        
+        .players-left, .players-right {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .player-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+        }
+        
+        .player-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #ccc;
+            background-size: cover;
+            border: 2px solid #FFD700;
+        }
+        
+        .player-action {
+            margin-top: 5px;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 4px 10px;
+            border-radius: 15px;
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            min-width: 70px;
+        }
+        
+        .player-name {
+            margin-top: 5px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .player-balance {
+            margin-top: 3px;
+            color: #FFD700;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        /* Остальные стили */
+        .game-title {
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700;
+            font-size: 48px;
+            font-weight: normal;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            z-index: 50;
+        }
+        
+        .bank-title {
+            position: absolute;
+            top: 80%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700;
+            font-size: 24px;
+            font-weight: normal;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            z-index: 50;
+        }
+        
+        .bank-amount {
+            position: absolute;
+            top: 85%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: normal;
+            z-index: 50;
+        }
+        
+        .bottom-panel {
+            flex: 1;
+            background-color: #0a1a3a;
+            border-top: 2px solid #fff;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            padding: 10px 0;
+            width: 200px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 100;
+        }
+        
+        .dropdown-menu a {
+            display: block;
+            padding: 10px 20px;
+            color: #333;
+            text-decoration: none;
+            font-weight: normal; /* Тонкий шрифт */
+        }
+        
+        .dropdown-menu a:hover {
+            background-color: #f0f0f0;
+        }
+        
+        
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .center-block {
+                width: 80%;
+                height: 35px;
+            }
+            
+            .game-title {
+                font-size: 36px;
+                top: 15%;
+            }
+            
+            .bank-title {
+                font-size: 20px;
+                top: 75%;
+            }
+            
+            .bank-amount {
+                font-size: 16px;
+                top: 80%;
+            }
+            
+            .player-card {
+                width: 80px;
+            }
+            
+            .player-avatar {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .player-action {
+                font-size: 10px;
+                min-width: 60px;
+            }
+            
+            .player-name {
+                font-size: 12px;
+            }
+            
+            .player-balance {
+                font-size: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .game-title {
+                font-size: 28px;
+            }
+            
+            .bank-title {
+                font-size: 18px;
+            }
+            
+            .bank-amount {
+                font-size: 14px;
+                padding: 6px 15px;
+            }
+            
+            .player-turn-info {
+                font-size: 14px;
+            }
+            
+            .players-container {
+                width: 95%;
+            }
+            
+            .player-card {
+                width: 70px;
+            }
+            
+            .player-avatar {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-area">
+        <!-- Кнопка меню слева -->
+        <button class="menu-button" id="menuButton"></button>
+        
+        <!-- Белый закруглённый блок -->
+        <div class="center-block">
+            <div class="player-turn-info" id="playerTurnInfo">
+                Ожидание начала игры...
+            </div>
+        </div>
+        
+        <!-- Кнопки справа -->
+        <div class="top-right-buttons">
+            <button class="sound-button" id="soundButton"></button>
+            <button class="exit-button" id="exitButton"></button>
+        </div>
+        
+        <!-- Выпадающее меню -->
+        <div class="dropdown-menu" id="dropdownMenu">
+            <a href="rules.html" class="menu-link" data-target="rules">📜Правила игры</a>
+            <a href="history.html" class="menu-link" data-target="history">📊История транзакций</a>
+            <a href="invite.html" class="menu-link" data-target="invite">👥Пригласить друга</a>
+        </div>
+        
+        <!-- Надпись "Сека" -->
+        <div class="game-title">Сека</div>
+        
+        <!-- Блоки игроков -->
+        <div class="players-container">
+            <!-- Игроки слева -->
+            <div class="players-left">
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player1.png')"></div>
+                    <div class="player-action" id="player1Action">Ожидание</div>
+                    <div class="player-name" id="player1Name">Игрок 1</div>
+                    <div class="player-balance" id="player1Balance">$ 150.00</div>
+                </div>
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player2.png')"></div>
+                    <div class="player-action" id="player2Action">Ожидание</div>
+                    <div class="player-name" id="player2Name">Игрок 2</div>
+                    <div class="player-balance" id="player2Balance">$ 200.00</div>
+                </div>
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player3.png')"></div>
+                    <div class="player-action" id="player3Action">Ожидание</div>
+                    <div class="player-name" id="player3Name">Игрок 3</div>
+                    <div class="player-balance" id="player3Balance">$ 175.50</div>
+                </div>
+            </div>
+            
+            <!-- Игроки справа -->
+            <div class="players-right">
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player4.png')"></div>
+                    <div class="player-action" id="player4Action">Ожидание</div>
+                    <div class="player-name" id="player4Name">Игрок 4</div>
+                    <div class="player-balance" id="player4Balance">$ 125.00</div>
+                </div>
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player5.png')"></div>
+                    <div class="player-action" id="player5Action">Ожидание</div>
+                    <div class="player-name" id="player5Name">Игрок 5</div>
+                    <div class="player-balance" id="player5Balance">$ 225.75</div>
+                </div>
+                <div class="player-card">
+                    <div class="player-avatar" style="background-image: url('static/player6.png')"></div>
+                    <div class="player-action" id="player6Action">Ожидание</div>
+                    <div class="player-name" id="player6Name">Игрок 6</div>
+                    <div class="player-balance" id="player6Balance">$ 100.00</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Надпись "Банк" -->
+        <div class="bank-title">Банк</div>
+        
+        <!-- Сумма в банке -->
+        <div class="bank-amount" id="bankAmount">$ 0.00</div>
+    </div>
+    
+    <div class="bottom-panel">
+        <!-- Панель управления -->
+    </div>
+
+    <script>
+        // Класс для управления состоянием игры
+        class GameState {
+            constructor() {
+                this.players = [
+                    { id: 1, name: "Иван", balance: 150.00, action: "Ожидание", avatar: "static/player1.png" },
+                    { id: 2, name: "Мария", balance: 200.00, action: "Пас", avatar: "static/player2.png" },
+                    { id: 3, name: "Алексей", balance: 175.50, action: "Оплатил", avatar: "static/player3.png" },
+                    { id: 4, name: "Елена", balance: 125.00, action: "Ожидание", avatar: "static/player4.png" },
+                    { id: 5, name: "Дмитрий", balance: 225.75, action: "Ходит", avatar: "static/player5.png" },
+                    { id: 6, name: "Ольга", balance: 100.00, action: "Ожидание", avatar: "static/player6.png" }
+                ];
+                this.bankAmount = 0.00;
+                this.currentTurn = "Дмитрий";
+                this.loadState();
+            }
+            
+            saveState() {
+                const state = {
+                    players: this.players,
+                    bankAmount: this.bankAmount,
+                    currentTurn: this.currentTurn,
+                    timestamp: Date.now()
+                };
+                sessionStorage.setItem('sekaGameState', JSON.stringify(state));
+            }
+            
+            loadState() {
+                const savedState = sessionStorage.getItem('sekaGameState');
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    // Проверяем, не устарели ли данные (например, если страница была закрыта более 5 минут)
+                    if (Date.now() - state.timestamp < 300000) { // 5 минут = 300000 мс
+                        this.players = state.players;
+                        this.bankAmount = state.bankAmount;
+                        this.currentTurn = state.currentTurn;
+                    }
+                }
+            }
+            
+            clearState() {
+                sessionStorage.removeItem('sekaGameState');
+            }
+            
+            updateBankAmount(amount) {
+                this.bankAmount = amount;
+                this.saveState();
+            }
+            
+            updatePlayer(id, updates) {
+                const player = this.players.find(p => p.id === id);
+                if (player) {
+                    Object.assign(player, updates);
+                    this.saveState();
+                }
+            }
+            
+            setCurrentTurn(playerName) {
+                this.currentTurn = playerName;
+                this.saveState();
+            }
+        }
+
+        // Инициализация состояния игры
+        const gameState = new GameState();
+        
+        // Функция обновления данных игроков
+        function updatePlayersData() {
+            gameState.players.forEach(player => {
+                const playerElement = document.getElementById(`player${player.id}Name`);
+                const balanceElement = document.getElementById(`player${player.id}Balance`);
+                const actionElement = document.getElementById(`player${player.id}Action`);
+                const avatarElement = document.querySelector(`#player${player.id}Action`).previousElementSibling;
+                
+                if (playerElement) playerElement.textContent = player.name;
+                if (balanceElement) balanceElement.textContent = `$ ${player.balance.toFixed(2)}`;
+                if (actionElement) actionElement.textContent = player.action;
+                if (avatarElement) avatarElement.style.backgroundImage = `url('${player.avatar}')`;
+                
+                // Подсветка активного игрока
+                if (player.action === "Ходит") {
+                    actionElement.style.backgroundColor = "rgba(0, 150, 0, 0.5)";
+                } else if (player.action === "Пас") {
+                    actionElement.style.backgroundColor = "rgba(150, 0, 0, 0.5)";
+                } else if (player.action === "Оплатил") {
+                    actionElement.style.backgroundColor = "rgba(0, 0, 150, 0.5)";
+                } else {
+                    actionElement.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
+                }
+            });
+        }
+        
+        // Функция обновления банка
+        function updateBankAmount(amount) {
+            gameState.updateBankAmount(amount);
+            document.getElementById('bankAmount').textContent = `$ ${amount.toFixed(2)}`;
+        }
+        
+        // Имитация получения данных
+        function fetchGameData() {
+            setTimeout(() => {
+                updateBankAmount(125.50);
+                updatePlayersData();
+                document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${gameState.currentTurn}`;
+            }, 1000);
+        }
+        
+        // Обработчик для ссылок меню
+        function handleMenuLinkClick(e) {
+            e.preventDefault();
+            const target = e.target.getAttribute('data-target');
+            
+            // Сохраняем состояние перед переходом
+            gameState.saveState();
+            
+            // Переходим на новую страницу
+            window.location.href = e.target.getAttribute('href');
+        }
+        
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            // Восстановление состояния при загрузке
+            updateBankAmount(gameState.bankAmount);
+            updatePlayersData();
+            document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${gameState.currentTurn}`;
+            
+            // Загрузка данных (имитация)
+            fetchGameData();
+            
+            if (window.Telegram && Telegram.WebApp) {
+                const tgUser = Telegram.WebApp.initDataUnsafe.user;
+                if (tgUser) {
+                    const currentPlayerName = tgUser.first_name || 'Игрок';
+                    gameState.setCurrentTurn(currentPlayerName);
+                    document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${currentPlayerName}`;
+                }
+            }
+            
+            // Назначаем обработчики для ссылок меню
+            document.querySelectorAll('.menu-link').forEach(link => {
+                link.addEventListener('click', handleMenuLinkClick);
+            });
+            
+            // Остальные обработчики событий
+            document.getElementById('menuButton').addEventListener('click', function() {
+                var menu = document.getElementById('dropdownMenu');
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            });
+            
+            document.getElementById('soundButton').addEventListener('click', function() {
+                alert('Регулировка звука');
+            });
+            
+            document.getElementById('exitButton').addEventListener('click', function() {
+                if(confirm('Вы уверены, что хотите выйти?')) {
+                    gameState.clearState();
+                    // Здесь можно добавить переход на главную страницу или закрытие приложения
+                    alert('Выход из игры');
+                }
+            });
+            
+            document.addEventListener('click', function(event) {
+                var menu = document.getElementById('dropdownMenu');
+                var button = document.getElementById('menuButton');
+                
+                if (event.target !== button && !menu.contains(event.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
