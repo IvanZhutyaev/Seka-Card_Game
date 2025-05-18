@@ -6,7 +6,7 @@ import os
 app = FastAPI()
 
 # Разрешаем доступ только к указанным страницам
-ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html"]
+ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer_by_id.html"]
 
 # Главная страница должна перенаправлять на Game-start.html
 @app.get("/")
@@ -24,6 +24,8 @@ async def get_page(page_name: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(file_path)
+
+app.mount("/static", StaticFiles(directory="pages/static"), name="static")
 
 
 
