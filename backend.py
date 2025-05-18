@@ -4,13 +4,15 @@ import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psycopg2
 import redis
+import httpx
+from urllib.parse import parse_qs
 
 # ====================== НАСТРОЙКИ ======================
 class Settings(BaseModel):
@@ -20,11 +22,12 @@ class Settings(BaseModel):
     POSTGRES_HOST: str = "localhost"
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
+    AVATAR_CACHE_DIR: str = "static/avatars"
 
 settings = Settings()
+os.makedirs(settings.AVATAR_CACHE_DIR, exist_ok=True)
 
 # ====================== ПОДКЛЮЧЕНИЕ К БАЗАМ ДАННЫХ ======================
-# PostgreSQL connection
 def get_db_connection():
     conn = psycopg2.connect(
         dbname=settings.POSTGRES_DB,
@@ -34,7 +37,6 @@ def get_db_connection():
     )
     return conn
 
-# Redis connection
 redis_client = redis.Redis(
     host=settings.REDIS_HOST,
     port=settings.REDIS_PORT,
@@ -46,6 +48,7 @@ class GameStatus(str, Enum):
     WAITING = "waiting"
     ACTIVE = "active"
     FINISHED = "finished"
+    SVARA = "svara"
 
 class TransactionType(str, Enum):
     BET = "bet"
@@ -54,11 +57,67 @@ class TransactionType(str, Enum):
     FOLD = "fold"
     SVARA = "svara"
     JOIN = "join"
+    BLUFF = "bluff"
 
 class Player(BaseModel):
     id: str
-    username: Optional[str]
+    telegram_id: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    photo_url: Optional[str] = None
     balance: int = 1000
+    position: Optional[str] = None  # left or right
+
+class PlayerResponse(BaseModel):
+    id: str
+    first_name: str
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    photo_url: Optional[str] = None
+    position: Optional[str] = None
+    is_current: bool = False
+
+class GameStateResponse(BaseModel):
+    bank_amount: float
+    current_turn: str
+    players: List[Dict[str, Union[str, float, bool]]]
+
+# ====================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======================
+def get_avatar_path(player_id: str) -> str:
+    return f"{settings.AVATAR_CACHE_DIR}/{player_id}.jpg"
+
+async def cache_avatar(player_id: str, photo_url: str) -> Optional[str]:
+    if not photo_url:
+        return None
+        
+    cached_path = get_avatar_path(player_id)
+    if not os.path.exists(cached_path):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(photo_url)
+                if response.status_code == 200:
+                    with open(cached_path, "wb") as f:
+                        f.write(response.content)
+                    return f"/{cached_path}"
+        except Exception as e:
+            print(f"Error caching avatar: {e}")
+    return f"/{cached_path}"
+
+def parse_telegram_user(init_data: str) -> Optional[Dict]:
+    try:
+        parsed_data = parse_qs(init_data)
+        user_data = json.loads(parsed_data.get("user", [""])[0])
+        return {
+            "id": str(user_data.get("id")),
+            "first_name": user_data.get("first_name"),
+            "last_name": user_data.get("last_name"),
+            "username": user_data.get("username"),
+            "photo_url": user_data.get("photo_url")
+        }
+    except Exception as e:
+        print(f"Error parsing Telegram user: {e}")
+        return None
 
 # ====================== МЕТОДЫ ДЛЯ РАБОТЫ С POSTGRESQL ======================
 def create_game_in_db(game_id: str, players: List[str]):
@@ -137,8 +196,14 @@ class SekaGame:
         self.status = GameStatus.WAITING
         self.pot = 0
         self.current_bet = 0
-        self.bluffers = set()  # Игроки, использующие блеф
-        self.svara_pot = 0     # Дополнительный банк для свары
+        self.bluffers = set()
+        self.svara_pot = 0
+        create_game_in_db(self.game_id, player_ids)
+        for player_id in player_ids:
+            set_player_online(player_id)
+            record_transaction(self.game_id, player_id, 0, TransactionType.JOIN)
+
+  
         
         # Инициализация в БД
         create_game_in_db(self.game_id, player_ids)
@@ -424,21 +489,143 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/create_game")
-async def create_game():
-    """Создаем новую игру с игроками из очереди"""
-    players = get_players_in_queue(2)  # Берем 2 игроков из очереди
-    if len(players) < 2:
-        raise HTTPException(status_code=400, detail="Not enough players in queue")
+@app.get("/get_player_data")
+async def get_player_data(request: Request):
+    """Получаем данные текущего пользователя из Telegram"""
+    init_data = request.headers.get("X-Telegram-Init-Data")
+    if not init_data:
+        raise HTTPException(status_code=400, detail="No Telegram init data")
     
-    game = SekaGame(players)
-    game.start_game()
+    user_data = parse_telegram_user(init_data)
+    if not user_data:
+        raise HTTPException(status_code=400, detail="Invalid Telegram user data")
     
-    return {"game_id": game.game_id, "players": players}
+    return user_data
+
+@app.get("/get_players")
+async def get_players(request: Request):
+    """Получаем список всех игроков в текущей игре"""
+    try:
+        # Получаем данные текущего пользователя
+        init_data = request.headers.get("X-Telegram-Init-Data")
+        current_user = parse_telegram_user(init_data) if init_data else None
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Получаем активную игру
+        cur.execute("SELECT id FROM games WHERE status != %s ORDER BY created_at DESC LIMIT 1", 
+                   (GameStatus.FINISHED.value,))
+        game = cur.fetchone()
+        
+        if not game:
+            return []
+        
+        game_id = game[0]
+        
+        # Получаем игроков в этой игре
+        cur.execute("""
+            SELECT p.id, p.telegram_id, p.first_name, p.last_name, p.username, p.photo_url, p.balance, gp.position
+            FROM game_players gp
+            JOIN players p ON gp.player_id = p.id
+            WHERE gp.game_id = %s
+        """, (game_id,))
+        
+        players = []
+        for row in cur.fetchall():
+            player = {
+                "id": row[0],
+                "first_name": row[2],
+                "last_name": row[3],
+                "username": row[4],
+                "photo_url": await cache_avatar(row[0], row[5]),
+                "balance": row[6],
+                "position": row[7],
+                "is_current": current_user and str(current_user["id"]) == str(row[0])
+            }
+            players.append(player)
+        
+        return players
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/get_game_state")
+async def get_game_state():
+    """Получаем текущее состояние игры"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Получаем активную игру
+        cur.execute("""
+            SELECT id, pot FROM games 
+            WHERE status != %s 
+            ORDER BY created_at DESC LIMIT 1
+        """, (GameStatus.FINISHED.value,))
+        game = cur.fetchone()
+        
+        if not game:
+            return {"bank_amount": 0, "current_turn": None, "players": []}
+        
+        game_id, bank_amount = game
+        
+        # Получаем текущего игрока
+        cur.execute("""
+            SELECT p.first_name FROM game_players gp
+            JOIN players p ON gp.player_id = p.id
+            WHERE gp.game_id = %s AND gp.is_turn = TRUE
+        """, (game_id,))
+        current_turn = cur.fetchone()
+        current_turn = current_turn[0] if current_turn else None
+        
+        # Получаем данные игроков
+        cur.execute("""
+            SELECT p.id, p.first_name, p.last_name, p.photo_url, p.balance, 
+                   gp.bet, gp.folded, gp.score, gp.position
+            FROM game_players gp
+            JOIN players p ON gp.player_id = p.id
+            WHERE gp.game_id = %s
+        """, (game_id,))
+        
+        players = []
+        for row in cur.fetchall():
+            player = {
+                "id": row[0],
+                "name": f"{row[1]} {row[2]}" if row[2] else row[1],
+                "balance": row[4],
+                "bet": row[5],
+                "folded": row[6],
+                "score": row[7],
+                "position": row[8],
+                "avatar": await cache_avatar(row[0], row[3])
+            }
+            
+            # Определяем действие
+            if row[6]:  # folded
+                player["action"] = "Пас"
+            elif row[5] > 0:  # bet
+                player["action"] = "Ставка"
+            else:
+                player["action"] = "Ожидание"
+            
+            players.append(player)
+        
+        return {
+            "bank_amount": bank_amount,
+            "current_turn": current_turn,
+            "players": players
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cur.close()
+        conn.close()
 
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
-    """WebSocket подключение для игрока"""
     await websocket.accept()
     set_player_online(player_id)
     
@@ -446,14 +633,40 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
         while True:
             data = await websocket.receive_json()
             
-            # Обработка действий игрока
             if data["action"] == "join_queue":
                 add_player_to_queue(player_id)
-                await websocket.send_json({"status": "added_to_queue"})
+                await websocket.send_json({
+                    "status": "added_to_queue",
+                    "player_id": player_id
+                })
+            elif data["action"] == "get_updates":
+                game_state = get_game_state()
+                await websocket.send_json({
+                    "type": "game_state",
+                    "data": game_state
+                })
+            elif data["action"] == "place_bet":
+                # Здесь должна быть логика обработки ставки
+                pass
+            elif data["action"] == "fold":
+                # Здесь должна быть логика обработки фолда
+                pass
                 
     except WebSocketDisconnect:
-        # При отключении игрока
         redis_client.set(f"player:{player_id}:online", "false")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+
+@app.post("/create_game")
+async def create_game():
+    """Создаем новую игру с игроками из очереди"""
+    players = get_players_in_queue(2)
+    if len(players) < 2:
+        raise HTTPException(status_code=400, detail="Not enough players in queue")
+    
+    game = SekaGame(players)
+    game.start_game()
+    return {"game_id": game.game_id, "players": players}
 
 if __name__ == "__main__":
     import uvicorn
