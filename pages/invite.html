@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Правила Игры</title>
+    <title>Пригласить друга</title>
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -137,35 +137,16 @@
             color: #EA4335;
         }
 
-        .rules-image {
-            width: 100%;
-            max-width: 66.66%; /* 2/3 ширины на ПК */
-            margin: 20px auto;
-            border-radius: 12px;
-            overflow: hidden;
-            flex-grow: 1;
-        }
 
-        .rules-image img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
 
-        /* Медиа-запрос для мобильных устройств */
-        @media (max-width: 768px) {
-            .rules-image {
-                max-width: 100%; /* На всю ширину на мобильных */
-                margin: 20px 0;
-                border-radius: 0;
-            }
-        }
+
+
     </style>
 </head>
 <body>
     <div class="header">
         <button class="back-button" onclick="goBack()">←</button>
-        <div class="page-title">Правила Игры</div>
+        <div class="page-title">Пригласить друга</div>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
             <div class="menu-line"></div>
@@ -174,7 +155,10 @@
     </div>
 
     <div class="dropdown-menu" id="dropdownMenu">
-
+        <div class="dropdown-item" onclick="openPage('rules.html')">
+            <span class="dropdown-icon">📜</span>
+            Правила игры
+        </div>
         <div class="dropdown-item" onclick="openPage('profile.html')">
             <span class="dropdown-icon">👤</span>
             Профиль и настройки
@@ -187,10 +171,7 @@
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
-        <div class="dropdown-item" onclick="openPage('invite.html')">
-            <span class="dropdown-icon">👥</span>
-            Пригласить друга
-        </div>
+
         <div class="dropdown-divider"></div>
         <div class="dropdown-item logout-item" onclick="logout()">
             <span class="dropdown-icon">🚪</span>
@@ -198,9 +179,7 @@
         </div>
     </div>
 
-    <div class="rules-image">
-        <img src="static/rules.png" alt="Правила игры">
-    </div>
+
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

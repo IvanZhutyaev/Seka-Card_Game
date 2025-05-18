@@ -6,11 +6,13 @@
     <title>Перевод по ID</title>
     <style>
         :root {
+            --input-border: rgba(255, 255, 255, 0.3);
             --bg-color: #0a1a2a;
             --text-color: #e0e0e0;
             --blue-accent: #4285F4;
             --white: #ffffff;
             --menu-btn: rgba(66, 133, 244, 0.3);
+            --input-bg: rgba(255, 255, 255, 0.1);
         }
 
         * {
@@ -52,33 +54,17 @@
             gap: 15px;
         }
 
-        .avatar-container {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            border: 3px solid white;
-            overflow: hidden;
-            background-color: #555;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .avatar {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .default-avatar {
-            font-size: 35px;
-            color: white;
-        }
-
         .balance {
             font-size: 24px;
             font-weight: 700;
             color: var(--text-color);
+        }
+
+        .plus-btn {
+            color: white;
+            font-size: 20px;
+            margin-left: 8px;
+            cursor: pointer;
         }
 
         .menu-button {
@@ -109,6 +95,77 @@
             width: 100%;
             text-align: left;
             margin-top: 10px;
+        }
+
+        .transfer-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 16px 0;
+            color: var(--blue-accent);
+        }
+
+        .input-field {
+            background: var(--input-bg);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--input-border);
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 8px 0;
+            background: transparent;
+            color: var(--text-color);
+        }
+
+        .input-field input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .commission {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: auto;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 500;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+
+        .confirm {
+            background: var(--blue-accent);
+            color: white;
+        }
+
+        .cancel {
+            background: #FFA600;
+            color: var(--text-color);
         }
 
         .dropdown-menu {
@@ -159,27 +216,13 @@
         .logout-item {
             color: #EA4335;
         }
-
-        @media (max-width: 400px) {
-            .avatar-container {
-                width: 60px;
-                height: 60px;
-            }
-            .balance {
-                font-size: 20px;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="profile-section">
         <div class="profile-header">
             <div class="profile-info">
-                <div class="avatar-container" id="avatar-container">
-                    <div class="default-avatar">👤</div>
-                    <img class="avatar" id="user-avatar" style="display: none;">
-                </div>
-                <div class="balance">900.00 ₽</div>
+                <div class="balance">900.00 ₽ <span class="plus-btn" onclick="openPage('')">+</span></div>
             </div>
             <button class="menu-button" onclick="toggleDropdown()">
                 <div class="menu-line"></div>
@@ -218,31 +261,61 @@
         </div>
     </div>
 
-    <!-- Основное содержимое страницы будет здесь -->
+    <div class="transfer-container">
+        <div class="title">Перевод по ID</div>
+
+        <div class="input-field">
+            <input type="text" placeholder="Введите ID получателя" id="recipientId">
+        </div>
+
+        <div class="input-field">
+            <input type="number" placeholder="Введите сумму" id="amount">
+        </div>
+
+        <div class="commission">
+            Система удержит комиссию 10% за обслуживание
+        </div>
+
+        <div class="buttons">
+            <button class="btn confirm" onclick="confirmTransfer()">Подтвердить</button>
+            <button class="btn cancel" onclick="goBack()">Отмена</button>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.expand();
                 Telegram.WebApp.enableClosingConfirmation();
-
-                if (Telegram.WebApp.initDataUnsafe?.user) {
-                    const user = Telegram.WebApp.initDataUnsafe.user;
-                    if (user.photo_url) {
-                        const avatarImg = document.getElementById('user-avatar');
-                        avatarImg.src = user.photo_url;
-                        avatarImg.style.display = 'block';
-                        document.querySelector('.default-avatar').style.display = 'none';
-                    }
-                }
             }
         });
 
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
+
+
+        function confirmTransfer() {
+            const recipientId = document.getElementById('recipientId').value;
+            const amount = document.getElementById('amount').value;
+
+            if (!recipientId || !amount) {
+                if (window.Telegram?.WebApp?.showAlert) {
+                    Telegram.WebApp.showAlert('Заполните все поля');
+                } else {
+                    alert('Заполните все поля');
+                }
+                return;
+            }
+
+            if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+
+            // Здесь будет логика подтверждения перевода
+            console.log(`Перевод ${amount} пользователю ${recipientId}`);
+
+            if (window.Telegram?.WebApp?.showAlert) {
+                Telegram.WebApp.showAlert(`Перевод ${amount}₽ выполнен!`);
             } else {
-                window.location.href = page;
+                alert(`Перевод ${amount}₽ выполнен!`);
             }
         }
 
@@ -269,7 +342,8 @@
         }
 
         window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
+            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line') &&
+                !event.target.matches('.plus-btn')) {
                 const dropdowns = document.getElementsByClassName("dropdown-menu");
                 for (let i = 0; i < dropdowns.length; i++) {
                     const openDropdown = dropdowns[i];

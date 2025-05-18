@@ -21,6 +21,7 @@
             transition: all 0.2s;
         }
 
+
         body {
             background-color: var(--bg-color);
             background-image: url(static/background.png);
@@ -54,6 +55,12 @@
             flex-direction: column;
             gap: 5px;
             align-self: center;
+        }
+        .plus-btn {
+            color: white;
+            font-size: 20px;
+            margin-left: 8px;
+            cursor: pointer;
         }
 
         .menu-line {
@@ -129,7 +136,7 @@
         .image-button {
             width: 100%;
             aspect-ratio: 1/1;
-            background-image: url('media/LobbySekaCard.png');
+            background-image: url('static/LobbySekaCard.png');
             background-size: cover;
             background-position: center;
             border-radius: 12px;
@@ -244,7 +251,7 @@
                 <div class="default-avatar">👤</div>
                 <img class="avatar" id="user-avatar" style="display: none;">
             </div>
-            <div class="balance">900.00 ₽</div>
+            <div class="balance">900.00 ₽ <span class="plus-btn" onclick="openPage('')">+</span></div>
         </div>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
@@ -262,15 +269,15 @@
             <span class="dropdown-icon">👤</span>
             Профиль и настройки
         </div>
-        <div class="dropdown-item" onclick="openSection('bonuses')">
+        <div class="dropdown-item" onclick="openPage('bonuses.html')">
             <span class="dropdown-icon">🎁</span>
             Бонусы и акции
         </div>
-        <div class="dropdown-item" onclick="openSection('history')">
+        <div class="dropdown-item" onclick="openPage('history.html')">
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
-        <div class="dropdown-item" onclick="openSection('invite')">
+        <div class="dropdown-item" onclick="openPage('invite.html')">
             <span class="dropdown-icon">👥</span>
             Пригласить друга
         </div>
@@ -316,6 +323,7 @@
                 window.location.href = page;
             }
         }
+
 
         function openPage(page) {
             if (window.Telegram?.WebApp?.openLink) {

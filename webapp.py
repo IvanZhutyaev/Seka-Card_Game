@@ -6,12 +6,12 @@ import os
 app = FastAPI()
 
 # Разрешаем доступ только к указанным страницам
-ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer_by_id.html"]
+ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer.html", "main_menu.html", "bonuses.html", "invite.html", "history.html"]
 
 # Главная страница должна перенаправлять на Game-start.html
 @app.get("/")
 async def read_root():
-    return await get_page("profile.html")
+    return await get_page("main_menu.html")
 
 # Обработка всех разрешенных страниц
 @app.get("/{page_name}")
