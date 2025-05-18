@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Игровое поле</title>
+    <title>Игровое поле Сека</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             margin: 0;
@@ -22,7 +23,6 @@
             position: relative;
         }
         
-        /* Кнопка меню слева */
         .menu-button {
             position: absolute;
             top: 15px;
@@ -36,7 +36,6 @@
             z-index: 100;
         }
         
-        /* Белый закруглённый блок */
         .center-block {
             position: absolute;
             top: 15px;
@@ -62,7 +61,6 @@
             max-width: 90%;
         }
         
-        /* Кнопки справа */
         .top-right-buttons {
             position: absolute;
             top: 15px;
@@ -91,7 +89,6 @@
             background-size: contain;
         }
         
-        /* Блоки игроков */
         .players-container {
             position: absolute;
             top: 50%;
@@ -114,6 +111,7 @@
             flex-direction: column;
             align-items: center;
             width: 100px;
+            transition: all 0.3s ease;
         }
         
         .player-avatar {
@@ -122,7 +120,14 @@
             border-radius: 50%;
             background-color: #ccc;
             background-size: cover;
+            background-position: center;
             border: 2px solid #FFD700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
         }
         
         .player-action {
@@ -141,6 +146,10 @@
             color: white;
             font-size: 14px;
             text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
         }
         
         .player-balance {
@@ -150,7 +159,6 @@
             text-align: center;
         }
         
-        /* Остальные стили */
         .game-title {
             position: absolute;
             top: 20%;
@@ -213,15 +221,18 @@
             padding: 10px 20px;
             color: #333;
             text-decoration: none;
-            font-weight: normal; /* Тонкий шрифт */
+            font-weight: normal;
         }
         
         .dropdown-menu a:hover {
             background-color: #f0f0f0;
         }
         
+        .current-player {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px gold;
+        }
         
-        /* Адаптивность */
         @media (max-width: 768px) {
             .center-block {
                 width: 80%;
@@ -250,6 +261,7 @@
             .player-avatar {
                 width: 50px;
                 height: 50px;
+                font-size: 16px;
             }
             
             .player-action {
@@ -295,265 +307,309 @@
             .player-avatar {
                 width: 40px;
                 height: 40px;
+                font-size: 14px;
             }
         }
     </style>
 </head>
 <body>
     <div class="main-area">
-        <!-- Кнопка меню слева -->
         <button class="menu-button" id="menuButton"></button>
         
-        <!-- Белый закруглённый блок -->
         <div class="center-block">
             <div class="player-turn-info" id="playerTurnInfo">
                 Ожидание начала игры...
             </div>
         </div>
         
-        <!-- Кнопки справа -->
         <div class="top-right-buttons">
             <button class="sound-button" id="soundButton"></button>
             <button class="exit-button" id="exitButton"></button>
         </div>
         
-        <!-- Выпадающее меню -->
         <div class="dropdown-menu" id="dropdownMenu">
-            <a href="rules.html" class="menu-link" data-target="rules">📜Правила игры</a>
-            <a href="history.html" class="menu-link" data-target="history">📊История транзакций</a>
-            <a href="invite.html" class="menu-link" data-target="invite">👥Пригласить друга</a>
+            <a href="rules.html">📜Правила игры</a>
+            <a href="history.html">📊История транзакций</a>
+            <a href="invite.html">👥Пригласить друга</a>
         </div>
         
-        <!-- Надпись "Сека" -->
         <div class="game-title">Сека</div>
         
-        <!-- Блоки игроков -->
         <div class="players-container">
-            <!-- Игроки слева -->
-            <div class="players-left">
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player1.png')"></div>
-                    <div class="player-action" id="player1Action">Ожидание</div>
-                    <div class="player-name" id="player1Name">Игрок 1</div>
-                    <div class="player-balance" id="player1Balance">$ 150.00</div>
-                </div>
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player2.png')"></div>
-                    <div class="player-action" id="player2Action">Ожидание</div>
-                    <div class="player-name" id="player2Name">Игрок 2</div>
-                    <div class="player-balance" id="player2Balance">$ 200.00</div>
-                </div>
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player3.png')"></div>
-                    <div class="player-action" id="player3Action">Ожидание</div>
-                    <div class="player-name" id="player3Name">Игрок 3</div>
-                    <div class="player-balance" id="player3Balance">$ 175.50</div>
-                </div>
-            </div>
-            
-            <!-- Игроки справа -->
-            <div class="players-right">
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player4.png')"></div>
-                    <div class="player-action" id="player4Action">Ожидание</div>
-                    <div class="player-name" id="player4Name">Игрок 4</div>
-                    <div class="player-balance" id="player4Balance">$ 125.00</div>
-                </div>
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player5.png')"></div>
-                    <div class="player-action" id="player5Action">Ожидание</div>
-                    <div class="player-name" id="player5Name">Игрок 5</div>
-                    <div class="player-balance" id="player5Balance">$ 225.75</div>
-                </div>
-                <div class="player-card">
-                    <div class="player-avatar" style="background-image: url('static/player6.png')"></div>
-                    <div class="player-action" id="player6Action">Ожидание</div>
-                    <div class="player-name" id="player6Name">Игрок 6</div>
-                    <div class="player-balance" id="player6Balance">$ 100.00</div>
-                </div>
-            </div>
+            <div class="players-left" id="playersLeft"></div>
+            <div class="players-right" id="playersRight"></div>
         </div>
         
-        <!-- Надпись "Банк" -->
         <div class="bank-title">Банк</div>
-        
-        <!-- Сумма в банке -->
         <div class="bank-amount" id="bankAmount">$ 0.00</div>
     </div>
     
-    <div class="bottom-panel">
-        <!-- Панель управления -->
-    </div>
+    <div class="bottom-panel"></div>
 
     <script>
-        // Класс для управления состоянием игры
-        class GameState {
+        class GameController {
             constructor() {
-                this.players = [
-                    { id: 1, name: "Иван", balance: 150.00, action: "Ожидание", avatar: "static/player1.png" },
-                    { id: 2, name: "Мария", balance: 200.00, action: "Пас", avatar: "static/player2.png" },
-                    { id: 3, name: "Алексей", balance: 175.50, action: "Оплатил", avatar: "static/player3.png" },
-                    { id: 4, name: "Елена", balance: 125.00, action: "Ожидание", avatar: "static/player4.png" },
-                    { id: 5, name: "Дмитрий", balance: 225.75, action: "Ходит", avatar: "static/player5.png" },
-                    { id: 6, name: "Ольга", balance: 100.00, action: "Ожидание", avatar: "static/player6.png" }
-                ];
-                this.bankAmount = 0.00;
-                this.currentTurn = "Дмитрий";
-                this.loadState();
-            }
-            
-            saveState() {
-                const state = {
-                    players: this.players,
-                    bankAmount: this.bankAmount,
-                    currentTurn: this.currentTurn,
-                    timestamp: Date.now()
+                this.tgUser = null;
+                this.gameState = {
+                    players: [],
+                    bankAmount: 0,
+                    currentTurn: null
                 };
-                sessionStorage.setItem('sekaGameState', JSON.stringify(state));
+                this.socket = null;
+                this.playerColors = [
+                    '#FF5733', '#33FF57', '#3357FF', '#F333FF', '#33FFF3',
+                    '#FF33F3', '#33FFBD', '#FFBD33', '#8D33FF', '#33A2FF'
+                ];
+                
+                this.init();
             }
             
-            loadState() {
-                const savedState = sessionStorage.getItem('sekaGameState');
-                if (savedState) {
-                    const state = JSON.parse(savedState);
-                    // Проверяем, не устарели ли данные (например, если страница была закрыта более 5 минут)
-                    if (Date.now() - state.timestamp < 300000) { // 5 минут = 300000 мс
-                        this.players = state.players;
-                        this.bankAmount = state.bankAmount;
-                        this.currentTurn = state.currentTurn;
+            async init() {
+                this.initTelegramWebApp();
+                this.setupEventListeners();
+                await this.loadInitialData();
+                this.connectWebSocket();
+            }
+            
+            initTelegramWebApp() {
+                if (window.Telegram && Telegram.WebApp) {
+                    Telegram.WebApp.expand();
+                    this.tgUser = Telegram.WebApp.initDataUnsafe?.user;
+                    
+                    if (this.tgUser) {
+                        document.getElementById('playerTurnInfo').textContent = 
+                            `Добро пожаловать, ${this.tgUser.first_name || 'Игрок'}!`;
                     }
                 }
             }
             
-            clearState() {
-                sessionStorage.removeItem('sekaGameState');
+            setupEventListeners() {
+                document.getElementById('menuButton').addEventListener('click', () => {
+                    const menu = document.getElementById('dropdownMenu');
+                    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+                });
+                
+                document.getElementById('soundButton').addEventListener('click', () => {
+                    alert('Регулировка звука');
+                });
+                
+                document.getElementById('exitButton').addEventListener('click', () => {
+                    if (confirm('Вы уверены, что хотите выйти?')) {
+                        if (this.socket) this.socket.close();
+                        Telegram.WebApp.close();
+                    }
+                });
+                
+                document.addEventListener('click', (event) => {
+                    const menu = document.getElementById('dropdownMenu');
+                    const button = document.getElementById('menuButton');
+                    
+                    if (event.target !== button && !menu.contains(event.target)) {
+                        menu.style.display = 'none';
+                    }
+                });
             }
             
-            updateBankAmount(amount) {
-                this.bankAmount = amount;
-                this.saveState();
-            }
-            
-            updatePlayer(id, updates) {
-                const player = this.players.find(p => p.id === id);
-                if (player) {
-                    Object.assign(player, updates);
-                    this.saveState();
+            async loadInitialData() {
+                try {
+                    // Загружаем данные игроков
+                    const response = await fetch('/get_players');
+                    const players = await response.json();
+                    
+                    // Добавляем текущего пользователя, если есть
+                    if (this.tgUser) {
+                        players.unshift({
+                            id: this.tgUser.id.toString(),
+                            first_name: this.tgUser.first_name,
+                            last_name: this.tgUser.last_name,
+                            username: this.tgUser.username,
+                            photo_url: this.tgUser.photo_url,
+                            is_current: true
+                        });
+                    }
+                    
+                    // Отображаем игроков
+                    players.forEach((player, index) => {
+                        this.addPlayer(player, index % 2 === 0 ? 'left' : 'right');
+                    });
+                    
+                    // Загружаем состояние игры
+                    const gameResponse = await fetch('/get_game_state');
+                    const gameState = await gameResponse.json();
+                    this.updateGameState(gameState);
+                    
+                } catch (error) {
+                    console.error('Ошибка загрузки данных:', error);
                 }
             }
             
-            setCurrentTurn(playerName) {
-                this.currentTurn = playerName;
-                this.saveState();
+            connectWebSocket() {
+                if (!this.tgUser) return;
+                
+                const socketUrl = `ws://${window.location.host}/ws/${this.tgUser.id}`;
+                this.socket = new WebSocket(socketUrl);
+                
+                this.socket.onopen = () => {
+                    console.log('WebSocket connected');
+                    this.socket.send(JSON.stringify({
+                        action: 'join',
+                        player_id: this.tgUser.id
+                    }));
+                };
+                
+                this.socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleSocketMessage(data);
+                };
+                
+                this.socket.onclose = () => {
+                    console.log('WebSocket disconnected');
+                };
+            }
+            
+            handleSocketMessage(data) {
+                switch (data.type) {
+                    case 'player_update':
+                        this.updatePlayer(data.data);
+                        break;
+                    case 'game_state':
+                        this.updateGameState(data.data);
+                        break;
+                    case 'new_message':
+                        this.showGameMessage(data.message);
+                        break;
+                }
+            }
+            
+            addPlayer(playerData, side) {
+                const container = side === 'left' ? 
+                    document.getElementById('playersLeft') : 
+                    document.getElementById('playersRight');
+                
+                const playerCard = document.createElement('div');
+                playerCard.className = `player-card ${playerData.is_current ? 'current-player' : ''}`;
+                playerCard.id = `player-${playerData.id}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'player-avatar';
+                avatar.id = `avatar-${playerData.id}`;
+                
+                const action = document.createElement('div');
+                action.className = 'player-action';
+                action.id = `action-${playerData.id}`;
+                action.textContent = 'Ожидание';
+                
+                const name = document.createElement('div');
+                name.className = 'player-name';
+                name.id = `name-${playerData.id}`;
+                name.textContent = playerData.first_name + (playerData.last_name ? ` ${playerData.last_name}` : '');
+                
+                const balance = document.createElement('div');
+                balance.className = 'player-balance';
+                balance.id = `balance-${playerData.id}`;
+                balance.textContent = '$ 1000.00';
+                
+                // Устанавливаем аватар
+                if (playerData.photo_url) {
+                    avatar.style.backgroundImage = `url('${playerData.photo_url}')`;
+                } else {
+                    const initials = (playerData.first_name?.[0] || '') + (playerData.last_name?.[0] || '');
+                    avatar.style.backgroundColor = this.playerColors[Math.floor(Math.random() * this.playerColors.length)];
+                    avatar.textContent = initials;
+                }
+                
+                playerCard.appendChild(avatar);
+                playerCard.appendChild(action);
+                playerCard.appendChild(name);
+                playerCard.appendChild(balance);
+                container.appendChild(playerCard);
+                
+                // Сохраняем в состоянии
+                this.gameState.players.push({
+                    id: playerData.id,
+                    element: playerCard,
+                    data: playerData
+                });
+            }
+            
+            updatePlayer(playerData) {
+                const player = this.gameState.players.find(p => p.id === playerData.id);
+                if (!player) return;
+                
+                // Обновляем аватар
+                const avatar = document.getElementById(`avatar-${playerData.id}`);
+                if (avatar && playerData.avatar) {
+                    avatar.style.backgroundImage = `url('${playerData.avatar}')`;
+                }
+                
+                // Обновляем имя
+                const name = document.getElementById(`name-${playerData.id}`);
+                if (name && playerData.name) {
+                    name.textContent = playerData.name;
+                }
+                
+                // Обновляем баланс
+                const balance = document.getElementById(`balance-${playerData.id}`);
+                if (balance && playerData.balance) {
+                    balance.textContent = `$ ${playerData.balance.toFixed(2)}`;
+                }
+                
+                // Обновляем действие
+                const action = document.getElementById(`action-${playerData.id}`);
+                if (action && playerData.action) {
+                    action.textContent = playerData.action;
+                    
+                    // Подсветка действия
+                    if (playerData.action === "Ходит") {
+                        action.style.backgroundColor = "rgba(0, 150, 0, 0.5)";
+                    } else if (playerData.action === "Пас") {
+                        action.style.backgroundColor = "rgba(150, 0, 0, 0.5)";
+                    } else if (playerData.action === "Оплатил") {
+                        action.style.backgroundColor = "rgba(0, 0, 150, 0.5)";
+                    } else {
+                        action.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
+                    }
+                }
+            }
+            
+            updateGameState(gameState) {
+                // Обновляем банк
+                if (gameState.bankAmount !== undefined) {
+                    this.gameState.bankAmount = gameState.bankAmount;
+                    document.getElementById('bankAmount').textContent = `$ ${gameState.bankAmount.toFixed(2)}`;
+                }
+                
+                // Обновляем текущий ход
+                if (gameState.currentTurn !== undefined) {
+                    this.gameState.currentTurn = gameState.currentTurn;
+                    document.getElementById('playerTurnInfo').textContent = 
+                        `Очередь игрока: ${gameState.currentTurn}`;
+                }
+                
+                // Обновляем игроков
+                if (gameState.players) {
+                    gameState.players.forEach(playerData => {
+                        this.updatePlayer(playerData);
+                    });
+                }
+            }
+            
+            showGameMessage(message) {
+                const turnInfo = document.getElementById('playerTurnInfo');
+                turnInfo.textContent = message;
+                
+                // Возвращаем предыдущее сообщение через 3 секунды
+                if (this.gameState.currentTurn) {
+                    setTimeout(() => {
+                        turnInfo.textContent = `Очередь игрока: ${this.gameState.currentTurn}`;
+                    }, 3000);
+                }
             }
         }
 
-        // Инициализация состояния игры
-        const gameState = new GameState();
-        
-        // Функция обновления данных игроков
-        function updatePlayersData() {
-            gameState.players.forEach(player => {
-                const playerElement = document.getElementById(`player${player.id}Name`);
-                const balanceElement = document.getElementById(`player${player.id}Balance`);
-                const actionElement = document.getElementById(`player${player.id}Action`);
-                const avatarElement = document.querySelector(`#player${player.id}Action`).previousElementSibling;
-                
-                if (playerElement) playerElement.textContent = player.name;
-                if (balanceElement) balanceElement.textContent = `$ ${player.balance.toFixed(2)}`;
-                if (actionElement) actionElement.textContent = player.action;
-                if (avatarElement) avatarElement.style.backgroundImage = `url('${player.avatar}')`;
-                
-                // Подсветка активного игрока
-                if (player.action === "Ходит") {
-                    actionElement.style.backgroundColor = "rgba(0, 150, 0, 0.5)";
-                } else if (player.action === "Пас") {
-                    actionElement.style.backgroundColor = "rgba(150, 0, 0, 0.5)";
-                } else if (player.action === "Оплатил") {
-                    actionElement.style.backgroundColor = "rgba(0, 0, 150, 0.5)";
-                } else {
-                    actionElement.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
-                }
-            });
-        }
-        
-        // Функция обновления банка
-        function updateBankAmount(amount) {
-            gameState.updateBankAmount(amount);
-            document.getElementById('bankAmount').textContent = `$ ${amount.toFixed(2)}`;
-        }
-        
-        // Имитация получения данных
-        function fetchGameData() {
-            setTimeout(() => {
-                updateBankAmount(125.50);
-                updatePlayersData();
-                document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${gameState.currentTurn}`;
-            }, 1000);
-        }
-        
-        // Обработчик для ссылок меню
-        function handleMenuLinkClick(e) {
-            e.preventDefault();
-            const target = e.target.getAttribute('data-target');
-            
-            // Сохраняем состояние перед переходом
-            gameState.saveState();
-            
-            // Переходим на новую страницу
-            window.location.href = e.target.getAttribute('href');
-        }
-        
-        // Инициализация
-        document.addEventListener('DOMContentLoaded', function() {
-            // Восстановление состояния при загрузке
-            updateBankAmount(gameState.bankAmount);
-            updatePlayersData();
-            document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${gameState.currentTurn}`;
-            
-            // Загрузка данных (имитация)
-            fetchGameData();
-            
-            if (window.Telegram && Telegram.WebApp) {
-                const tgUser = Telegram.WebApp.initDataUnsafe.user;
-                if (tgUser) {
-                    const currentPlayerName = tgUser.first_name || 'Игрок';
-                    gameState.setCurrentTurn(currentPlayerName);
-                    document.getElementById('playerTurnInfo').textContent = `Очередь игрока: ${currentPlayerName}`;
-                }
-            }
-            
-            // Назначаем обработчики для ссылок меню
-            document.querySelectorAll('.menu-link').forEach(link => {
-                link.addEventListener('click', handleMenuLinkClick);
-            });
-            
-            // Остальные обработчики событий
-            document.getElementById('menuButton').addEventListener('click', function() {
-                var menu = document.getElementById('dropdownMenu');
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-            });
-            
-            document.getElementById('soundButton').addEventListener('click', function() {
-                alert('Регулировка звука');
-            });
-            
-            document.getElementById('exitButton').addEventListener('click', function() {
-                if(confirm('Вы уверены, что хотите выйти?')) {
-                    gameState.clearState();
-                    // Здесь можно добавить переход на главную страницу или закрытие приложения
-                    alert('Выход из игры');
-                }
-            });
-            
-            document.addEventListener('click', function(event) {
-                var menu = document.getElementById('dropdownMenu');
-                var button = document.getElementById('menuButton');
-                
-                if (event.target !== button && !menu.contains(event.target)) {
-                    menu.style.display = 'none';
-                }
-            });
+        // Инициализация игры при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            new GameController();
         });
     </script>
 </body>
