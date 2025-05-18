@@ -231,37 +231,26 @@
             }
         }
 
-        function logout() {
-        const isTelegram = Boolean(window.Telegram?.WebApp);
-
-    // 2. Функция для выполнения выхода
-
-        const performLogout = () => {
-            if (isTelegram) {
-            // Закрываем мини-приложение
-                Telegram.WebApp.close();
+        function forceCloseWebApp() {
+            if (window.Telegram?.WebApp) {
+                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
+                
+                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
+                setTimeout(() => {
+                    window.location.href = "tg://"; // Возврат в Telegram
+                }, 300);
             } else {
-            // Редирект в браузерной версии
-                window.location.href = 'https://t.me/SekaMiniBot'; // Замените на username вашего бота
-            }
-        };
-
-    // 3. Запрашиваем подтверждение
-        if (isTelegram && Telegram.WebApp.showConfirm) {
-        // Используем нативный confirm от Telegram
-            Telegram.WebApp.showConfirm(
-                'Вы уверены, что хотите выйти?',
-                (confirmed) => {
-                    if (confirmed) performLogout();
-                }
-            );
-        } else {
-        // Используем стандартный confirm в браузере
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                performLogout();
+                alert("WebApp закрыта");
+                window.close();
             }
         }
+        function logout() {
+            function logout() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                forceCloseWebApp(); // или forceCloseWebApp()
             }
+            }   
+        }
 
     </script>
 </body>

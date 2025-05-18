@@ -231,14 +231,25 @@
             }
         }
 
-        function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                if (window.Telegram?.WebApp?.close) {
-                    Telegram.WebApp.close();
-                } else {
-                    alert('Выход из системы');
-                }
+        function forceCloseWebApp() {
+            if (window.Telegram?.WebApp) {
+                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
+                
+                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
+                setTimeout(() => {
+                    window.location.href = "tg://"; // Возврат в Telegram
+                }, 300);
+            } else {
+                alert("WebApp закрыта");
+                window.close();
             }
+        }
+        function logout() {
+            function logout() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                forceCloseWebApp(); // или forceCloseWebApp()
+            }
+            }   
         }
     </script>
 </body>
