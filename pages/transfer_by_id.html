@@ -33,45 +33,31 @@
             flex-direction: column;
         }
 
-        .header {
+        .profile-section {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .profile-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            position: relative;
-            width: 100%;
+            margin-bottom: 15px;
         }
 
-        .back-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 32px;
-            cursor: pointer;
-            padding: 8px;
-            width: 40px;
-            height: 40px;
+        .profile-info {
             display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 1;
-        }
-
-        .user-info-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-left: 10px;
-            flex-grow: 1;
+            gap: 15px;
         }
 
         .avatar-container {
-            width: 40px;
-            height: 40px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
-            border: 2px solid white;
+            border: 3px solid white;
             overflow: hidden;
-            flex-shrink: 0;
             background-color: #555;
             display: flex;
             align-items: center;
@@ -85,12 +71,12 @@
         }
 
         .default-avatar {
-            font-size: 20px;
+            font-size: 35px;
             color: white;
         }
 
         .balance {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 700;
             color: var(--text-color);
         }
@@ -104,8 +90,6 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
-            align-self: center;
-            z-index: 1;
         }
 
         .menu-line {
@@ -115,11 +99,23 @@
             border-radius: 2px;
         }
 
+        .back-button {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 32px;
+            cursor: pointer;
+            padding: 8px;
+            width: 100%;
+            text-align: left;
+            margin-top: 10px;
+        }
+
         .dropdown-menu {
             display: none;
             position: absolute;
             right: 16px;
-            top: 60px;
+            top: 110px;
             background-color: #0f2233;
             border-radius: 12px;
             padding: 8px 0;
@@ -165,33 +161,33 @@
         }
 
         @media (max-width: 400px) {
-            .balance {
-                font-size: 16px;
-            }
             .avatar-container {
-                width: 35px;
-                height: 35px;
+                width: 60px;
+                height: 60px;
+            }
+            .balance {
+                font-size: 20px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <button class="back-button" onclick="goBack()">←</button>
-        
-        <div class="user-info-container">
-            <div class="avatar-container" id="avatar-container">
-                <div class="default-avatar">👤</div>
-                <img class="avatar" id="user-avatar" style="display: none;">
+    <div class="profile-section">
+        <div class="profile-header">
+            <div class="profile-info">
+                <div class="avatar-container" id="avatar-container">
+                    <div class="default-avatar">👤</div>
+                    <img class="avatar" id="user-avatar" style="display: none;">
+                </div>
+                <div class="balance">900.00 ₽</div>
             </div>
-            <div class="balance">900.00 ₽</div>
+            <button class="menu-button" onclick="toggleDropdown()">
+                <div class="menu-line"></div>
+                <div class="menu-line"></div>
+                <div class="menu-line"></div>
+            </button>
         </div>
-        
-        <button class="menu-button" onclick="toggleDropdown()">
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-        </button>
+        <button class="back-button" onclick="goBack()">←</button>
     </div>
 
     <div class="dropdown-menu" id="dropdownMenu">
