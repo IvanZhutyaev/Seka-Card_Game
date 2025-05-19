@@ -6,7 +6,7 @@ import os
 app = FastAPI()
 
 # Разрешаем доступ только к указанным страницам
-ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer.html", "main_menu.html", "bonuses.html", "invite.html", "history.html"]
+ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer.html", "main_menu.html", "bonuses.html", "invite.html", "history.html", "gameplay.html"]
 
 # Главная страница должна перенаправлять на Game-start.html
 @app.get("/")

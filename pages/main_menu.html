@@ -135,8 +135,9 @@
 
         .image-button {
             width: 100%;
+
             aspect-ratio: 1/1;
-            background-image: url('static/LobbySekaCard.png');
+            background-image: url('static/LobbySekaCard.jpeg');
             background-size: cover;
             background-position: center;
             border-radius: 12px;
@@ -251,7 +252,7 @@
                 <div class="default-avatar">👤</div>
                 <img class="avatar" id="user-avatar" style="display: none;">
             </div>
-            <div class="balance">900.00 ₽ <span class="plus-btn" onclick="openPage('')">+</span></div>
+            <div class="balance">900.00 ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span></div>
         </div>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
@@ -294,7 +295,7 @@
     </div>
 
     <div class="button-container">
-        <button class="image-button" onclick="handleSekaButtonClick()"></button>
+        <button class="image-button" onclick="openPage('gameplay.html')"></button>
         <div class="button-label">Сека</div>
     </div>
 
@@ -302,17 +303,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.expand();
+
+
+
+
                 Telegram.WebApp.enableClosingConfirmation();
 
-                if (Telegram.WebApp.initDataUnsafe?.user) {
-                    const user = Telegram.WebApp.initDataUnsafe.user;
-                    if (user.photo_url) {
-                        const avatarImg = document.getElementById('user-avatar');
-                        avatarImg.src = user.photo_url;
-                        avatarImg.style.display = 'block';
-                        document.querySelector('.default-avatar').style.display = 'none';
-                    }
-                }
+
             }
         });
 

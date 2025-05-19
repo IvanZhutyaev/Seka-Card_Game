@@ -37,6 +37,13 @@
             margin-bottom: 20px;
         }
 
+        .plus-btn {
+            color: white;
+            font-size: 20px;
+            margin-left: 8px;
+            cursor: pointer;
+        }
+
         .back-button {
             background: none;
             border: none;
@@ -315,7 +322,7 @@
         
         <div class="user-info">
             <div class="user-name" id="user-name">Игрок</div>
-            <div class="balance">Баланс: 900.00 ₽</div>
+            <div class="balance">Баланс: 900.00 ₽<span class="plus-btn" onclick="openSection('deposit')">+</span></div>
             <div class="user-id" id="user-id">ID: 123456</div>
         </div>
     </div>
@@ -367,25 +374,16 @@
         document.addEventListener('DOMContentLoaded', function() {
             if (window.Telegram && Telegram.WebApp) {
                 Telegram.WebApp.expand();
+                 const user = Telegram.WebApp.initDataUnsafe.user
+                if(user)
+                {
+                    alert("user found")
+                    document.getElementById('user-id').textContent = `ID: ${user.id}`
+
+                }else{alert("user not found")}
                 Telegram.WebApp.enableClosingConfirmation();
 
-                if (Telegram.WebApp.initDataUnsafe?.user) {
-                    const user = Telegram.WebApp.initDataUnsafe.user;
-                    
-                    let userName = user.first_name || '';
-                    if (user.last_name) userName += ' ' + user.last_name;
-                    if (user.username) userName += ` (@${user.username})`;
 
-                    document.getElementById('user-name').textContent = userName || 'Игрок';
-                    document.getElementById('user-id').textContent = `ID: ${user.id || '123456'}`;
-
-                    if (user.photo_url) {
-                        const avatarImg = document.getElementById('user-avatar');
-                        avatarImg.src = user.photo_url;
-                        avatarImg.style.display = 'block';
-                        document.querySelector('.default-avatar').style.display = 'none';
-                    }
-                }
             }
         });
 
@@ -418,6 +416,10 @@
             const dropdown = document.getElementById('dropdownMenu');
             dropdown.classList.toggle('show');
         }
+        function openSection(section) {
+            alert(`Функционал "${section}" в разработке`);
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
 
         window.onclick = function(event) {
             if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
@@ -444,11 +446,11 @@
             }
         }
         function logout() {
-            function logout() {
+
             if (confirm('Вы уверены, что хотите выйти?')) {
                 forceCloseWebApp(); // или forceCloseWebApp()
             }
-            }   
+
         }
 
 
