@@ -217,12 +217,18 @@ class SekaGame:
         conn = get_db_connection()
         cur = conn.cursor()
         try:
-            # Создание колоды
-            deck = [f"{rank}{suit}" for suit in ["♠", "♥", "♦", "♣"] 
-                    for rank in ["A", "K", "Q", "10"]] + ["9♣"]
-            random.shuffle(deck)
-            
-            # Раздача карт
+            # Создание правильной колоды из 21 карты
+            ranks = ["A", "K", "Q", "J", "10", "9"]
+            suits = ["♠", "♥", "♦", "♣"]
+
+            # Создаем полную колоду (24 карты)
+            full_deck = [f"{rank}{suit}" for suit in suits for rank in ranks]
+
+            # Удаляем 3 случайные карты, чтобы осталось 21
+            random.shuffle(full_deck)
+            deck = full_deck[:21]  # Берем первые 21 карту
+
+            # Раздача карт игрокам (по 3 карты каждому)
             for player_id in self.player_ids:
                 cards = [deck.pop() for _ in range(3)]
                 cur.execute(
@@ -230,14 +236,16 @@ class SekaGame:
                     "WHERE game_id = %s AND player_id = %s",
                     (json.dumps(cards), self.game_id, player_id)
                 )
-            
-            # Сохранение состояния
-            cur.execute(
-                "UPDATE games SET deck = %s, status = %s, pot = 0 "
-                "WHERE id = %s",
-                (json.dumps(deck), GameStatus.ACTIVE.value, self.game_id)
-            )
-            conn.commit()
+                # 3 карты на стол
+                table_cards = [deck.pop() for _ in range(3)]
+
+                # Сохранение состояния
+                cur.execute(
+                    "UPDATE games SET deck = %s, table_cards = %s, status = %s, pot = 0 "
+                    "WHERE id = %s",
+                    (json.dumps(deck), json.dumps(table_cards), GameStatus.ACTIVE.value, self.game_id)
+                )
+                conn.commit()
         finally:
             cur.close()
             conn.close()
