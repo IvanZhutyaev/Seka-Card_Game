@@ -219,7 +219,7 @@ class SekaGame:
         try:
             # Создание колоды
             deck = [f"{rank}{suit}" for suit in ["♠", "♥", "♦", "♣"] 
-                    for rank in ["A", "K", "Q", "10"]] + ["9♣"]
+                    for rank in ["A", "K", "Q", "V", "10"]] + ["9♣"]
             random.shuffle(deck)
             
             # Раздача карт
