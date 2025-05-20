@@ -1,0 +1,309 @@
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background-color: #0a1a3a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    position: relative;
+}
+
+.main-area {
+    flex: 3;
+    position: relative;
+}
+
+.menu-button {
+    position: absolute;
+    top: 15px;
+    left: 35px;
+    width: 40px;
+    height: 40px;
+    background: url('static/dropdownMenuGameplay.png') no-repeat center;
+    background-size: contain;
+    border: none;
+    cursor: pointer;
+    z-index: 100;
+}
+
+.center-block {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 520px;
+    height: 40px;
+    background-color: white;
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 90;
+}
+
+.player-turn-info {
+    font-size: 16px;
+    font-weight: normal;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+.top-right-buttons {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+}
+
+.sound-button, .exit-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.sound-button {
+    background: url('static/volumeGameplay.png') no-repeat center;
+    background-size: contain;
+}
+
+.exit-button {
+    background: url('static/exitGameplay.png') no-repeat center;
+    background-size: contain;
+}
+
+.players-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    display: flex;
+    justify-content: space-between;
+    z-index: 50;
+}
+
+.players-left, .players-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.player-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+}
+
+.player-card.active {
+    opacity: 1;
+}
+
+.player-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #ccc;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #FFD700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.player-action {
+    margin-top: 5px;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 4px 10px;
+    border-radius: 15px;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+    min-width: 70px;
+}
+
+.player-name {
+    margin-top: 5px;
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.player-balance {
+    margin-top: 3px;
+    color: #FFD700;
+    font-size: 12px;
+    text-align: center;
+}
+
+.game-title {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 48px;
+    font-weight: normal;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+}
+
+.bank-title {
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 24px;
+    font-weight: normal;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+}
+
+.bank-amount {
+    position: absolute;
+    top: 85%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px 20px;
+    border-radius: 20px;
+    color: white;
+    font-size: 18px;
+    font-weight: normal;
+    z-index: 50;
+}
+
+.bottom-panel {
+    flex: 1;
+    background-color: #020c21;
+    border-top: 2px solid #fff;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 60px;
+    left: 15px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 5px;
+    padding: 10px 0;
+    width: 200px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    z-index: 100;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 10px 20px;
+    color: #333;
+    text-decoration: none;
+    font-weight: normal;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f0f0f0;
+}
+
+.current-player {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px gold;
+}
+
+@media (max-width: 768px) {
+    .center-block {
+        width: 80%;
+        height: 35px;
+    }
+    
+    .game-title {
+        font-size: 36px;
+        top: 15%;
+    }
+    
+    .bank-title {
+        font-size: 20px;
+        top: 75%;
+    }
+    
+    .bank-amount {
+        font-size: 16px;
+        top: 80%;
+    }
+    
+    .player-card {
+        width: 80px;
+    }
+    
+    .player-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+    }
+    
+    .player-action {
+        font-size: 10px;
+        min-width: 60px;
+    }
+    
+    .player-name {
+        font-size: 12px;
+    }
+    
+    .player-balance {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-title {
+        font-size: 28px;
+    }
+    
+    .bank-title {
+        font-size: 18px;
+    }
+    
+    .bank-amount {
+        font-size: 14px;
+        padding: 6px 15px;
+    }
+    
+    .player-turn-info {
+        font-size: 14px;
+    }
+    
+    .players-container {
+        width: 95%;
+    }
+    
+    .player-card {
+        width: 70px;
+    }
+    
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+}
