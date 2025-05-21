@@ -13,11 +13,11 @@ load_dotenv()
 
 # Параметры подключения к БД
 DB_CONFIG = {
-    'dbname': os.getenv('POSTGRES_DB', 'seka'),
-    'user': os.getenv('POSTGRES_USER', 'seka_user'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'your_password'),
-    'host': os.getenv('POSTGRES_HOST', 'localhost'),
-    'port': os.getenv('POSTGRES_PORT', '5432')
+    'dbname': os.getenv('POSTGRES_DB'),
+    'user': os.getenv('POSTGRES_USER'),
+    'password': os.getenv('POSTGRES_PASSWORD'),
+    'host': os.getenv('POSTGRES_HOST'),
+    'port': os.getenv('POSTGRES_PORT')
 }
 
 def create_database():

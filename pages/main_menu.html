@@ -262,23 +262,23 @@
     </div>
 
     <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules.html')">
+        <div class="dropdown-item" onclick="openPage('rules')">
             <span class="dropdown-icon">📜</span>
             Правила игры
         </div>
-        <div class="dropdown-item" onclick="openPage('profile.html')">
+        <div class="dropdown-item" onclick="openPage('profile')">
             <span class="dropdown-icon">👤</span>
             Профиль и настройки
         </div>
-        <div class="dropdown-item" onclick="openPage('bonuses.html')">
+        <div class="dropdown-item" onclick="openPage('bonus')">
             <span class="dropdown-icon">🎁</span>
             Бонусы и акции
         </div>
-        <div class="dropdown-item" onclick="openPage('history.html')">
+        <div class="dropdown-item" onclick="openPage('history')">
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
-        <div class="dropdown-item" onclick="openPage('invite.html')">
+        <div class="dropdown-item" onclick="openPage('invite')">
             <span class="dropdown-icon">👥</span>
             Пригласить друга
         </div>
@@ -295,7 +295,7 @@
     </div>
 
     <div class="button-container">
-        <button class="image-button" onclick="openPage('gameplay.html')"></button>
+        <button class="image-button" onclick="openPage('index')"></button>
         <div class="button-label">Сека</div>
     </div>
 
@@ -313,13 +313,7 @@
             }
         });
 
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-        }
+
 
 
         function openPage(page) {

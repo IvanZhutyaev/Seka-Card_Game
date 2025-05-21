@@ -103,6 +103,16 @@
             flex-direction: column;
         }
 
+        .page {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .page.active {
+            display: flex;
+        }
+
         .title {
             font-size: 18px;
             font-weight: 600;
@@ -216,6 +226,63 @@
         .logout-item {
             color: #EA4335;
         }
+
+        /* Стили для страницы подтверждения */
+        .transfer-details {
+            background: var(--input-bg);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid var(--input-border);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .detail-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .detail-value {
+            font-weight: 500;
+        }
+
+        .transfer-id {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin: 16px 0;
+        }
+
+        .transfer-amount {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        /* Стили для страницы успешного перевода */
+        .success-icon {
+            font-size: 64px;
+            text-align: center;
+            margin: 24px 0;
+            color: #34A853;
+        }
+
+        .success-message {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 24px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -234,23 +301,23 @@
     </div>
 
     <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules.html')">
+        <div class="dropdown-item" onclick="openPage('rules')">
             <span class="dropdown-icon">📜</span>
             Правила игры
         </div>
-        <div class="dropdown-item" onclick="openPage('profile.html')">
+        <div class="dropdown-item" onclick="openPage('profile')">
             <span class="dropdown-icon">👤</span>
             Профиль и настройки
         </div>
-        <div class="dropdown-item" onclick="openPage('bonuses.html')">
+        <div class="dropdown-item" onclick="openPage('bonuses')">
             <span class="dropdown-icon">🎁</span>
             Бонусы и акции
         </div>
-        <div class="dropdown-item" onclick="openPage('history.html')">
+        <div class="dropdown-item" onclick="openPage('history)">
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
-        <div class="dropdown-item" onclick="openPage('invite.html')">
+        <div class="dropdown-item" onclick="openPage('invite')">
             <span class="dropdown-icon">👥</span>
             Пригласить друга
         </div>
@@ -261,7 +328,8 @@
         </div>
     </div>
 
-    <div class="transfer-container">
+    <!-- Страница формы перевода -->
+    <div class="page active" id="transferPage">
         <div class="title">Перевод по ID</div>
 
         <div class="input-field">
@@ -277,8 +345,65 @@
         </div>
 
         <div class="buttons">
-            <button class="btn confirm" onclick="confirmTransfer()">Подтвердить</button>
+            <button class="btn confirm" onclick="showConfirmation()">Подтвердить</button>
             <button class="btn cancel" onclick="goBack()">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Страница подтверждения перевода -->
+    <div class="page" id="confirmationPage">
+        <div class="title">Подтверждение перевода</div>
+
+        <div class="transfer-id" id="confirmationRecipientId">941</div>
+        <div class="transfer-amount" id="confirmationAmount">900.00 ₽</div>
+
+        <div class="transfer-details">
+            <div class="detail-row">
+                <span class="detail-label">Вы переводите:</span>
+                <span class="detail-value" id="transferAmount">900.00 ₽</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Комиссия (10%):</span>
+                <span class="detail-value" id="commissionAmount">90.00 ₽</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Получатель получит:</span>
+                <span class="detail-value" id="recipientAmount">810.00 ₽</span>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn confirm" onclick="completeTransfer()">Подтвердить перевод</button>
+            <button class="btn cancel" onclick="showPage('transferPage')">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Страница успешного перевода -->
+    <div class="page" id="successPage">
+        <div class="success-icon">✓</div>
+        <div class="success-message">Перевод отправлен!</div>
+
+        <div class="transfer-details">
+            <div class="detail-row">
+                <span class="detail-label">ID получателя:</span>
+                <span class="detail-value" id="successRecipientId">941</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Сумма:</span>
+                <span class="detail-value" id="successAmount">900.00 ₽</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Комиссия (10%):</span>
+                <span class="detail-value" id="successCommission">90.00 ₽</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Получатель получит:</span>
+                <span class="detail-value" id="successRecipientAmount">810.00 ₽</span>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn confirm" onclick="goBack()">Готово</button>
         </div>
     </div>
 
@@ -290,9 +415,17 @@
             }
         });
 
+        function showPage(pageId) {
+            // Скрываем все страницы
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
 
+            // Показываем нужную страницу
+            document.getElementById(pageId).classList.add('active');
+        }
 
-        function confirmTransfer() {
+        function showConfirmation() {
             const recipientId = document.getElementById('recipientId').value;
             const amount = document.getElementById('amount').value;
 
@@ -309,14 +442,39 @@
                 Telegram.WebApp.HapticFeedback.impactOccurred('light');
             }
 
-            // Здесь будет логика подтверждения перевода
-            console.log(`Перевод ${amount} пользователю ${recipientId}`);
+            // Устанавливаем значения на странице подтверждения
+            document.getElementById('confirmationRecipientId').textContent = recipientId;
+            document.getElementById('confirmationAmount').textContent = amount + ' ₽';
+            document.getElementById('transferAmount').textContent = amount + ' ₽';
 
-            if (window.Telegram?.WebApp?.showAlert) {
-                Telegram.WebApp.showAlert(`Перевод ${amount}₽ выполнен!`);
-            } else {
-                alert(`Перевод ${amount}₽ выполнен!`);
+            // Рассчитываем комиссию и сумму получателя
+            const amountNum = parseFloat(amount);
+            const commission = (amountNum * 0.1).toFixed(2);
+            const recipientAmount = (amountNum - amountNum * 0.1).toFixed(2);
+
+            document.getElementById('commissionAmount').textContent = commission + ' ₽';
+            document.getElementById('recipientAmount').textContent = recipientAmount + ' ₽';
+
+            // Устанавливаем значения для страницы успеха
+            document.getElementById('successRecipientId').textContent = recipientId;
+            document.getElementById('successAmount').textContent = amount + ' ₽';
+            document.getElementById('successCommission').textContent = commission + ' ₽';
+            document.getElementById('successRecipientAmount').textContent = recipientAmount + ' ₽';
+
+            // Переходим на страницу подтверждения
+            showPage('confirmationPage');
+        }
+
+        function completeTransfer() {
+            if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('medium');
             }
+
+            // Здесь должна быть логика фактического выполнения перевода
+            console.log('Перевод выполнен');
+
+            // Переходим на страницу успеха
+            showPage('successPage');
         }
 
         function openPage(page) {
@@ -328,13 +486,14 @@
             document.getElementById('dropdownMenu').classList.remove('show');
         }
 
-        function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
-        }
+            //под вопросом
+        //function goBack() {
+        //    if (window.Telegram?.WebApp?.close) {
+        //        Telegram.WebApp.close();
+        //    } else {
+        //        window.history.back();
+        //    }
+        //}
 
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdownMenu');
@@ -356,23 +515,20 @@
 
         function forceCloseWebApp() {
             if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
+                Telegram.WebApp.close();
                 setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
+                    window.location.href = "tg://";
                 }, 300);
             } else {
                 alert("WebApp закрыта");
                 window.close();
             }
         }
+
         function logout() {
-            function logout() {
             if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
+                forceCloseWebApp();
             }
-            }   
         }
     </script>
 </body>

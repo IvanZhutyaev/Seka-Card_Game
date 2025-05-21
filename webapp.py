@@ -6,12 +6,22 @@ import os
 app = FastAPI()
 
 # Разрешаем доступ только к указанным страницам
-ALLOWED_PAGES = ["rules.html", "settings.html", "profile.html", "transfer.html", "main_menu.html", "bonuses.html", "invite.html", "history.html", "gameplay.html"]
 
+ALLOWED_PAGES = {
+    "rules": "pages/rules.html",
+    "settings": "pages/settings.html",
+    "profile": "pages/profile.html",
+    "transfer": "pages/transfer.html",
+    "main_menu": "pages/main_menu.html",
+    "bonus": "pages/bonuses.html",
+    "invite": "pages/invite.html",
+    "history": "pages/history.html",
+    "game": "pages/gameplay/index.html"
+                }
 # Главная страница должна перенаправлять на Game-start.html
 @app.get("/")
 async def read_root():
-    return await get_page("main_menu.html")
+    return await get_page("main_menu")
 
 # Обработка всех разрешенных страниц
 @app.get("/{page_name}")
@@ -19,7 +29,7 @@ async def get_page(page_name: str):
     if page_name not in ALLOWED_PAGES:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    file_path = os.path.join("pages", page_name)
+    file_path = ALLOWED_PAGES[page_name]
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
 

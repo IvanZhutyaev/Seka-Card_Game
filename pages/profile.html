@@ -290,20 +290,20 @@
     </div>
 
     <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules.html')">
+        <div class="dropdown-item" onclick="openPage('rules')">
             <span class="dropdown-icon">📜</span>
             Правила игры
         </div>
 
-        <div class="dropdown-item" onclick="openPage('bonuses.html')">
+        <div class="dropdown-item" onclick="openPage('bonus')">
             <span class="dropdown-icon">🎁</span>
             Бонусы и акции
         </div>
-        <div class="dropdown-item" onclick="openPage('history.html')">
+        <div class="dropdown-item" onclick="openPage('history')">
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
-        <div class="dropdown-item" onclick="openPage('invite.html')">
+        <div class="dropdown-item" onclick="openPage('invite)">
             <span class="dropdown-icon">👥</span>
             Пригласить друга
         </div>
@@ -328,43 +328,43 @@
     </div>
 
     <div class="action-buttons">
-        <button class="btn btn-primary" onclick="openInTelegram('deposit.html')">
+        <button class="btn btn-primary" onclick="openPage('deposit')">
             <span class="btn-icon">+</span>
             Пополнить
         </button>
-        <button class="btn btn-secondary" onclick="openInTelegram('withdraw.html')">
+        <button class="btn btn-secondary" onclick="openPage('withdraw')">
             <span class="btn-icon">—</span>
             Вывести
         </button>
     </div>
 
-    <button class="btn btn-transfer" onclick="openInTelegram('transfer.html')">
+    <button class="btn btn-transfer" onclick="openPage('transfer')">
         <span class="btn-icon">🫂</span>
         Перевести другу
     </button>
 
     <div class="menu">
-        <div class="menu-item" onclick="openPage('rules.html')">
+        <div class="menu-item" onclick="openPage('rules')">
             <span class="menu-item-icon">📜</span>
             <div class="menu-item-text">Правила Игры</div>
         </div>
 
-        <div class="menu-item" onclick="openPage('profile.html')">
+        <div class="menu-item" onclick="openPage('profile')">
             <span class="menu-item-icon">⚙️</span>
             <div class="menu-item-text">Профиль и настройки</div>
         </div>
 
-        <div class="menu-item" onclick="openPage('bonuses.html')">
+        <div class="menu-item" onclick="openPage('bonus')">
             <span class="menu-item-icon">🎁</span>
             <div class="menu-item-text">Бонусы и акции</div>
         </div>
 
-        <div class="menu-item" onclick="openPage('history.html')">
+        <div class="menu-item" onclick="openPage('history')">
             <span class="menu-item-icon">💳</span>
             <div class="menu-item-text">История Транзакций</div>
         </div>
 
-        <div class="menu-item" onclick="openPage('invite.html')">
+        <div class="menu-item" onclick="openPage('invite')">
             <span class="menu-item-icon">👥</span>
             <div class="menu-item-text">Пригласить друга</div>
         </div>
@@ -387,13 +387,7 @@
             }
         });
 
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-        }
+
 
         function openPage(page) {
             if (window.Telegram?.WebApp?.openLink) {
