@@ -280,7 +280,6 @@
                 </div>
             );
         }
-
         function App() {
             const [menuOpen, setMenuOpen] = React.useState(false);
             const [gameState, setGameState] = React.useState({
@@ -360,18 +359,18 @@
             return (
                 <div className="main-area">
                     <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
-                    
+
                     <div className="center-block">
                         <div className="player-turn-info">
                             {gameState.currentTurn}
                         </div>
                     </div>
-                    
+
                     <div className="top-right-buttons">
                         <button className="sound-button">🔊</button>
                         <button className="exit-button">✕</button>
                     </div>
-                    
+
                     {menuOpen && (
                         <div className="dropdown-menu" onClick={() => setMenuOpen(false)}>
                             <a href="#">📜Правила игры</a>
@@ -379,46 +378,46 @@
                             <a href="#">👥Пригласить друга</a>
                         </div>
                     )}
-                    
+
                     <div className="game-title">Сека</div>
-                    
+
                     <div className="players-container">
                         <div className="players-left">
                             {gameState.players.slice(0, 3).map((player) => (
-                                <PlayerCard 
-                                    key={player.id} 
-                                    player={player} 
-                                    isCurrent={player.is_current} 
+                                <PlayerCard
+                                    key={player.id}
+                                    player={player}
+                                    isCurrent={player.is_current}
                                 />
                             ))}
                         </div>
                         <div className="players-right">
                             {gameState.players.slice(3, 6).map((player) => (
-                                <PlayerCard 
-                                    key={player.id} 
-                                    player={player} 
-                                    isCurrent={player.is_current} 
+                                <PlayerCard
+                                    key={player.id}
+                                    player={player}
+                                    isCurrent={player.is_current}
                                 />
                             ))}
                         </div>
                     </div>
-                    
+
                     <div className="bank-title">Банк</div>
                     <div className="bank-amount">$ {gameState.bankAmount.toLocaleString('ru-RU')}</div>
-                    
+
                     <div className="bottom-panel"></div>
 
                     {showActions && (
                         <>
-                            <button 
-                                className="action-button" 
+                            <button
+                                className="action-button"
                                 style={{ left: 'calc(50% - 120px)', backgroundColor: '#4CAF50' }}
                                 onClick={handleBet}
                             >
                                 Ставка
                             </button>
-                            <button 
-                                className="action-button" 
+                            <button
+                                className="action-button"
                                 style={{ left: 'calc(50% + 20px)', backgroundColor: '#F44336' }}
                                 onClick={handleFold}
                             >
@@ -435,6 +434,7 @@
                 </div>
             );
         }
+
 
         // Инициализация приложения
         document.addEventListener('DOMContentLoaded', () => {
