@@ -13,20 +13,33 @@ import psycopg2
 import redis
 import httpx
 from urllib.parse import parse_qs
+from pathlib import Path
+
 
 # ====================== НАСТРОЙКИ ======================
-class Settings(BaseModel):
-    POSTGRES_DB: str = "seka"
-    POSTGRES_USER: str = "seka_user"
-    POSTGRES_PASSWORD: str = "your_password"
-    POSTGRES_HOST: str = "localhost"
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    AVATAR_CACHE_DIR: str = "static/avatars"
-    TELEGRAM_BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+class Settings:
+    def __init__(self):
+        # PostgreSQL настройки
+        self.POSTGRES_DB = os.getenv('POSTGRES_DB', 'postgres')
+        self.POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
+        self.POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', '')
+        self.POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
+        self.POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
 
+        # Redis настройки
+        self.REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+        self.REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+
+        # Другие настройки
+        self.AVATAR_CACHE_DIR = os.getenv('AVATAR_CACHE_DIR', 'static/avatars')
+        self.TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN', '')
+
+        # Создаем директорию для аватарок
+        os.makedirs(self.AVATAR_CACHE_DIR, exist_ok=True)
+
+
+# Инициализация настроек
 settings = Settings()
-os.makedirs(settings.AVATAR_CACHE_DIR, exist_ok=True)
 
 # ====================== ПОДКЛЮЧЕНИЕ К БАЗАМ ДАННЫХ ======================
 def get_db_connection():
