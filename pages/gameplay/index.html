@@ -8,16 +8,97 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Основные стили */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0a1a3a;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #root {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .main-area {
+            flex: 1;
+            position: relative;
+            height: 80vh;
+        }
+
+        /* Остальные ваши стили... */
+        .menu-button {
+            position: absolute;
+            top: 15px;
+            left: 35px;
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .center-block {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 520px;
+            height: 40px;
+            background-color: white;
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 90;
+        }
+
+        /* Добавьте остальные стили из вашего кода */
+    </style>
 </head>
-<style>
-    /* Все стили остаются такими же, как в предыдущем коде */
-    /* ... */
-</style>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // SocketHandler
+        class ErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false };
+            }
+
+            static getDerivedStateFromError(error) {
+                return { hasError: true, error };
+            }
+
+            componentDidCatch(error, errorInfo) {
+                console.error("ErrorBoundary caught:", error, errorInfo);
+            }
+
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div style={{color: 'white', padding: '20px'}}>
+                            <h2>Произошла ошибка</h2>
+                            <pre>{this.state.error.toString()}</pre>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
         class SocketHandler {
             constructor() {
                 this.socket = null;
@@ -31,14 +112,19 @@
                 }
 
                 this.messageHandler = messageHandler;
-                const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-                const host = window.location.host || 'localhost:8080';
-                this.socket = new WebSocket(`${protocol}${host}/ws/${playerId}`);
-
-                this.setupEventHandlers();
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                    const host = window.location.host || 'localhost:8080';
+                    this.socket = new WebSocket(`${protocol}${host}/ws/${playerId}`);
+                    this.setupEventHandlers();
+                } catch (e) {
+                    console.error("WebSocket init error:", e);
+                }
             }
 
             setupEventHandlers() {
+                if (!this.socket) return;
+
                 this.socket.onopen = () => {
                     console.log("WebSocket connected");
                     this.send('player_connected');
@@ -73,7 +159,6 @@
             }
         }
 
-        // GameController
         class GameController {
             constructor(uiManager, socketHandler) {
                 this.ui = uiManager;
@@ -89,43 +174,48 @@
             }
 
             async init() {
-                this.detectEnvironment();
-                this.ui.setController(this);
-
-                if (this.isTelegram) {
-                    this.initTelegramUser();
-                    this.ui.setExitHandler(() => Telegram.WebApp.close());
-                } else {
-                    this.initDemoUser();
-                    this.ui.setExitHandler(() => {
-                        if (this.demoInterval) clearInterval(this.demoInterval);
-                        window.close();
-                    });
-                }
-
                 try {
+                    this.detectEnvironment();
+                    this.ui.setController(this);
+
+                    if (this.isTelegram) {
+                        this.initTelegramUser();
+                        this.ui.setExitHandler(() => Telegram.WebApp.close());
+                    } else {
+                        this.initDemoUser();
+                        this.ui.setExitHandler(() => {
+                            if (this.demoInterval) clearInterval(this.demoInterval);
+                            window.close();
+                        });
+                    }
+
                     await this.connectToGame();
                     this.ui.initUI();
                 } catch (error) {
-                    this.ui.showError("Ошибка подключения к игре");
-                    console.error("Game init error:", error);
+                    console.error("GameController init error:", error);
+                    this.ui.showError("Ошибка инициализации игры");
                 }
             }
 
             detectEnvironment() {
                 this.isTelegram = !!(window.Telegram && Telegram.WebApp);
+                console.log("Running in", this.isTelegram ? "Telegram" : "browser");
             }
 
             initTelegramUser() {
-                const tgUser = Telegram.WebApp.initDataUnsafe?.user;
-                if (tgUser) {
-                    this.currentPlayerId = tgUser.id.toString();
-                    this.ui.setCurrentPlayer({
-                        id: this.currentPlayerId,
-                        first_name: tgUser.first_name || `Игрок ${tgUser.id}`,
-                        photo_url: tgUser.photo_url
-                    });
-                    Telegram.WebApp.expand();
+                try {
+                    const tgUser = Telegram.WebApp.initDataUnsafe?.user;
+                    if (tgUser) {
+                        this.currentPlayerId = tgUser.id.toString();
+                        this.ui.setCurrentPlayer({
+                            id: this.currentPlayerId,
+                            first_name: tgUser.first_name || `Игрок ${tgUser.id}`,
+                            photo_url: tgUser.photo_url
+                        });
+                        Telegram.WebApp.expand();
+                    }
+                } catch (e) {
+                    console.error("Telegram init error:", e);
                 }
             }
 
@@ -140,21 +230,22 @@
             }
 
             startDemoMode() {
-                // Первоначальные данные
+                console.log("Starting demo mode");
+                const initialPlayers = Array.from({length: 6}, (_, i) => ({
+                    id: (i + 1).toString(),
+                    first_name: i === 0 ? "Вы (демо)" : `Игрок ${i + 1}`,
+                    balance: 1000 + Math.floor(Math.random() * 2000),
+                    action: i === 0 ? "Ваш ход" : ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
+                    is_current: i === 0,
+                    photo_url: null
+                }));
+
                 this.updateGameState({
                     bankAmount: 1250,
                     currentTurn: "Ваш ход",
-                    players: Array.from({length: 6}, (_, i) => ({
-                        id: (i + 1).toString(),
-                        first_name: i === 0 ? "Вы (демо)" : `Игрок ${i + 1}`,
-                        balance: 1000 + Math.floor(Math.random() * 2000),
-                        action: i === 0 ? "Ваш ход" : ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
-                        is_current: i === 0,
-                        photo_url: null
-                    }))
+                    players: initialPlayers
                 });
 
-                // Имитация изменения состояния игры
                 this.demoInterval = setInterval(() => {
                     const newBank = this.gameState.bankAmount + Math.floor(Math.random() * 100);
                     const currentPlayerIndex = Math.floor(Math.random() * 6);
@@ -176,22 +267,28 @@
             async connectToGame() {
                 if (this.isTelegram) {
                     this.socket.init(this.currentPlayerId, this.handleSocketMessage.bind(this));
+                } else {
+                    console.log("Running in demo mode - no WebSocket connection");
                 }
             }
 
             handleSocketMessage(message) {
-                switch (message.type) {
-                    case 'game_state':
-                        this.updateGameState(message.data);
-                        break;
-                    case 'player_update':
-                        this.updatePlayer(message.data);
-                        break;
-                    case 'error':
-                        this.ui.showError(message.text);
-                        break;
-                    default:
-                        console.log("Unknown message type:", message.type);
+                try {
+                    switch (message.type) {
+                        case 'game_state':
+                            this.updateGameState(message.data);
+                            break;
+                        case 'player_update':
+                            this.updatePlayer(message.data);
+                            break;
+                        case 'error':
+                            this.ui.showError(message.text);
+                            break;
+                        default:
+                            console.log("Unknown message type:", message.type);
+                    }
+                } catch (e) {
+                    console.error("Error handling message:", e);
                 }
             }
 
@@ -199,7 +296,7 @@
                 this.gameState = {
                     ...this.gameState,
                     ...state,
-                    players: state.players || this.gameState.players
+                    players: state.players || this.gameState.players || []
                 };
                 this.ui.updateGameState(this.gameState);
             }
@@ -212,7 +309,7 @@
                 if (this.isTelegram) {
                     this.socket.send('place_bet', { amount });
                 } else {
-                    this.ui.showError(`Ставка ${amount} (в Telegram будет отправлена)`);
+                    this.ui.showError(`Ставка ${amount} (демо-режим)`);
                     this.updateGameState({
                         players: this.gameState.players.map(p =>
                             p.id === this.currentPlayerId
@@ -227,7 +324,7 @@
                 if (this.isTelegram) {
                     this.socket.send('fold', {});
                 } else {
-                    this.ui.showError("Пас (в Telegram будет отправлен)");
+                    this.ui.showError("Пас (демо-режим)");
                     this.updateGameState({
                         players: this.gameState.players.map(p =>
                             p.id === this.currentPlayerId
@@ -239,7 +336,6 @@
             }
         }
 
-        // React компоненты
         function getRandomColor() {
             const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#33FFF3'];
             return colors[Math.floor(Math.random() * colors.length)];
@@ -257,6 +353,8 @@
         }
 
         function PlayerCard({ player, isCurrent }) {
+            if (!player) return null;
+
             const avatarStyle = player.photo_url
                 ? { backgroundImage: `url(${player.photo_url})` }
                 : {
@@ -280,6 +378,7 @@
                 </div>
             );
         }
+
         function App() {
             const [menuOpen, setMenuOpen] = React.useState(false);
             const [gameState, setGameState] = React.useState({
@@ -290,11 +389,14 @@
             const [currentPlayer, setCurrentPlayer] = React.useState(null);
             const [showActions, setShowActions] = React.useState(false);
             const [error, setError] = React.useState(null);
+            const [isInitialized, setIsInitialized] = React.useState(false);
 
             const controllerRef = React.useRef(null);
             const socketRef = React.useRef(null);
 
             React.useEffect(() => {
+                console.log("App useEffect running");
+
                 const uiManager = {
                     setController: (controller) => {
                         controllerRef.current = controller;
@@ -306,17 +408,28 @@
                         }
                     },
                     setCurrentPlayer: (player) => {
+                        console.log("Setting current player:", player);
                         setCurrentPlayer(player);
                     },
                     initUI: () => {
                         console.log("UI initialized");
                     },
                     updateGameState: (state) => {
-                        setGameState(state);
-                        const isCurrentPlayer = state.players.some(p =>
-                            p.is_current && p.id === currentPlayer?.id
-                        );
-                        setShowActions(isCurrentPlayer);
+                        console.log("Updating game state:", state);
+                        setGameState(prev => {
+                            const newState = {
+                                ...prev,
+                                ...state,
+                                players: state.players || prev.players || []
+                            };
+
+                            const isCurrentPlayer = newState.players.some(p =>
+                                p.is_current && p.id === currentPlayer?.id
+                            );
+                            setShowActions(isCurrentPlayer);
+
+                            return newState;
+                        });
                     },
                     updatePlayer: (playerData) => {
                         setGameState(prev => ({
@@ -327,21 +440,52 @@
                         }));
                     },
                     showError: (message) => {
+                        console.error("UI Error:", message);
                         setError(message);
                         setTimeout(() => setError(null), 3000);
                     }
                 };
 
-                socketRef.current = new SocketHandler();
-                const controller = new GameController(uiManager, socketRef.current);
-                controller.init();
+                try {
+                    socketRef.current = new SocketHandler();
+                    const controller = new GameController(uiManager, socketRef.current);
+                    controllerRef.current = controller;
+
+                    controller.init().then(() => {
+                        setIsInitialized(true);
+                    }).catch(e => {
+                        console.error("Controller init failed:", e);
+                        setError("Ошибка инициализации игры");
+                    });
+                } catch (e) {
+                    console.error("Initialization error:", e);
+                    setError("Критическая ошибка инициализации");
+                }
 
                 return () => {
                     if (socketRef.current?.socket) {
                         socketRef.current.socket.close();
                     }
+                    const controller = controllerRef.current;
+                    if (controller && controller.demoInterval) {
+                        clearInterval(controller.demoInterval);
+                    }
                 };
             }, []);
+
+            if (!isInitialized) {
+                return (
+                    <div style={{
+                        color: 'white',
+                        textAlign: 'center',
+                        paddingTop: '50px',
+                        backgroundColor: '#0a1a3a',
+                        height: '100vh'
+                    }}>
+                        Загрузка игры...
+                    </div>
+                );
+            }
 
             const handleBet = () => {
                 const amount = prompt("Введите сумму ставки:", "10");
@@ -383,7 +527,7 @@
 
                     <div className="players-container">
                         <div className="players-left">
-                            {gameState.players.slice(0, 3).map((player) => (
+                            {(gameState.players || []).slice(0, 3).map((player) => (
                                 <PlayerCard
                                     key={player.id}
                                     player={player}
@@ -392,7 +536,7 @@
                             ))}
                         </div>
                         <div className="players-right">
-                            {gameState.players.slice(3, 6).map((player) => (
+                            {(gameState.players || []).slice(3, 6).map((player) => (
                                 <PlayerCard
                                     key={player.id}
                                     player={player}
@@ -435,12 +579,31 @@
             );
         }
 
-
-        // Инициализация приложения
         document.addEventListener('DOMContentLoaded', () => {
-            const rootElement = document.getElementById('root');
-            const root = ReactDOM.createRoot(rootElement);
-            root.render(<App />);
+            console.log("DOM fully loaded");
+            try {
+                const rootElement = document.getElementById('root');
+                if (!rootElement) throw new Error("Root element not found");
+
+                console.log("Creating React root");
+                const root = ReactDOM.createRoot(rootElement);
+
+                console.log("Rendering App");
+                root.render(
+                    <ErrorBoundary>
+                        <App />
+                    </ErrorBoundary>
+                );
+
+            } catch (error) {
+                console.error("Mount error:", error);
+                document.body.innerHTML = `
+                    <div style="color: red; padding: 20px;">
+                        <h2>Critical Error</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
         });
     </script>
 </body>
