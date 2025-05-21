@@ -5,12 +5,833 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Игровое поле Сека</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
+<style>
+    /* Основные стили */
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    background-color: #0a1a3a;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Arial Narrow', Arial, sans-serif;
+    position: relative;
+}
+
+.main-area {
+    flex: 1;
+    position: relative;
+    height: 80vh;
+}
+
+/* Кнопка меню */
+.menu-button {
+    position: absolute;
+    top: 15px;
+    left: 35px;
+    width: 40px;
+    height: 40px;
+    background-color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+/* Центральный блок с информацией о ходе */
+.center-block {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 520px;
+    height: 40px;
+    background-color: white;
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 90;
+}
+
+.player-turn-info {
+    font-size: 16px;
+    font-weight: normal;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+/* Кнопки в правом верхнем углу */
+.top-right-buttons {
+    position: absolute;
+    top: 15px;
+    right: 35px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+}
+
+.sound-button, .exit-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background-color: white;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+/* Выпадающее меню */
+.dropdown-menu {
+    position: absolute;
+    top: 60px;
+    left: 15px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 5px;
+    padding: 10px 0;
+    width: 200px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+}
+
+.dropdown-menu a {
+    display: block;
+    padding: 10px 20px;
+    color: #333;
+    text-decoration: none;
+    font-weight: normal;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f0f0f0;
+}
+
+/* Заголовок игры */
+.game-title {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 48px;
+    font-weight: normal;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+}
+
+/* Блок игроков */
+.players-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    display: flex;
+    justify-content: space-between;
+    z-index: 50;
+}
+
+.players-left, .players-right {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.player-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100px;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+}
+
+.player-card.active {
+    opacity: 1;
+}
+
+.player-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #ccc;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid #FFD700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.player-action {
+    margin-top: 5px;
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 4px 10px;
+    border-radius: 15px;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+    min-width: 70px;
+}
+
+.player-name {
+    margin-top: 5px;
+    color: white;
+    font-size: 14px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+.player-balance {
+    margin-top: 3px;
+    color: #FFD700;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Банк */
+.bank-title {
+    position: absolute;
+    top: 80%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-size: 24px;
+    font-weight: normal;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+}
+
+.bank-amount {
+    position: absolute;
+    top: 85%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 8px 20px;
+    border-radius: 20px;
+    color: white;
+    font-size: 18px;
+    font-weight: normal;
+    z-index: 50;
+}
+
+/* Нижняя панель */
+.bottom-panel {
+    height: 20vh;
+    background-color: #020c21;
+    border-top: 2px solid #fff;
+}
+
+/* Кнопки действий */
+.action-button {
+    position: fixed;
+    bottom: 100px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 100;
+    color: white;
+}
+
+.action-button:nth-child(1) {
+    left: calc(50% - 120px);
+    background-color: #4CAF50;
+}
+
+.action-button:nth-child(2) {
+    left: calc(50% + 20px);
+    background-color: #F44336;
+}
+
+.action-button:hover {
+    opacity: 0.9;
+    transform: scale(1.05);
+}
+
+/* Сообщения об ошибках */
+.error-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #F44336;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    animation: fadeIn 0.3s;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; top: 0; }
+    to { opacity: 1; top: 20px; }
+}
+
+/* Подсветка текущего игрока */
+.current-player {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px gold;
+    opacity: 1 !important;
+}
+
+/* Адаптация под мобильные устройства */
+@media (max-width: 768px) {
+    .center-block {
+        width: 80%;
+        height: 35px;
+    }
+    
+    .game-title {
+        font-size: 36px;
+        top: 15%;
+    }
+    
+    .bank-title {
+        font-size: 20px;
+        top: 75%;
+    }
+    
+    .bank-amount {
+        font-size: 16px;
+        top: 80%;
+    }
+    
+    .player-card {
+        width: 80px;
+    }
+    
+    .player-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 16px;
+    }
+    
+    .player-action {
+        font-size: 10px;
+        min-width: 60px;
+    }
+    
+    .player-name {
+        font-size: 12px;
+    }
+    
+    .player-balance {
+        font-size: 10px;
+    }
+    
+    .action-button {
+        bottom: 80px;
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    .action-button:nth-child(1) {
+        left: calc(50% - 110px);
+    }
+    
+    .action-button:nth-child(2) {
+        left: calc(50% + 10px);
+    }
+}
+
+@media (max-width: 480px) {
+    .game-title {
+        font-size: 28px;
+    }
+    
+    .bank-title {
+        font-size: 18px;
+    }
+    
+    .bank-amount {
+        font-size: 14px;
+        padding: 6px 15px;
+    }
+    
+    .player-turn-info {
+        font-size: 14px;
+    }
+    
+    .players-container {
+        width: 95%;
+    }
+    
+    .player-card {
+        width: 70px;
+    }
+    
+    .player-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+    
+    .action-button {
+        bottom: 60px;
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+    
+    .action-button:nth-child(1) {
+        left: calc(50% - 100px);
+    }
+    
+    .action-button:nth-child(2) {
+        left: calc(50%);
+    }
+}
+</style>
 <body>
     <div id="root"></div>
-    <script src="gameplay/ui-manager.js"></script>
-    <script src="gameplay/socket-handler.js"></script>
-    <script src="gameplay/game-controller.js"></script>
-    <script src="index.js"></script>
+
+    <script type="text/babel">
+        // SocketHandler (бывший gameplay/socket-handler.js)
+        class SocketHandler {
+            constructor() {
+                this.socket = null;
+                this.messageHandler = null;
+            }
+
+            init(playerId, messageHandler) {
+                if (!playerId) {
+                    console.warn("Player ID not provided - running in demo mode");
+                    return;
+                }
+
+                this.messageHandler = messageHandler;
+                const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                const host = window.location.host || 'localhost:8080';
+                this.socket = new WebSocket(`${protocol}${host}/ws/${playerId}`);
+
+                this.setupEventHandlers();
+            }
+
+            setupEventHandlers() {
+                this.socket.onopen = () => {
+                    console.log("WebSocket connected");
+                    this.send('player_connected');
+                };
+
+                this.socket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        this.messageHandler?.(message);
+                    } catch (e) {
+                        console.error("Error parsing message:", e);
+                    }
+                };
+
+                this.socket.onclose = () => {
+                    console.log("WebSocket disconnected");
+                    this.messageHandler?.({ type: 'error', text: 'Соединение потеряно' });
+                };
+
+                this.socket.onerror = (error) => {
+                    console.error("WebSocket error:", error);
+                    this.messageHandler?.({ type: 'error', text: 'Ошибка соединения' });
+                };
+            }
+
+            send(action, data = {}) {
+                if (this.socket?.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify({ action, ...data }));
+                } else {
+                    console.warn("WebSocket not ready");
+                }
+            }
+        }
+
+        // GameController (бывший gameplay/game-controller.js)
+        class GameController {
+            constructor(uiManager, socketHandler) {
+                this.ui = uiManager;
+                this.socket = socketHandler;
+                this.currentPlayerId = null;
+                this.gameState = {
+                    bankAmount: 0,
+                    currentTurn: "Ожидание игроков...",
+                    players: []
+                };
+            }
+
+            async init() {
+                this.detectEnvironment();
+                this.ui.setController(this);
+                
+                if (this.isTelegram) {
+                    this.initTelegramUser();
+                    this.ui.setExitHandler(() => Telegram.WebApp.close());
+                } else {
+                    this.ui.setExitHandler(() => window.close());
+                    this.mockGameData();
+                }
+
+                try {
+                    await this.connectToGame();
+                    this.ui.initUI();
+                } catch (error) {
+                    this.ui.showError("Ошибка подключения к игре");
+                    console.error("Game init error:", error);
+                }
+            }
+
+            detectEnvironment() {
+                this.isTelegram = !!(window.Telegram && Telegram.WebApp);
+            }
+
+            initTelegramUser() {
+                const tgUser = Telegram.WebApp.initDataUnsafe?.user;
+                if (tgUser) {
+                    this.currentPlayerId = tgUser.id.toString();
+                    this.ui.setCurrentPlayer({
+                        id: this.currentPlayerId,
+                        first_name: tgUser.first_name || `Игрок ${tgUser.id}`,
+                        photo_url: tgUser.photo_url
+                    });
+                } else {
+                    // Демо-режим для браузера
+                    this.currentPlayerId = "1";
+                    this.ui.setCurrentPlayer({
+                        id: "1",
+                        first_name: "Вы (демо)",
+                        photo_url: null
+                    });
+                }
+            }
+
+            async connectToGame() {
+                if (this.isTelegram) {
+                    this.socket.init(this.currentPlayerId, this.handleSocketMessage.bind(this));
+                }
+            }
+
+            handleSocketMessage(message) {
+                switch (message.type) {
+                    case 'game_state':
+                        this.updateGameState(message.data);
+                        break;
+                    case 'player_update':
+                        this.updatePlayer(message.data);
+                        break;
+                    case 'error':
+                        this.ui.showError(message.text);
+                        break;
+                    default:
+                        console.log("Unknown message type:", message.type);
+                }
+            }
+
+            updateGameState(state) {
+                this.gameState = {
+                    ...this.gameState,
+                    ...state,
+                    players: state.players || this.gameState.players
+                };
+                this.ui.updateGameState(this.gameState);
+            }
+
+            updatePlayer(playerData) {
+                this.ui.updatePlayer(playerData);
+            }
+
+            mockGameData() {
+                // Первоначальные данные
+                this.updateGameState({
+                    bankAmount: 1250,
+                    currentTurn: "Ваш ход",
+                    players: Array.from({length: 6}, (_, i) => ({
+                        id: (i + 1).toString(),
+                        first_name: i === 0 ? "Вы (демо)" : `Игрок ${i + 1}`,
+                        balance: 1000 + Math.floor(Math.random() * 2000),
+                        action: i === 0 ? "Ваш ход" : ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
+                        is_current: i === 0,
+                        photo_url: null
+                    }))
+                });
+
+                // Имитация изменения состояния игры
+                setInterval(() => {
+                    const newBank = this.gameState.bankAmount + Math.floor(Math.random() * 100);
+                    const currentPlayerIndex = Math.floor(Math.random() * 6);
+                    
+                    this.updateGameState({
+                        bankAmount: newBank,
+                        currentTurn: currentPlayerIndex === 0 ? "Ваш ход" : `Ход Игрока ${currentPlayerIndex + 1}`,
+                        players: this.gameState.players.map((p, i) => ({
+                            ...p,
+                            action: i === currentPlayerIndex ? "Думает..." : 
+                                   ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
+                            is_current: i === currentPlayerIndex,
+                            balance: i === currentPlayerIndex ? p.balance - 50 : p.balance
+                        }))
+                    });
+                }, 5000);
+            }
+
+            placeBet(amount) {
+                if (this.isTelegram) {
+                    this.socket.send('place_bet', { amount });
+                } else {
+                    this.ui.showError(`Ставка ${amount} (в Telegram будет отправлена)`);
+                    this.updateGameState({
+                        players: this.gameState.players.map(p => 
+                            p.id === this.currentPlayerId 
+                                ? { ...p, action: "Ставка", balance: p.balance - amount }
+                                : p
+                        )
+                    });
+                }
+            }
+
+            fold() {
+                if (this.isTelegram) {
+                    this.socket.send('fold', {});
+                } else {
+                    this.ui.showError("Пас (в Telegram будет отправлен)");
+                    this.updateGameState({
+                        players: this.gameState.players.map(p => 
+                            p.id === this.currentPlayerId 
+                                ? { ...p, action: "Пас" }
+                                : p
+                        )
+                    });
+                }
+            }
+        }
+
+        // React компоненты (бывший gameplay/ui-manager.js)
+        function getRandomColor() {
+            const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#33FFF3'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function getActionColor(action) {
+            const colors = {
+                'Ставка': 'rgba(76, 175, 80, 0.3)',
+                'Пас': 'rgba(244, 67, 54, 0.3)',
+                'Думает...': 'rgba(255, 235, 59, 0.3)',
+                'Ваш ход': 'rgba(33, 150, 243, 0.3)',
+                'default': 'rgba(0, 0, 0, 0.3)'
+            };
+            return colors[action] || colors.default;
+        }
+
+        function PlayerCard({ player, isCurrent }) {
+            const avatarStyle = player.photo_url 
+                ? { backgroundImage: `url(${player.photo_url})` }
+                : { 
+                    backgroundColor: getRandomColor(),
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                };
+
+            return (
+                <div className={`player-card ${isCurrent ? 'current-player active' : ''}`}>
+                    <div className="player-avatar" style={avatarStyle}>
+                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                    </div>
+                    <div className="player-action" style={{ backgroundColor: getActionColor(player.action) }}>
+                        {player.action || 'Ожидание'}
+                    </div>
+                    <div className="player-name">{player.first_name}</div>
+                    <div className="player-balance">$ {player.balance?.toLocaleString('ru-RU') || '0'}</div>
+                </div>
+            );
+        }
+
+        function App() {
+            const [menuOpen, setMenuOpen] = React.useState(false);
+            const [gameState, setGameState] = React.useState({
+                bankAmount: 0,
+                currentTurn: "Ожидание начала игры...",
+                players: []
+            });
+            const [currentPlayer, setCurrentPlayer] = React.useState(null);
+            const [showActions, setShowActions] = React.useState(false);
+            const [error, setError] = React.useState(null);
+            
+            const controllerRef = React.useRef(null);
+            const socketRef = React.useRef(null);
+
+            React.useEffect(() => {
+                const uiManager = {
+                    setController: (controller) => {
+                        controllerRef.current = controller;
+                    },
+                    setExitHandler: (handler) => {
+                        // Привязываем обработчик выхода к кнопке
+                        const exitButton = document.querySelector('.exit-button');
+                        if (exitButton) {
+                            exitButton.onclick = handler;
+                        }
+                    },
+                    setCurrentPlayer: (player) => {
+                        setCurrentPlayer(player);
+                    },
+                    initUI: () => {
+                        console.log("UI initialized");
+                    },
+                    updateGameState: (state) => {
+                        setGameState(state);
+                        // Показываем кнопки действий, если текущий игрок - это пользователь
+                        const isCurrentPlayer = state.players.some(p => 
+                            p.is_current && p.id === currentPlayer?.id
+                        );
+                        setShowActions(isCurrentPlayer);
+                    },
+                    updatePlayer: (playerData) => {
+                        setGameState(prev => ({
+                            ...prev,
+                            players: prev.players.map(p => 
+                                p.id === playerData.id ? { ...p, ...playerData } : p
+                            )
+                        }));
+                    },
+                    showError: (message) => {
+                        setError(message);
+                        setTimeout(() => setError(null), 3000);
+                    }
+                };
+
+                socketRef.current = new SocketHandler();
+                const controller = new GameController(uiManager, socketRef.current);
+                controller.init();
+
+                return () => {
+                    // Очистка при размонтировании
+                    if (socketRef.current?.socket) {
+                        socketRef.current.socket.close();
+                    }
+                };
+            }, []);
+
+            const handleBet = () => {
+                const amount = prompt("Введите сумму ставки:", "10");
+                if (amount && !isNaN(amount)) {
+                    controllerRef.current?.placeBet(parseInt(amount));
+                }
+            };
+
+            const handleFold = () => {
+                if (confirm("Вы уверены, что хотите сбросить карты?")) {
+                    controllerRef.current?.fold();
+                }
+            };
+
+            return (
+                <div className="main-area">
+                    <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+                    
+                    <div className="center-block">
+                        <div className="player-turn-info">
+                            {gameState.currentTurn}
+                        </div>
+                    </div>
+                    
+                    <div className="top-right-buttons">
+                        <button className="sound-button">🔊</button>
+                        <button className="exit-button">✕</button>
+                    </div>
+                    
+                    {menuOpen && (
+                        <div className="dropdown-menu" onClick={() => setMenuOpen(false)}>
+                            <a href="#">📜Правила игры</a>
+                            <a href="#">📊История транзакций</a>
+                            <a href="#">👥Пригласить друга</a>
+                        </div>
+                    )}
+                    
+                    <div className="game-title">Сека</div>
+                    
+                    <div className="players-container">
+                        <div className="players-left">
+                            {gameState.players.slice(0, 3).map((player) => (
+                                <PlayerCard 
+                                    key={player.id} 
+                                    player={player} 
+                                    isCurrent={player.is_current} 
+                                />
+                            ))}
+                        </div>
+                        <div className="players-right">
+                            {gameState.players.slice(3, 6).map((player) => (
+                                <PlayerCard 
+                                    key={player.id} 
+                                    player={player} 
+                                    isCurrent={player.is_current} 
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    
+                    <div className="bank-title">Банк</div>
+                    <div className="bank-amount">$ {gameState.bankAmount.toLocaleString('ru-RU')}</div>
+                    
+                    <div className="bottom-panel"></div>
+
+                    {showActions && (
+                        <>
+                            <button 
+                                className="action-button" 
+                                style={{ left: 'calc(50% - 120px)', backgroundColor: '#4CAF50' }}
+                                onClick={handleBet}
+                            >
+                                Ставка
+                            </button>
+                            <button 
+                                className="action-button" 
+                                style={{ left: 'calc(50% + 20px)', backgroundColor: '#F44336' }}
+                                onClick={handleFold}
+                            >
+                                Пас
+                            </button>
+                        </>
+                    )}
+
+                    {error && (
+                        <div className="error-message">
+                            {error}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', () => {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        });
+    </script>
 </body>
 </html>
