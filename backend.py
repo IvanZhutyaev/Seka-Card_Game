@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Optional, Union
-
+from config import settings
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -16,30 +16,6 @@ from urllib.parse import parse_qs
 from pathlib import Path
 
 
-# ====================== НАСТРОЙКИ ======================
-class Settings:
-    def __init__(self):
-        # PostgreSQL настройки
-        self.POSTGRES_DB = os.getenv('POSTGRES_DB', 'postgres')
-        self.POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
-        self.POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD', '')
-        self.POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
-        self.POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
-
-        # Redis настройки
-        self.REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-        self.REDIS_PORT = os.getenv('REDIS_PORT', '6379')
-
-        # Другие настройки
-        self.AVATAR_CACHE_DIR = os.getenv('AVATAR_CACHE_DIR', 'static/avatars')
-        self.TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN', '')
-
-        # Создаем директорию для аватарок
-        os.makedirs(self.AVATAR_CACHE_DIR, exist_ok=True)
-
-
-# Инициализация настроек
-settings = Settings()
 
 # ====================== ПОДКЛЮЧЕНИЕ К БАЗАМ ДАННЫХ ======================
 def get_db_connection():
@@ -127,7 +103,7 @@ async def cache_avatar(player_id: str, photo_url: str) -> Optional[str]:
 async def get_telegram_user_data(telegram_id: str) -> Optional[Dict]:
     """Получаем данные пользователя из Telegram API"""
     try:
-        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
+        url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getChat"
         async with httpx.AsyncClient() as client:
             response = await client.post(url, json={"chat_id": telegram_id})
             if response.status_code == 200:
@@ -148,7 +124,7 @@ async def get_telegram_user_data(telegram_id: str) -> Optional[Dict]:
 async def get_telegram_user_photo(telegram_id: str) -> Optional[str]:
     """Получаем фото профиля пользователя Telegram"""
     try:
-        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getUserProfilePhotos"
+        url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getUserProfilePhotos"
         params = {"user_id": telegram_id, "limit": 1}
         async with httpx.AsyncClient() as client:
             response = await client.get(url, params=params)
@@ -158,11 +134,11 @@ async def get_telegram_user_photo(telegram_id: str) -> Optional[str]:
                     file_id = data["result"]["photos"][0][0]["file_id"]
                     
                     # Получаем путь к файлу
-                    url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getFile"
+                    url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/getFile"
                     response = await client.post(url, json={"file_id": file_id})
                     if response.status_code == 200:
                         file_path = response.json()["result"]["file_path"]
-                        return f"https://api.telegram.org/file/bot{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
+                        return f"https://api.telegram.org/file/bot{settings.BOT_TOKEN}/{file_path}"
         return None
     except Exception as e:
         print(f"Error getting Telegram user photo: {e}")
