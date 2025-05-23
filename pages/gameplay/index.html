@@ -248,6 +248,65 @@
             background: #f0f0f0;
         }
 
+        .chair-selection {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .chair-selection h3 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .chair-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 400px;
+        }
+
+        .chair-option {
+            width: 80px;
+            height: 80px;
+            background-color: #4a6baf;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .chair-option.occupied {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .chair-option.selected {
+            border-color: #FFD700;
+        }
+
+        .confirm-chair {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
         /* Mobile version adjustments */
         @media (max-width: 768px) {
             .player-avatar {
@@ -299,6 +358,16 @@
             .bottom-panel {
                 height: 40vh;
             }
+
+            .chair-options {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .chair-option {
+                width: 70px;
+                height: 70px;
+            }
         }
     </style>
 </head>
@@ -322,10 +391,22 @@
             const [currentPlayer, setCurrentPlayer] = useState(null);
             const [error, setError] = useState(null);
             const [showActions, setShowActions] = useState(false);
+            const [showChairSelection, setShowChairSelection] = useState(false);
+            const [selectedChair, setSelectedChair] = useState(null);
+            const [availableChairs, setAvailableChairs] = useState([]);
             const socketRef = useRef(null);
             const reconnectAttempts = useRef(0);
             const maxReconnectAttempts = 5;
             const reconnectDelay = 3000;
+
+            const chairImages = [
+                'https://example.com/chair1.png',
+                'https://example.com/chair2.png',
+                'https://example.com/chair3.png',
+                'https://example.com/chair4.png',
+                'https://example.com/chair5.png',
+                'https://example.com/chair6.png'
+            ];
 
             useEffect(() => {
                 initializeGame();
@@ -428,6 +509,16 @@
                     case 'error':
                         setError(message.text);
                         break;
+                    case 'select_chair':
+                        const occupiedChairs = message.data.occupied_chairs || [];
+                        const chairs = chairImages.map((chair, index) => ({
+                            id: index,
+                            image: chair,
+                            occupied: occupiedChairs.includes(index)
+                        }));
+                        setAvailableChairs(chairs);
+                        setShowChairSelection(true);
+                        break;
                     default:
                         console.log("Unknown message type:", message.type);
                 }
@@ -474,7 +565,8 @@
                     balance: (1000 + Math.floor(Math.random() * 2000)).toFixed(2),
                     action: i === 0 ? "Ваш ход" : ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
                     is_current: i === 0,
-                    photo_url: null
+                    photo_url: null,
+                    chair: i === 0 ? 0 : Math.floor(Math.random() * 6)
                 }));
 
                 updateGameState({
@@ -529,8 +621,57 @@
                 }
             };
 
+            const handleChairSelect = (chair) => {
+                if (!chair.occupied) {
+                    setSelectedChair(chair);
+                }
+            };
+
+            const confirmChairSelection = () => {
+                if (selectedChair) {
+                    if (socketRef.current) {
+                        sendMessage('select_chair', { chair_id: selectedChair.id });
+                    } else {
+                        // В демо-режиме просто обновляем стул текущего игрока
+                        updateGameState({
+                            players: gameState.players.map(p =>
+                                p.id === currentPlayer.id
+                                    ? { ...p, chair: selectedChair.id }
+                                    : p
+                            )
+                        });
+                    }
+                    setShowChairSelection(false);
+                }
+            };
+
             return (
                 <div className="app-container">
+                    {showChairSelection && (
+                        <div className="chair-selection">
+                            <h3>Выберите свободный стул</h3>
+                            <div className="chair-options">
+                                {availableChairs.map(chair => (
+                                    <div 
+                                        key={chair.id}
+                                        className={`chair-option ${chair.occupied ? 'occupied' : ''} ${selectedChair?.id === chair.id ? 'selected' : ''}`}
+                                        onClick={() => handleChairSelect(chair)}
+                                        style={{ backgroundImage: `url(${chair.image})` }}
+                                    >
+                                        {chair.occupied && <span>Занят</span>}
+                                    </div>
+                                ))}
+                            </div>
+                            <button 
+                                className="confirm-chair"
+                                onClick={confirmChairSelection}
+                                disabled={!selectedChair}
+                            >
+                                Подтвердить выбор
+                            </button>
+                        </div>
+                    )}
+
                     <div className="header">
                         <button 
                             className="menu-button" 
