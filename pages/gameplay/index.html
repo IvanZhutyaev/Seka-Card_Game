@@ -1,236 +1,424 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Игровое поле Сека</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Игра "Сека"</title>
     <style>
-        /* Основные стили */
-        body, html {
+        * {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
             background-color: #0a1a3a;
-            font-family: 'Arial', sans-serif;
+            color: white;
+            height: 100vh;
+            overflow: hidden;
         }
-
+        
         #root {
-            width: 100%;
             height: 100%;
             position: relative;
         }
-
-        .main-area {
-            flex: 1;
-            position: relative;
-            height: 80vh;
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            align-items: center;
         }
-
-        /* Остальные ваши стили... */
+        
         .menu-button {
-            position: absolute;
-            top: 15px;
-            left: 35px;
+            background: white;
+            border: none;
             width: 40px;
             height: 40px;
-            background-color: white;
-            border: none;
             border-radius: 50%;
+            font-size: 20px;
             cursor: pointer;
-            z-index: 100;
+        }
+        
+        .game-title {
+            text-align: center;
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        
+        .turn-info {
+            background: white;
+            color: #0a1a3a;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-align: center;
+            margin: 0 auto;
+            max-width: 80%;
+        }
+        
+        .players-container {
+            display: flex;
+            justify-content: space-between;
+            height: 60vh;
+            padding: 20px;
+        }
+        
+        .players-column {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 48%;
+        }
+        
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .player-card.current-player {
+            border: 2px solid gold;
+        }
+        
+        .player-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #4a6baf;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 20px;
+            background-size: cover;
+            background-position: center;
         }
-
-        .center-block {
+        
+        .player-name {
+            margin: 5px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .player-balance {
+            color: gold;
+        }
+        
+        .player-action {
             position: absolute;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 520px;
-            height: 40px;
-            background-color: white;
-            border-radius: 20px;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.5);
+            text-align: center;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            padding: 2px 0;
+            font-size: 12px;
+        }
+        
+        .bank-display {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .bank-title {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .bank-amount {
+            font-size: 24px;
+            color: gold;
+        }
+        
+        .actions {
             display: flex;
             justify-content: center;
-            align-items: center;
-            z-index: 90;
+            gap: 20px;
+            margin-top: 20px;
         }
-
-        /* Добавьте остальные стили из вашего кода */
+        
+        .action-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .bet-button {
+            background: #4CAF50;
+        }
+        
+        .fold-button {
+            background: #F44336;
+        }
+        
+        .error-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #F44336;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            animation: fadeInOut 3s forwards;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        .dropdown-menu {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background: white;
+            color: #0a1a3a;
+            border-radius: 5px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+        }
+        
+        .dropdown-menu a {
+            padding: 10px 15px;
+            text-decoration: none;
+            color: #0a1a3a;
+        }
+        
+        .dropdown-menu a:hover {
+            background: #f0f0f0;
+        }
+        
+        .sound-button, .exit-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <script type="text/babel">
-        class ErrorBoundary extends React.Component {
-            constructor(props) {
-                super(props);
-                this.state = { hasError: false };
-            }
+        const { useState, useEffect, useRef } = React;
 
-            static getDerivedStateFromError(error) {
-                return { hasError: true, error };
-            }
+        // Генерация случайного цвета для аватара
+        const getRandomColor = () => {
+            const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#33FFF3'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        };
 
-            componentDidCatch(error, errorInfo) {
-                console.error("ErrorBoundary caught:", error, errorInfo);
-            }
+        // Получение цвета для действия игрока
+        const getActionColor = (action) => {
+            const colors = {
+                'Ставка': 'rgba(76, 175, 80, 0.5)',
+                'Пас': 'rgba(244, 67, 54, 0.5)',
+                'Думает...': 'rgba(255, 235, 59, 0.5)',
+                'Ваш ход': 'rgba(33, 150, 243, 0.5)',
+                'default': 'rgba(0, 0, 0, 0.5)'
+            };
+            return colors[action] || colors.default;
+        };
 
-            render() {
-                if (this.state.hasError) {
-                    return (
-                        <div style={{color: 'white', padding: '20px'}}>
-                            <h2>Произошла ошибка</h2>
-                            <pre>{this.state.error.toString()}</pre>
-                        </div>
-                    );
-                }
-                return this.props.children;
-            }
-        }
+        // Компонент карточки игрока
+        const PlayerCard = ({ player, isCurrent }) => {
+            if (!player) return null;
 
-        class SocketHandler {
-            constructor() {
-                this.socket = null;
-                this.messageHandler = null;
-            }
-
-            init(playerId, messageHandler) {
-                if (!playerId) {
-                    console.warn("Player ID not provided - running in demo mode");
-                    return;
-                }
-
-                this.messageHandler = messageHandler;
-                try {
-                    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-                    const host = window.location.host || 'localhost:8080';
-                    this.socket = new WebSocket(`${protocol}${host}/ws/${playerId}`);
-                    this.setupEventHandlers();
-                } catch (e) {
-                    console.error("WebSocket init error:", e);
-                }
-            }
-
-            setupEventHandlers() {
-                if (!this.socket) return;
-
-                this.socket.onopen = () => {
-                    console.log("WebSocket connected");
-                    this.send('player_connected');
+            const avatarStyle = player.photo_url 
+                ? { backgroundImage: `url(${player.photo_url})` }
+                : { 
+                    backgroundColor: getRandomColor(),
+                    color: 'white'
                 };
 
-                this.socket.onmessage = (event) => {
-                    try {
-                        const message = JSON.parse(event.data);
-                        this.messageHandler?.(message);
-                    } catch (e) {
-                        console.error("Error parsing message:", e);
-                    }
-                };
+            return (
+                <div className={`player-card ${isCurrent ? 'current-player' : ''}`}>
+                    <div className="player-action" style={{ backgroundColor: getActionColor(player.action) }}>
+                        {player.action || 'Ожидание'}
+                    </div>
+                    <div className="player-avatar" style={avatarStyle}>
+                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                    </div>
+                    <div className="player-name">{player.first_name}</div>
+                    <div className="player-balance">${player.balance?.toLocaleString('ru-RU') || '0'}</div>
+                </div>
+            );
+        };
 
-                this.socket.onclose = () => {
-                    console.log("WebSocket disconnected");
-                    this.messageHandler?.({ type: 'error', text: 'Соединение потеряно' });
-                };
+        // Основной компонент приложения
+        const App = () => {
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [gameState, setGameState] = useState({
+                bankAmount: 0,
+                currentTurn: "Ожидание начала игры...",
+                players: []
+            });
+            const [currentPlayer, setCurrentPlayer] = useState(null);
+            const [error, setError] = useState(null);
+            const [showActions, setShowActions] = useState(false);
+            const socketRef = useRef(null);
 
-                this.socket.onerror = (error) => {
-                    console.error("WebSocket error:", error);
-                    this.messageHandler?.({ type: 'error', text: 'Ошибка соединения' });
-                };
-            }
-
-            send(action, data = {}) {
-                if (this.socket?.readyState === WebSocket.OPEN) {
-                    this.socket.send(JSON.stringify({ action, ...data }));
+            // Инициализация WebSocket соединения
+            useEffect(() => {
+                // В демо-режиме не подключаемся к WebSocket
+                if (window.Telegram && Telegram.WebApp) {
+                    initTelegramConnection();
                 } else {
-                    console.warn("WebSocket not ready");
+                    startDemoMode();
                 }
-            }
-        }
 
-        class GameController {
-            constructor(uiManager, socketHandler) {
-                this.ui = uiManager;
-                this.socket = socketHandler;
-                this.currentPlayerId = null;
-                this.gameState = {
-                    bankAmount: 0,
-                    currentTurn: "Ожидание игроков...",
-                    players: []
-                };
-                this.isTelegram = false;
-                this.demoInterval = null;
-            }
-
-            async init() {
-                try {
-                    this.detectEnvironment();
-                    this.ui.setController(this);
-
-                    if (this.isTelegram) {
-                        this.initTelegramUser();
-                        this.ui.setExitHandler(() => Telegram.WebApp.close());
-                    } else {
-                        this.initDemoUser();
-                        this.ui.setExitHandler(() => {
-                            if (this.demoInterval) clearInterval(this.demoInterval);
-                            window.close();
-                        });
+                return () => {
+                    if (socketRef.current) {
+                        socketRef.current.close();
                     }
+                };
+            }, []);
 
-                    await this.connectToGame();
-                    this.ui.initUI();
-                } catch (error) {
-                    console.error("GameController init error:", error);
-                    this.ui.showError("Ошибка инициализации игры");
-                }
-            }
-
-            detectEnvironment() {
-                this.isTelegram = !!(window.Telegram && Telegram.WebApp);
-                console.log("Running in", this.isTelegram ? "Telegram" : "browser");
-            }
-
-            initTelegramUser() {
+            // Инициализация Telegram WebApp
+            const initTelegramConnection = () => {
                 try {
+                    Telegram.WebApp.expand();
                     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
+                    
                     if (tgUser) {
-                        this.currentPlayerId = tgUser.id.toString();
-                        this.ui.setCurrentPlayer({
-                            id: this.currentPlayerId,
+                        const player = {
+                            id: tgUser.id.toString(),
                             first_name: tgUser.first_name || `Игрок ${tgUser.id}`,
                             photo_url: tgUser.photo_url
-                        });
-                        Telegram.WebApp.expand();
+                        };
+                        setCurrentPlayer(player);
+                        
+                        // Инициализация WebSocket
+                        initWebSocket(player.id);
                     }
                 } catch (e) {
                     console.error("Telegram init error:", e);
+                    setError("Ошибка инициализации Telegram");
                 }
-            }
+            };
 
-            initDemoUser() {
-                this.currentPlayerId = "1";
-                this.ui.setCurrentPlayer({
+            // Инициализация WebSocket соединения
+            const initWebSocket = (playerId) => {
+                try {
+                    const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+                    const host = window.location.host || 'localhost:8080';
+                    socketRef.current = new WebSocket(`${protocol}${host}/ws/${playerId}`);
+                    
+                    socketRef.current.onopen = () => {
+                        console.log("WebSocket connected");
+                        sendMessage('player_connected');
+                    };
+                    
+                    socketRef.current.onmessage = (event) => {
+                        try {
+                            const message = JSON.parse(event.data);
+                            handleSocketMessage(message);
+                        } catch (e) {
+                            console.error("Error parsing message:", e);
+                            setError("Ошибка обработки сообщения");
+                        }
+                    };
+                    
+                    socketRef.current.onclose = () => {
+                        console.log("WebSocket disconnected");
+                        setError("Соединение потеряно");
+                    };
+                    
+                    socketRef.current.onerror = (error) => {
+                        console.error("WebSocket error:", error);
+                        setError("Ошибка соединения");
+                    };
+                } catch (e) {
+                    console.error("WebSocket init error:", e);
+                    setError("Ошибка подключения к игре");
+                }
+            };
+
+            // Отправка сообщения через WebSocket
+            const sendMessage = (action, data = {}) => {
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({ action, ...data }));
+                } else {
+                    console.warn("WebSocket not ready");
+                    setError("Нет соединения с сервером");
+                }
+            };
+
+            // Обработка сообщений от сервера
+            const handleSocketMessage = (message) => {
+                switch (message.type) {
+                    case 'game_state':
+                        updateGameState(message.data);
+                        break;
+                    case 'player_update':
+                        updatePlayer(message.data);
+                        break;
+                    case 'error':
+                        setError(message.text);
+                        break;
+                    default:
+                        console.log("Unknown message type:", message.type);
+                }
+            };
+
+            // Обновление состояния игры
+            const updateGameState = (state) => {
+                setGameState(prev => {
+                    const newState = {
+                        ...prev,
+                        ...state,
+                        players: state.players || prev.players || []
+                    };
+
+                    // Проверяем, является ли текущий игрок активным
+                    const isCurrentPlayer = newState.players.some(p => 
+                        p.is_current && p.id === currentPlayer?.id
+                    );
+                    setShowActions(isCurrentPlayer);
+
+                    return newState;
+                });
+            };
+
+            // Обновление данных игрока
+            const updatePlayer = (playerData) => {
+                setGameState(prev => ({
+                    ...prev,
+                    players: prev.players.map(p => 
+                        p.id === playerData.id ? { ...p, ...playerData } : p
+                    )
+                }));
+            };
+
+            // Демо-режим (для тестирования без Telegram)
+            const startDemoMode = () => {
+                console.log("Starting demo mode");
+                const demoPlayer = {
                     id: "1",
                     first_name: "Вы (демо)",
                     photo_url: null
-                });
-                this.startDemoMode();
-            }
+                };
+                setCurrentPlayer(demoPlayer);
 
-            startDemoMode() {
-                console.log("Starting demo mode");
                 const initialPlayers = Array.from({length: 6}, (_, i) => ({
                     id: (i + 1).toString(),
                     first_name: i === 0 ? "Вы (демо)" : `Игрок ${i + 1}`,
@@ -240,334 +428,141 @@
                     photo_url: null
                 }));
 
-                this.updateGameState({
+                updateGameState({
                     bankAmount: 1250,
                     currentTurn: "Ваш ход",
                     players: initialPlayers
                 });
+                setShowActions(true);
 
-                this.demoInterval = setInterval(() => {
-                    const newBank = this.gameState.bankAmount + Math.floor(Math.random() * 100);
-                    const currentPlayerIndex = Math.floor(Math.random() * 6);
+                // Имитация игрового процесса
+                const demoInterval = setInterval(() => {
+                    setGameState(prev => {
+                        const newBank = prev.bankAmount + Math.floor(Math.random() * 100);
+                        const currentPlayerIndex = Math.floor(Math.random() * 6);
 
-                    this.updateGameState({
-                        bankAmount: newBank,
-                        currentTurn: currentPlayerIndex === 0 ? "Ваш ход" : `Ход Игрока ${currentPlayerIndex + 1}`,
-                        players: this.gameState.players.map((p, i) => ({
-                            ...p,
-                            action: i === currentPlayerIndex ? "Думает..." :
-                                   ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
-                            is_current: i === currentPlayerIndex,
-                            balance: i === currentPlayerIndex ? p.balance - 50 : p.balance
-                        }))
+                        return {
+                            ...prev,
+                            bankAmount: newBank,
+                            currentTurn: currentPlayerIndex === 0 ? "Ваш ход" : `Ход Игрока ${currentPlayerIndex + 1}`,
+                            players: prev.players.map((p, i) => ({
+                                ...p,
+                                action: i === currentPlayerIndex ? "Думает..." :
+                                       ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
+                                is_current: i === currentPlayerIndex,
+                                balance: i === currentPlayerIndex ? p.balance - 50 : p.balance
+                            }))
+                        };
                     });
                 }, 5000);
-            }
 
-            async connectToGame() {
-                if (this.isTelegram) {
-                    this.socket.init(this.currentPlayerId, this.handleSocketMessage.bind(this));
-                } else {
-                    console.log("Running in demo mode - no WebSocket connection");
-                }
-            }
-
-            handleSocketMessage(message) {
-                try {
-                    switch (message.type) {
-                        case 'game_state':
-                            this.updateGameState(message.data);
-                            break;
-                        case 'player_update':
-                            this.updatePlayer(message.data);
-                            break;
-                        case 'error':
-                            this.ui.showError(message.text);
-                            break;
-                        default:
-                            console.log("Unknown message type:", message.type);
-                    }
-                } catch (e) {
-                    console.error("Error handling message:", e);
-                }
-            }
-
-            updateGameState(state) {
-                this.gameState = {
-                    ...this.gameState,
-                    ...state,
-                    players: state.players || this.gameState.players || []
-                };
-                this.ui.updateGameState(this.gameState);
-            }
-
-            updatePlayer(playerData) {
-                this.ui.updatePlayer(playerData);
-            }
-
-            placeBet(amount) {
-                if (this.isTelegram) {
-                    this.socket.send('place_bet', { amount });
-                } else {
-                    this.ui.showError(`Ставка ${amount} (демо-режим)`);
-                    this.updateGameState({
-                        players: this.gameState.players.map(p =>
-                            p.id === this.currentPlayerId
-                                ? { ...p, action: "Ставка", balance: p.balance - amount }
-                                : p
-                        )
-                    });
-                }
-            }
-
-            fold() {
-                if (this.isTelegram) {
-                    this.socket.send('fold', {});
-                } else {
-                    this.ui.showError("Пас (демо-режим)");
-                    this.updateGameState({
-                        players: this.gameState.players.map(p =>
-                            p.id === this.currentPlayerId
-                                ? { ...p, action: "Пас" }
-                                : p
-                        )
-                    });
-                }
-            }
-        }
-
-        function getRandomColor() {
-            const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#33FFF3'];
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-
-        function getActionColor(action) {
-            const colors = {
-                'Ставка': 'rgba(76, 175, 80, 0.3)',
-                'Пас': 'rgba(244, 67, 54, 0.3)',
-                'Думает...': 'rgba(255, 235, 59, 0.3)',
-                'Ваш ход': 'rgba(33, 150, 243, 0.3)',
-                'default': 'rgba(0, 0, 0, 0.3)'
+                return () => clearInterval(demoInterval);
             };
-            return colors[action] || colors.default;
-        }
 
-        function PlayerCard({ player, isCurrent }) {
-            if (!player) return null;
-
-            const avatarStyle = player.photo_url
-                ? { backgroundImage: `url(${player.photo_url})` }
-                : {
-                    backgroundColor: getRandomColor(),
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                };
-
-            return (
-                <div className={`player-card ${isCurrent ? 'current-player active' : ''}`}>
-                    <div className="player-avatar" style={avatarStyle}>
-                        {!player.photo_url && (player.first_name?.[0] || '?')}
-                    </div>
-                    <div className="player-action" style={{ backgroundColor: getActionColor(player.action) }}>
-                        {player.action || 'Ожидание'}
-                    </div>
-                    <div className="player-name">{player.first_name}</div>
-                    <div className="player-balance">$ {player.balance?.toLocaleString('ru-RU') || '0'}</div>
-                </div>
-            );
-        }
-
-        function App() {
-            const [menuOpen, setMenuOpen] = React.useState(false);
-            const [gameState, setGameState] = React.useState({
-                bankAmount: 0,
-                currentTurn: "Ожидание начала игры...",
-                players: []
-            });
-            const [currentPlayer, setCurrentPlayer] = React.useState(null);
-            const [showActions, setShowActions] = React.useState(false);
-            const [error, setError] = React.useState(null);
-            const [isInitialized, setIsInitialized] = React.useState(false);
-
-            const controllerRef = React.useRef(null);
-            const socketRef = React.useRef(null);
-
-            React.useEffect(() => {
-                console.log("App useEffect running");
-
-                const uiManager = {
-                    setController: (controller) => {
-                        controllerRef.current = controller;
-                    },
-                    setExitHandler: (handler) => {
-                        const exitButton = document.querySelector('.exit-button');
-                        if (exitButton) {
-                            exitButton.onclick = handler;
-                        }
-                    },
-                    setCurrentPlayer: (player) => {
-                        console.log("Setting current player:", player);
-                        setCurrentPlayer(player);
-                    },
-                    initUI: () => {
-                        console.log("UI initialized");
-                    },
-                    updateGameState: (state) => {
-                        console.log("Updating game state:", state);
-                        setGameState(prev => {
-                            const newState = {
-                                ...prev,
-                                ...state,
-                                players: state.players || prev.players || []
-                            };
-
-                            const isCurrentPlayer = newState.players.some(p =>
-                                p.is_current && p.id === currentPlayer?.id
-                            );
-                            setShowActions(isCurrentPlayer);
-
-                            return newState;
-                        });
-                    },
-                    updatePlayer: (playerData) => {
-                        setGameState(prev => ({
-                            ...prev,
-                            players: prev.players.map(p =>
-                                p.id === playerData.id ? { ...p, ...playerData } : p
-                            )
-                        }));
-                    },
-                    showError: (message) => {
-                        console.error("UI Error:", message);
-                        setError(message);
-                        setTimeout(() => setError(null), 3000);
-                    }
-                };
-
-                try {
-                    socketRef.current = new SocketHandler();
-                    const controller = new GameController(uiManager, socketRef.current);
-                    controllerRef.current = controller;
-
-                    controller.init().then(() => {
-                        setIsInitialized(true);
-                    }).catch(e => {
-                        console.error("Controller init failed:", e);
-                        setError("Ошибка инициализации игры");
-                    });
-                } catch (e) {
-                    console.error("Initialization error:", e);
-                    setError("Критическая ошибка инициализации");
-                }
-
-                return () => {
-                    if (socketRef.current?.socket) {
-                        socketRef.current.socket.close();
-                    }
-                    const controller = controllerRef.current;
-                    if (controller && controller.demoInterval) {
-                        clearInterval(controller.demoInterval);
-                    }
-                };
-            }, []);
-
-            if (!isInitialized) {
-                return (
-                    <div style={{
-                        color: 'white',
-                        textAlign: 'center',
-                        paddingTop: '50px',
-                        backgroundColor: '#0a1a3a',
-                        height: '100vh'
-                    }}>
-                        Загрузка игры...
-                    </div>
-                );
-            }
-
+            // Обработчик ставки
             const handleBet = () => {
                 const amount = prompt("Введите сумму ставки:", "10");
                 if (amount && !isNaN(amount)) {
-                    controllerRef.current?.placeBet(parseInt(amount));
+                    const numAmount = parseInt(amount);
+                    if (socketRef.current) {
+                        sendMessage('place_bet', { amount: numAmount });
+                    } else {
+                        // Демо-режим
+                        setError(`Ставка ${numAmount} (демо-режим)`);
+                        updateGameState({
+                            players: gameState.players.map(p =>
+                                p.id === currentPlayer.id
+                                    ? { ...p, action: "Ставка", balance: p.balance - numAmount }
+                                    : p
+                            )
+                        });
+                    }
                 }
             };
 
+            // Обработчик паса
             const handleFold = () => {
                 if (confirm("Вы уверены, что хотите сбросить карты?")) {
-                    controllerRef.current?.fold();
+                    if (socketRef.current) {
+                        sendMessage('fold');
+                    } else {
+                        // Демо-режим
+                        setError("Пас (демо-режим)");
+                        updateGameState({
+                            players: gameState.players.map(p =>
+                                p.id === currentPlayer.id
+                                    ? { ...p, action: "Пас" }
+                                    : p
+                            )
+                        });
+                    }
+                }
+            };
+
+            // Выход из игры
+            const handleExit = () => {
+                if (window.Telegram && Telegram.WebApp) {
+                    Telegram.WebApp.close();
+                } else {
+                    window.close();
                 }
             };
 
             return (
-                <div className="main-area">
-                    <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
-
-                    <div className="center-block">
-                        <div className="player-turn-info">
-                            {gameState.currentTurn}
-                        </div>
-                    </div>
-
-                    <div className="top-right-buttons">
+                <div className="app-container">
+                    <div className="header">
+                        <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
                         <button className="sound-button">🔊</button>
-                        <button className="exit-button">✕</button>
+                        <button className="exit-button" onClick={handleExit}>✕</button>
                     </div>
 
                     {menuOpen && (
                         <div className="dropdown-menu" onClick={() => setMenuOpen(false)}>
-                            <a href="#">📜Правила игры</a>
-                            <a href="#">📊История транзакций</a>
-                            <a href="#">👥Пригласить друга</a>
+                            <a href="#">📜 Правила игры</a>
+                            <a href="#">📊 История транзакций</a>
+                            <a href="#">👥 Пригласить друга</a>
                         </div>
                     )}
 
                     <div className="game-title">Сека</div>
 
+                    <div className="turn-info">{gameState.currentTurn}</div>
+
                     <div className="players-container">
-                        <div className="players-left">
-                            {(gameState.players || []).slice(0, 3).map((player) => (
-                                <PlayerCard
-                                    key={player.id}
-                                    player={player}
-                                    isCurrent={player.is_current}
+                        <div className="players-column">
+                            {gameState.players.slice(0, 3).map(player => (
+                                <PlayerCard 
+                                    key={player.id} 
+                                    player={player} 
+                                    isCurrent={player.is_current} 
                                 />
                             ))}
                         </div>
-                        <div className="players-right">
-                            {(gameState.players || []).slice(3, 6).map((player) => (
-                                <PlayerCard
-                                    key={player.id}
-                                    player={player}
-                                    isCurrent={player.is_current}
+                        <div className="players-column">
+                            {gameState.players.slice(3, 6).map(player => (
+                                <PlayerCard 
+                                    key={player.id} 
+                                    player={player} 
+                                    isCurrent={player.is_current} 
                                 />
                             ))}
                         </div>
                     </div>
 
-                    <div className="bank-title">Банк</div>
-                    <div className="bank-amount">$ {gameState.bankAmount.toLocaleString('ru-RU')}</div>
-
-                    <div className="bottom-panel"></div>
+                    <div className="bank-display">
+                        <div className="bank-title">Банк</div>
+                        <div className="bank-amount">${gameState.bankAmount.toLocaleString('ru-RU')}</div>
+                    </div>
 
                     {showActions && (
-                        <>
-                            <button
-                                className="action-button"
-                                style={{ left: 'calc(50% - 120px)', backgroundColor: '#4CAF50' }}
-                                onClick={handleBet}
-                            >
+                        <div className="actions">
+                            <button className="action-button bet-button" onClick={handleBet}>
                                 Ставка
                             </button>
-                            <button
-                                className="action-button"
-                                style={{ left: 'calc(50% + 20px)', backgroundColor: '#F44336' }}
-                                onClick={handleFold}
-                            >
+                            <button className="action-button fold-button" onClick={handleFold}>
                                 Пас
                             </button>
-                        </>
+                        </div>
                     )}
 
                     {error && (
@@ -577,34 +572,11 @@
                     )}
                 </div>
             );
-        }
+        };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("DOM fully loaded");
-            try {
-                const rootElement = document.getElementById('root');
-                if (!rootElement) throw new Error("Root element not found");
-
-                console.log("Creating React root");
-                const root = ReactDOM.createRoot(rootElement);
-
-                console.log("Rendering App");
-                root.render(
-                    <ErrorBoundary>
-                        <App />
-                    </ErrorBoundary>
-                );
-
-            } catch (error) {
-                console.error("Mount error:", error);
-                document.body.innerHTML = `
-                    <div style="color: red; padding: 20px;">
-                        <h2>Critical Error</h2>
-                        <p>${error.message}</p>
-                    </div>
-                `;
-            }
-        });
+        // Рендеринг приложения
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
