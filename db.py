@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import redis
@@ -7,6 +8,7 @@ from config import settings  # Используем наш новый конфи
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # SQLAlchemy
 Base = declarative_base()
@@ -32,22 +34,31 @@ def get_redis():
     return redis_client
 
 
+async def check_database_connection():
+    """Проверка подключений к базам данных при запуске"""
+    try:
+        # Проверка PostgreSQL
+        conn = engine.connect()
+        logger.info("✅ PostgreSQL connection successful!")
+        conn.close()
+        
+        # Проверка Redis
+        redis_client.ping()
+        logger.info("✅ Redis connection successful!")
+        
+        return True
+    except Exception as e:
+        logger.error(f"❌ Database connection error: {e}")
+        return False
+
+
 # Проверка подключений при старте
 if __name__ == "__main__":
+    import asyncio
+    
     # Проверка настроек
-    print("ADMIN_IDS:", settings.ADMIN_IDS)
-
-    # Проверка подключения к PostgreSQL
-    try:
-        conn = engine.connect()
-        print("✅ PostgreSQL connection successful!")
-        conn.close()
-    except Exception as e:
-        print(f"❌ PostgreSQL connection failed: {e}")
-
-    # Проверка подключения к Redis
-    try:
-        redis_client.ping()
-        print("✅ Redis connection successful!")
-    except Exception as e:
-        print(f"❌ Redis connection failed: {e}")
+    logger.info(f"ADMIN_IDS: {settings.ADMIN_IDS}")
+    
+    # Проверка подключений
+    if not asyncio.run(check_database_connection()):
+        sys.exit(1)

@@ -1,0 +1,108 @@
+.game-controls {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 20px;
+    border-radius: 10px;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+}
+
+.bet-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.bet-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+.bet-input-group label {
+    font-weight: bold;
+}
+
+.bet-input-group input {
+    width: 120px;
+    padding: 8px;
+    border: 2px solid #4CAF50;
+    border-radius: 5px;
+    background: white;
+    font-size: 16px;
+}
+
+.bet-range {
+    color: #4CAF50;
+    font-size: 0.9em;
+}
+
+.bet-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.bet-button, .fold-button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.bet-button {
+    background: #4CAF50;
+    color: white;
+}
+
+.bet-button:hover {
+    background: #45a049;
+}
+
+.fold-button {
+    background: #f44336;
+    color: white;
+}
+
+.fold-button:hover {
+    background: #da190b;
+}
+
+.quick-bets {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.quick-bets button {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #4CAF50;
+    border-radius: 5px;
+    background: transparent;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quick-bets button:hover {
+    background: rgba(76, 175, 80, 0.2);
+}
+
+/* Анимации */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.bet-button:active {
+    animation: pulse 0.2s ease-in-out;
+} 
