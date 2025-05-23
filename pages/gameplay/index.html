@@ -10,7 +10,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: Arial, sans-serif;
             background-color: #0a1a3a;
@@ -18,37 +18,53 @@
             height: 100vh;
             overflow: hidden;
         }
-        
+
         #root {
             height: 100%;
             display: flex;
             flex-direction: column;
         }
-        
+
         .header {
             display: flex;
             justify-content: center;
-            padding: 15px;
+            padding: 10px;
             align-items: center;
             position: relative;
             flex-shrink: 0;
+            height: 60px;
         }
-        
-        .menu-button {
+
+        .menu-button, .sound-button, .exit-button {
             position: absolute;
-            left: 15px;
-            width: 40px;
-            height: 40px;
-            background-color: white;
+            width: 30px;
+            height: 30px;
+            background-size: cover;
             border: none;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            top: 50%;
+            transform: translateY(-50%);
         }
-        
+
+        .menu-button {
+            left: 15px;
+            background-image: url('menu-icon-url');
+        }
+
+        .sound-button {
+            right: 60px;
+            background-image: url('sound-icon-url');
+        }
+
+        .exit-button {
+            right: 15px;
+            background-image: url('exit-icon-url');
+        }
+
         .player-queue-info {
             background: white;
             color: #0a1a3a;
@@ -56,116 +72,109 @@
             border-radius: 20px;
             font-size: 14px;
             text-align: center;
-        }
-        
-        .header-controls {
-            position: absolute;
-            right: 15px;
+            height: 36px;
             display: flex;
             align-items: center;
         }
-        
-        .sound-button, .exit-button {
-            width: 30px;
-            height: 30px;
-            border: none;
-            margin-left: 10px;
-            cursor: pointer;
-            background-color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-        
+
         .game-title {
             text-align: center;
             font-size: 32px;
             color: #FFD700;
-            margin-top: 20px;
+            margin-top: 10px;
             text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
             flex-shrink: 0;
         }
-        
+
         .bank-container {
-            margin-top: 100px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             flex-shrink: 0;
+            z-index: 10;
         }
-        
+
         .bank-title {
             text-align: center;
-            font-size: 24px;
+            font-size: 28px;
             color: #FFD700;
             text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+            margin-bottom: 10px;
         }
-        
+
         .bank-amount-container {
             background: rgba(128, 128, 128, 0.3);
             border-radius: 10px;
             padding: 10px;
-            margin: 10px auto;
-            width: 150px;
+            margin: 0 auto;
+            width: 180px;
             text-align: center;
         }
-        
+
         .bank-amount {
             font-size: 20px;
             color: white;
         }
-        
+
         .players-container {
             display: flex;
             justify-content: space-between;
             flex-grow: 1;
             padding: 20px;
             overflow: auto;
+            position: relative;
         }
-        
+
         .players-column {
             display: flex;
             flex-direction: column;
             justify-content: space-around;
             width: 48%;
         }
-        
+
         .player-card {
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 10px 0;
         }
-        
+
         .player-avatar {
-            width: 70px;
-            height: 70px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             background-color: #4a6baf;
             background-size: cover;
             background-position: center;
             border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
         }
-        
+
         .player-name {
             margin-top: 5px;
             font-size: 14px;
             text-align: center;
         }
-        
+
         .player-balance {
             margin-top: 3px;
             font-size: 12px;
             color: #FFD700;
         }
-        
+
         .bottom-panel {
             background: #07122b;
-            height: 25vh;
+            height: 45vh;
             width: 100%;
             position: relative;
             flex-shrink: 0;
         }
-        
+
         .actions {
             position: absolute;
             bottom: 30px;
@@ -175,7 +184,7 @@
             justify-content: center;
             gap: 20px;
         }
-        
+
         .action-button {
             padding: 12px 25px;
             border: none;
@@ -186,18 +195,18 @@
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
-        
+
         .bet-button {
             background: #4CAF50;
         }
-        
+
         .fold-button {
             background: #F44336;
         }
-        
+
         .error-message {
             position: fixed;
-            bottom: 100px;
+            bottom: 120px;
             left: 50%;
             transform: translateX(-50%);
             background: #F44336;
@@ -207,14 +216,14 @@
             animation: fadeInOut 3s forwards;
             z-index: 100;
         }
-        
+
         @keyframes fadeInOut {
             0% { opacity: 0; }
             10% { opacity: 1; }
             90% { opacity: 1; }
             100% { opacity: 0; }
         }
-        
+
         .dropdown-menu {
             position: absolute;
             top: 60px;
@@ -228,15 +237,68 @@
             min-width: 200px;
             overflow: hidden;
         }
-        
+
         .dropdown-menu a {
             padding: 10px 15px;
             text-decoration: none;
             color: #0a1a3a;
         }
-        
+
         .dropdown-menu a:hover {
             background: #f0f0f0;
+        }
+
+        /* Mobile version adjustments */
+        @media (max-width: 768px) {
+            .player-avatar {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .bank-title {
+                font-size: 20px;
+            }
+            
+            .bank-container {
+                bottom: 50vh;
+            }
+            
+            .bank-amount-container {
+                width: 150px;
+            }
+            
+            .players-column {
+                width: 45%;
+            }
+            
+            .left-column .player-card {
+                align-items: flex-start;
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .right-column .player-card {
+                align-items: flex-end;
+                margin-right: 0;
+                width: 100%;
+            }
+            
+            .player-name, .player-balance {
+                text-align: left;
+                width: 100%;
+                padding-left: 5px;
+            }
+            
+            .right-column .player-name,
+            .right-column .player-balance {
+                text-align: right;
+                padding-right: 5px;
+                padding-left: 0;
+            }
+            
+            .bottom-panel {
+                height: 40vh;
+            }
         }
     </style>
 </head>
@@ -265,12 +327,10 @@
             const maxReconnectAttempts = 5;
             const reconnectDelay = 3000;
 
-            // Инициализация игры
             useEffect(() => {
                 initializeGame();
-                
+
                 return () => {
-                    // Очистка при размонтировании
                     if (socketRef.current) {
                         socketRef.current.close();
                     }
@@ -289,7 +349,7 @@
                 try {
                     Telegram.WebApp.expand();
                     const tgUser = Telegram.WebApp.initDataUnsafe?.user;
-                    
+
                     if (tgUser) {
                         const player = {
                             id: tgUser.id.toString(),
@@ -310,13 +370,13 @@
                     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
                     const host = window.location.host || 'localhost:8080';
                     socketRef.current = new WebSocket(`${protocol}${host}/ws/${playerId}`);
-                    
+
                     socketRef.current.onopen = () => {
                         console.log("WebSocket connected");
                         reconnectAttempts.current = 0;
                         sendMessage('player_connected');
                     };
-                    
+
                     socketRef.current.onmessage = (event) => {
                         try {
                             const message = JSON.parse(event.data);
@@ -326,7 +386,7 @@
                             setError("Ошибка обработки сообщения");
                         }
                     };
-                    
+
                     socketRef.current.onclose = (event) => {
                         console.log("WebSocket disconnected", event);
                         if (reconnectAttempts.current < maxReconnectAttempts) {
@@ -337,7 +397,7 @@
                             setError("Соединение потеряно. Пожалуйста, обновите страницу.");
                         }
                     };
-                    
+
                     socketRef.current.onerror = (error) => {
                         console.error("WebSocket error:", error);
                         setError("Ошибка соединения");
@@ -475,15 +535,15 @@
                         <button 
                             className="menu-button" 
                             onClick={() => setMenuOpen(!menuOpen)}
-                        >☰</button>
-                        
+                        ></button>
+
                         <div className="player-queue-info">
-                            Очередь игрока {currentPlayer?.first_name || "..."}
+                            Очередь игрока {currentPlayer?.first_name || "..." }
                         </div>
-                        
+
                         <div className="header-controls">
-                            <button className="sound-button">🔊</button>
-                            <button className="exit-button" onClick={handleExit}>✕</button>
+                            <button className="sound-button"></button>
+                            <button className="exit-button" onClick={handleExit}></button>
                         </div>
                     </div>
 
@@ -505,30 +565,22 @@
                     </div>
 
                     <div className="players-container">
-                        <div className="players-column">
+                        <div className="players-column left-column">
                             {gameState.players.slice(0, 3).map(player => (
                                 <div key={player.id} className="player-card">
-                                    <div 
-                                        className="player-avatar" 
-                                        style={{backgroundColor: player.photo_url ? 'transparent' : '#4a6baf', 
-                                                backgroundImage: player.photo_url ? `url(${player.photo_url})` : 'none'}}
-                                    >
-                                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                                    <div className="player-avatar">
+                                        {player.first_name?.[0] || '?'}
                                     </div>
                                     <div className="player-name">{player.first_name}</div>
                                     <div className="player-balance">$ {player.balance}</div>
                                 </div>
                             ))}
                         </div>
-                        <div className="players-column">
+                        <div className="players-column right-column">
                             {gameState.players.slice(3, 6).map(player => (
                                 <div key={player.id} className="player-card">
-                                    <div 
-                                        className="player-avatar" 
-                                        style={{backgroundColor: player.photo_url ? 'transparent' : '#4a6baf', 
-                                                backgroundImage: player.photo_url ? `url(${player.photo_url})` : 'none'}}
-                                    >
-                                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                                    <div className="player-avatar">
+                                        {player.first_name?.[0] || '?'}
                                     </div>
                                     <div className="player-name">{player.first_name}</div>
                                     <div className="player-balance">$ {player.balance}</div>
