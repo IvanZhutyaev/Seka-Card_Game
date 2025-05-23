@@ -17,7 +17,6 @@
             color: white;
             height: 100vh;
             overflow: hidden;
-            position: relative;
         }
         
         #root {
@@ -40,12 +39,14 @@
             left: 15px;
             width: 40px;
             height: 40px;
-            background-size: cover;
-            background-position: center;
-            border: none;
-            cursor: pointer;
             background-color: white;
+            border: none;
             border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
         }
         
         .player-queue-info {
@@ -65,8 +66,6 @@
         }
         
         .sound-button, .exit-button {
-            background-size: cover;
-            background-position: center;
             width: 30px;
             height: 30px;
             border: none;
@@ -74,6 +73,10 @@
             cursor: pointer;
             background-color: white;
             border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
         }
         
         .game-title {
@@ -86,7 +89,7 @@
         }
         
         .bank-container {
-            margin-top: 40px;
+            margin-top: 100px;
             flex-shrink: 0;
         }
         
@@ -250,15 +253,17 @@
         const App = () => {
             const [menuOpen, setMenuOpen] = useState(false);
             const [gameState, setGameState] = useState({
-                bankAmount: 1250.00,
-                currentTurn: "Ваш ход",
+                bankAmount: 0,
+                currentTurn: "Ожидание игроков...",
                 players: []
             });
             const [currentPlayer, setCurrentPlayer] = useState(null);
             const [error, setError] = useState(null);
             const [showActions, setShowActions] = useState(false);
             const socketRef = useRef(null);
-            const demoIntervalRef = useRef(null);
+            const reconnectAttempts = useRef(0);
+            const maxReconnectAttempts = 5;
+            const reconnectDelay = 3000;
 
             // Инициализация игры
             useEffect(() => {
@@ -268,9 +273,6 @@
                     // Очистка при размонтировании
                     if (socketRef.current) {
                         socketRef.current.close();
-                    }
-                    if (demoIntervalRef.current) {
-                        clearInterval(demoIntervalRef.current);
                     }
                 };
             }, []);
@@ -292,7 +294,7 @@
                         const player = {
                             id: tgUser.id.toString(),
                             first_name: tgUser.first_name || `Игрок ${tgUser.id}`,
-                            photo_url: tgUser.photo_url || "https://via.placeholder.com/70"
+                            photo_url: tgUser.photo_url
                         };
                         setCurrentPlayer(player);
                         initWebSocket(player.id);
@@ -311,6 +313,7 @@
                     
                     socketRef.current.onopen = () => {
                         console.log("WebSocket connected");
+                        reconnectAttempts.current = 0;
                         sendMessage('player_connected');
                     };
                     
@@ -324,9 +327,15 @@
                         }
                     };
                     
-                    socketRef.current.onclose = () => {
-                        console.log("WebSocket disconnected");
-                        setError("Соединение потеряно");
+                    socketRef.current.onclose = (event) => {
+                        console.log("WebSocket disconnected", event);
+                        if (reconnectAttempts.current < maxReconnectAttempts) {
+                            reconnectAttempts.current++;
+                            console.log(`Attempting to reconnect (${reconnectAttempts.current}/${maxReconnectAttempts})...`);
+                            setTimeout(() => initWebSocket(playerId), reconnectDelay);
+                        } else {
+                            setError("Соединение потеряно. Пожалуйста, обновите страницу.");
+                        }
                     };
                     
                     socketRef.current.onerror = (error) => {
@@ -395,7 +404,7 @@
                 const demoPlayer = {
                     id: "1",
                     first_name: "Вы (демо)",
-                    photo_url: "https://via.placeholder.com/70"
+                    photo_url: null
                 };
                 setCurrentPlayer(demoPlayer);
 
@@ -405,7 +414,7 @@
                     balance: (1000 + Math.floor(Math.random() * 2000)).toFixed(2),
                     action: i === 0 ? "Ваш ход" : ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
                     is_current: i === 0,
-                    photo_url: `https://via.placeholder.com/70?text=P${i+1}`
+                    photo_url: null
                 }));
 
                 updateGameState({
@@ -414,26 +423,6 @@
                     players: initialPlayers
                 });
                 setShowActions(true);
-
-                demoIntervalRef.current = setInterval(() => {
-                    setGameState(prev => {
-                        const newBank = (prev.bankAmount + Math.random() * 100).toFixed(2);
-                        const currentPlayerIndex = Math.floor(Math.random() * 6);
-
-                        return {
-                            ...prev,
-                            bankAmount: newBank,
-                            currentTurn: currentPlayerIndex === 0 ? "Ваш ход" : `Ход Игрока ${currentPlayerIndex + 1}`,
-                            players: prev.players.map((p, i) => ({
-                                ...p,
-                                action: i === currentPlayerIndex ? "Думает..." :
-                                       ["Ожидание", "Ставка", "Пас"][Math.floor(Math.random() * 3)],
-                                is_current: i === currentPlayerIndex,
-                                balance: (i === currentPlayerIndex ? parseFloat(p.balance) - 50 : parseFloat(p.balance)).toFixed(2)
-                            }))
-                        };
-                    });
-                }, 5000);
             };
 
             const handleBet = () => {
@@ -521,8 +510,11 @@
                                 <div key={player.id} className="player-card">
                                     <div 
                                         className="player-avatar" 
-                                        style={{backgroundImage: `url(${player.photo_url})`}}
-                                    />
+                                        style={{backgroundColor: player.photo_url ? 'transparent' : '#4a6baf', 
+                                                backgroundImage: player.photo_url ? `url(${player.photo_url})` : 'none'}}
+                                    >
+                                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                                    </div>
                                     <div className="player-name">{player.first_name}</div>
                                     <div className="player-balance">$ {player.balance}</div>
                                 </div>
@@ -533,8 +525,11 @@
                                 <div key={player.id} className="player-card">
                                     <div 
                                         className="player-avatar" 
-                                        style={{backgroundImage: `url(${player.photo_url})`}}
-                                    />
+                                        style={{backgroundColor: player.photo_url ? 'transparent' : '#4a6baf', 
+                                                backgroundImage: player.photo_url ? `url(${player.photo_url})` : 'none'}}
+                                    >
+                                        {!player.photo_url && (player.first_name?.[0] || '?')}
+                                    </div>
                                     <div className="player-name">{player.first_name}</div>
                                     <div className="player-balance">$ {player.balance}</div>
                                 </div>
