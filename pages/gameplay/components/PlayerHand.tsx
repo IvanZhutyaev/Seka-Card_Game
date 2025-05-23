@@ -1,64 +1,42 @@
 import React from 'react';
-import { Card } from '../types/game';
-import './PlayerHand.css';
+import { useGameState } from '../store/gameStore';
 
 interface PlayerHandProps {
     playerId: string;
-    isCurrentPlayer: boolean;
-    hand: {
-        cards: Card[];
-        rank: string;
-    } | null;
-    bet: number;
-    isFolded: boolean;
 }
 
-const PlayerHand: React.FC<PlayerHandProps> = ({
-    playerId,
-    isCurrentPlayer,
-    hand,
-    bet,
-    isFolded
-}) => {
-    const renderCard = (card: Card) => {
-        const color = ['♥', '♦'].includes(card.suit) ? 'red' : 'black';
-        return (
-            <div className={`card ${color}`} key={`${card.rank}${card.suit}`}>
-                <div className="card-content">
-                    <span className="rank">{card.rank}</span>
-                    <span className="suit">{card.suit}</span>
-                </div>
-            </div>
-        );
-    };
-
+const PlayerHand: React.FC<PlayerHandProps> = ({ playerId }) => {
+    const { gameState, telegramUser } = useGameState();
+    const player = gameState.players[playerId];
+    
+    if (!player) return null;
+    
+    const isCurrentPlayer = playerId === gameState.current_turn;
+    const playerName = telegramUser?.first_name || 'Игрок';
+    const playerPhoto = telegramUser?.photo_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(playerName);
+    
     return (
-        <div className={`player-hand ${isCurrentPlayer ? 'current' : ''} ${isFolded ? 'folded' : ''}`}>
-            <div className="player-info">
-                <span className="player-id">Игрок {playerId}</span>
-                <span className="player-bet">Ставка: {bet} 💰</span>
+        <div className={`player ${isCurrentPlayer ? 'active' : ''}`}>
+            <div className="avatar" style={{ backgroundImage: `url(${playerPhoto})` }} />
+            <div className="player-name">{playerName}</div>
+            <div className="player-balance">{player.bet}</div>
+            <div className="player-status">
+                {isCurrentPlayer ? 'Ваш ход' : player.folded ? 'Пас' : ''}
             </div>
-            
-            <div className="cards-container">
-                {isFolded ? (
-                    <div className="folded-text">Сбросил</div>
-                ) : hand ? (
-                    <>
-                        <div className="cards">
-                            {hand.cards.map(card => renderCard(card))}
-                        </div>
-                        <div className="hand-rank">
-                            {hand.rank}
-                        </div>
-                    </>
-                ) : (
-                    <div className="cards-placeholder">
-                        <div className="card back" />
-                        <div className="card back" />
-                        <div className="card back" />
+            <div className="player-cards">
+                {player.hand?.cards.map((card, index) => (
+                    <div key={index} className={`card ${player.folded ? '' : 'open'}`}>
+                        {card.str}
                     </div>
-                )}
+                ))}
             </div>
+            {player.bet > 0 && (
+                <div className="chips">
+                    {Array(Math.ceil(player.bet / 100)).fill(0).map((_, i) => (
+                        <div key={i} className="chip" />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
