@@ -15,8 +15,6 @@ import httpx
 from urllib.parse import parse_qs
 from pathlib import Path
 
-
-
 # ====================== ПОДКЛЮЧЕНИЕ К БАЗАМ ДАННЫХ ======================
 def get_db_connection():
     conn = psycopg2.connect(
@@ -58,6 +56,7 @@ class Player(BaseModel):
     photo_url: Optional[str] = None
     balance: int = 1000
     position: Optional[str] = None
+    chair: Optional[int] = None
 
 class PlayerResponse(BaseModel):
     id: str
@@ -68,6 +67,7 @@ class PlayerResponse(BaseModel):
     position: Optional[str] = None
     is_current: bool = False
     balance: int
+    chair: Optional[int] = None
 
 class GameStateResponse(BaseModel):
     game_id: str
@@ -191,10 +191,10 @@ def create_game_in_db(game_id: str, players: List[Dict]):
             
             # Добавляем связь игрока с игрой
             cur.execute(
-                "INSERT INTO game_players (game_id, player_id, cards, bet, folded, position) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO game_players (game_id, player_id, cards, bet, folded, position, chair) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (game_id, player["id"], json.dumps([]), 0, False, 
-                 "left" if len(players) == 1 else "right")
+                 "left" if len(players) == 1 else "right", player.get("chair"))
             )
         
         conn.commit()
@@ -235,6 +235,21 @@ def update_player_turn(game_id: str, player_id: str):
             (game_id, player_id)
         )
         
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+def update_player_chair(game_id: str, player_id: str, chair_id: int):
+    """Обновляем выбранный стул игрока"""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "UPDATE game_players SET chair = %s "
+            "WHERE game_id = %s AND player_id = %s",
+            (chair_id, game_id, player_id)
+        )
         conn.commit()
     finally:
         cur.close()
@@ -402,6 +417,27 @@ class SekaGame:
         self.current_player_index = (self.current_player_index + 1) % len(self.player_ids)
         next_player_id = self.player_ids[self.current_player_index]
         update_player_turn(self.game_id, next_player_id)
+
+    def select_chair(self, player_id: str, chair_id: int) -> bool:
+        """Выбор стула игроком"""
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Проверяем, не занят ли уже этот стул
+            cur.execute(
+                "SELECT COUNT(*) FROM game_players "
+                "WHERE game_id = %s AND chair = %s",
+                (self.game_id, chair_id)
+            )
+            if cur.fetchone()[0] > 0:
+                return False
+                
+            # Обновляем стул игрока
+            update_player_chair(self.game_id, player_id, chair_id)
+            return True
+        finally:
+            cur.close()
+            conn.close()
 
     def calculate_scores(self):
         """Подсчет очков для всех активных игроков"""
@@ -585,7 +621,7 @@ class SekaGame:
             
             # Получаем данные игроков
             cur.execute(
-                "SELECT gp.player_id, gp.cards, gp.bet, gp.folded, gp.score, gp.position, gp.is_turn, "
+                "SELECT gp.player_id, gp.cards, gp.bet, gp.folded, gp.score, gp.position, gp.is_turn, gp.chair, "
                 "p.first_name, p.last_name, p.username, p.photo_url, p.balance "
                 "FROM game_players gp "
                 "JOIN players p ON gp.player_id = p.id "
@@ -604,7 +640,7 @@ class SekaGame:
             your_folded = None
             
             for p in players_data:
-                player_id, cards, bet, folded, score, position, is_turn, first_name, last_name, username, photo_url, balance = p
+                player_id, cards, bet, folded, score, position, is_turn, chair, first_name, last_name, username, photo_url, balance = p
                 
                 if player_id == for_player_id:
                     your_cards = json.loads(cards) if cards else []
@@ -622,7 +658,8 @@ class SekaGame:
                     "bet": bet,
                     "folded": folded,
                     "score": score,
-                    "is_current": is_turn
+                    "is_current": is_turn,
+                    "chair": chair
                 }
                 players.append(player_info)
             
@@ -780,6 +817,32 @@ async def fold(request: Request):
     
     return {"status": "folded"}
 
+@app.post("/select_chair")
+async def select_chair(request: Request, chair_id: int):
+    """Выбор стула игроком"""
+    init_data = request.headers.get("X-Telegram-Init-Data")
+    if not init_data:
+        raise HTTPException(status_code=400, detail="No Telegram init data")
+    
+    user_data = parse_telegram_user(init_data)
+    if not user_data:
+        raise HTTPException(status_code=400, detail="Invalid Telegram user data")
+    
+    player_id = user_data["id"]
+    
+    # Получаем активную игру игрока
+    game_id = redis_client.get(f"player:{player_id}:game")
+    if not game_id or game_id not in active_games:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    game = active_games[game_id]
+    success = game.select_chair(player_id, chair_id)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail="Chair is already taken")
+    
+    return {"status": "chair_selected", "chair_id": chair_id}
+
 @app.get("/game_state")
 async def get_game_state(request: Request):
     """Получаем текущее состояние игры"""
@@ -849,6 +912,27 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
                     success = game.fold(player_id)
                     await websocket.send_json({
                         "status": "folded" if success else "fold_failed"
+                    })
+            elif data["action"] == "select_chair":
+                game_id = redis_client.get(f"player:{player_id}:game")
+                if game_id and game_id in active_games:
+                    game = active_games[game_id]
+                    success = game.select_chair(player_id, data["chair_id"])
+                    await websocket.send_json({
+                        "status": "chair_selected" if success else "chair_taken",
+                        "chair_id": data["chair_id"]
+                    })
+            elif data["action"] == "request_chair_selection":
+                game_id = redis_client.get(f"player:{player_id}:game")
+                if game_id and game_id in active_games:
+                    game = active_games[game_id]
+                    game_state = game.get_game_state(player_id)
+                    occupied_chairs = [p.chair for p in game_state["players"] if p.chair is not None]
+                    await websocket.send_json({
+                        "type": "select_chair",
+                        "data": {
+                            "occupied_chairs": occupied_chairs
+                        }
                     })
                 
     except WebSocketDisconnect:
