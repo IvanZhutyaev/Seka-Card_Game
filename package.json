@@ -1,6 +1,6 @@
 {
   "name": "seka-card-game",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Карточная игра, разработанная как Telegram Mini App",
   "type": "module",
   "scripts": {
