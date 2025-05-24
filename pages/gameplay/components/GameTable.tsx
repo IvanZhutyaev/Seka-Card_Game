@@ -15,7 +15,7 @@ const GameTable: React.FC = () => {
         
         // Подключаемся к WebSocket
         connect();
-    }, []);
+    }, [connect, initTelegramUser]);
     
     return (
         <div className="table-container">

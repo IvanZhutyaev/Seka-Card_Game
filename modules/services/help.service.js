@@ -1,5 +1,7 @@
 export class HelpService {
-    constructor() {}
+    constructor() {
+        // This service is a placeholder for future help functionality
+    }
     // Добавьте методы по мере необходимости
 }
 

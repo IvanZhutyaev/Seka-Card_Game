@@ -9,7 +9,7 @@ describe('WebSocket Connection', () => {
     let mockSocket;
     let mockConnect;
     let mockError;
-    let mockApp;
+    let _mockApp;
     
     beforeEach(() => {
         // Reset DOM
@@ -56,7 +56,7 @@ describe('WebSocket Connection', () => {
     });
     
     test('connects to server on initialization', async () => {
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         expect(io).toHaveBeenCalledWith('ws://test:3000', expect.objectContaining({
@@ -67,7 +67,7 @@ describe('WebSocket Connection', () => {
     });
     
     test('emits user data on connection', async () => {
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         mockConnect();
@@ -79,7 +79,7 @@ describe('WebSocket Connection', () => {
     });
     
     test('handles connection errors', async () => {
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         const error = new Error('Connection failed');
@@ -95,7 +95,7 @@ describe('WebSocket Connection', () => {
     test('shows error when WebApp is not initialized', async () => {
         WebApp.isInitialized = false;
         
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         const errorMessage = document.querySelector('.error-message');
@@ -104,7 +104,7 @@ describe('WebSocket Connection', () => {
     });
 
     test('reconnects on connection loss', async () => {
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
 
         // Simulate initial connection
@@ -119,7 +119,7 @@ describe('WebSocket Connection', () => {
     });
 
     test('handles server disconnect', async () => {
-        mockApp = await import('../../public/js/app.js');
+        _mockApp = await import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
 
         // Simulate server disconnect

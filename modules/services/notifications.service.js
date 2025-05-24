@@ -1,5 +1,7 @@
 export class NotificationsService {
-    constructor() {}
+    constructor() {
+        // This service is a placeholder for future notifications functionality
+    }
     // Добавьте методы по мере необходимости
 }
 

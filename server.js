@@ -147,20 +147,9 @@ io.on('connection', (socket) => {
 });
 
 // Обработка ошибок
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
     console.error(err.stack);
-  
-    if (err.code === 'EBADCSRFTOKEN') {
-        return res.status(403).json({
-            error: 'Invalid CSRF token',
-            message: 'Form submission failed. Please try again.'
-        });
-    }
-  
-    res.status(err.status || 500).json({
-        error: err.name || 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
-    });
+    res.status(500).send('Something broke!');
 });
 
 // Запуск сервера

@@ -111,20 +111,36 @@ const TelegramUtils = {
     hapticFeedback(style) {
         try {
             if (this.webApp && this.webApp.HapticFeedback) {
-                switch (style) {
-                    case 'light':
-                        this.webApp.HapticFeedback.impactOccurred('light');
-                        break;
-                    case 'medium':
-                        this.webApp.HapticFeedback.impactOccurred('medium');
-                        break;
-                    case 'heavy':
-                        this.webApp.HapticFeedback.impactOccurred('heavy');
-                        break;
+                if (this.webApp.isInitialized) {
+                    this.webApp.HapticFeedback.impactOccurred(style);
                 }
             }
         } catch (error) {
             console.error('Error in haptic feedback:', error);
+        }
+    },
+
+    notificationOccurred(type = 'success') {
+        try {
+            if (this.webApp && this.webApp.HapticFeedback) {
+                if (this.webApp.isInitialized) {
+                    this.webApp.HapticFeedback.notificationOccurred(type);
+                }
+            }
+        } catch (error) {
+            console.error('Error in notificationOccurred:', error);
+        }
+    },
+
+    selectionChanged() {
+        try {
+            if (this.webApp && this.webApp.HapticFeedback) {
+                if (this.webApp.isInitialized) {
+                    this.webApp.HapticFeedback.selectionChanged();
+                }
+            }
+        } catch (error) {
+            console.error('Error in selectionChanged:', error);
         }
     },
 
