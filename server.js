@@ -6,6 +6,9 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
+import csrf from 'csurf';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
@@ -24,8 +27,9 @@ const httpServer = createServer(app);
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  credentials: true,
+  maxAge: 86400 // 24 часа
 };
 
 app.use(cors(corsOptions));
@@ -34,23 +38,77 @@ app.use(cors(corsOptions));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 минут
   max: 100, // Лимит запросов с одного IP
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 app.use(limiter);
 
+// Настройка сессий
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 часа
+  }
+}));
+
 // Middleware
-app.use(helmet());
+app.use(cookieParser());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "telegram.org"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "telegram.org"],
+      connectSrc: ["'self'", "wss:", "ws:"],
+      frameSrc: ["'self'", "telegram.org"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: true,
+  crossOriginResourcePolicy: { policy: "same-site" },
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: "deny" },
+  hidePoweredBy: true,
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  ieNoOpen: true,
+  noSniff: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  xssFilter: true
+}));
 app.use(compression());
 app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.static(join(__dirname, 'dist')));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.static(join(__dirname, 'dist'), {
+  maxAge: '1d',
+  etag: true,
+  lastModified: true
+}));
+
+// CSRF защита
+if (process.env.NODE_ENV === 'production') {
+  app.use(csrf({ cookie: true }));
+  app.use((req, res, next) => {
+    res.cookie('XSRF-TOKEN', req.csrfToken());
+    next();
+  });
+}
 
 // Настройка Socket.IO
 const io = new Server(httpServer, {
   cors: corsOptions,
   pingTimeout: 60000,
-  pingInterval: 25000
+  pingInterval: 25000,
+  transports: ['websocket', 'polling']
 });
 
 // Обработка подключений WebSocket
@@ -91,9 +149,17 @@ io.on('connection', (socket) => {
 // Обработка ошибок
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({
+      error: 'Invalid CSRF token',
+      message: 'Form submission failed. Please try again.'
+    });
+  }
+  
+  res.status(err.status || 500).json({
+    error: err.name || 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
 

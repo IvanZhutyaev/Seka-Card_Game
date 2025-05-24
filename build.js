@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import esbuild from 'esbuild';
 import { sassPlugin } from 'esbuild-sass-plugin';
 import { glob } from 'glob';
+import sharp from 'sharp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,8 +15,8 @@ const config = {
   outdir: 'dist',
   entryPoints: [
     'public/js/app.js',
-    'public/js/components/*.js',
-    'public/js/services/*.js'
+    'public/js/components/*.{js,ts,tsx}',
+    'public/js/services/*.{js,ts}'
   ],
   bundle: true,
   minify: true,
@@ -39,10 +40,31 @@ function cleanBuild() {
   fs.mkdirSync(config.outdir);
 }
 
+// Оптимизация изображений
+async function optimizeImages() {
+  console.log('🖼️ Optimizing images...');
+  const images = await glob('public/images/**/*.{jpg,jpeg,png,webp}');
+  
+  for (const image of images) {
+    const stats = fs.statSync(image);
+    if (stats.isFile()) {
+      const dest = path.join(config.outdir, 'images', path.basename(image));
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      
+      await sharp(image)
+        .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(dest.replace(/\.[^.]+$/, '.webp'));
+    }
+  }
+}
+
 // Копирование статических файлов
 async function copyStaticFiles() {
   console.log('📁 Copying static files...');
-  const staticFiles = await glob('public/**/*', { ignore: ['**/*.scss', '**/*.js'] });
+  const staticFiles = await glob('public/**/*', { 
+    ignore: ['**/*.scss', '**/*.js', '**/*.ts', '**/*.tsx', '**/*.{jpg,jpeg,png,webp}'] 
+  });
   
   for (const file of staticFiles) {
     const stats = fs.statSync(file);
@@ -69,6 +91,18 @@ async function buildAssets() {
     console.log('✅ Assets built successfully');
   } catch (error) {
     console.error('❌ Error building assets:', error);
+    process.exit(1);
+  }
+}
+
+// Сборка TypeScript
+async function buildTypeScript() {
+  console.log('🔨 Building TypeScript...');
+  try {
+    execSync('tsc', { stdio: 'inherit' });
+    console.log('✅ TypeScript built successfully');
+  } catch (error) {
+    console.error('❌ Error building TypeScript:', error);
     process.exit(1);
   }
 }
@@ -102,6 +136,36 @@ async function buildHtml() {
   }
 }
 
+// Создание service worker
+async function buildServiceWorker() {
+  console.log('🔧 Building service worker...');
+  const swContent = `
+    const CACHE_NAME = 'seka-cache-v1';
+    const urlsToCache = [
+      '/',
+      '/assets/styles.css',
+      '/assets/app.js',
+      '/images/logo.webp'
+    ];
+
+    self.addEventListener('install', event => {
+      event.waitUntil(
+        caches.open(CACHE_NAME)
+          .then(cache => cache.addAll(urlsToCache))
+      );
+    });
+
+    self.addEventListener('fetch', event => {
+      event.respondWith(
+        caches.match(event.request)
+          .then(response => response || fetch(event.request))
+      );
+    });
+  `;
+  
+  fs.writeFileSync(path.join(config.outdir, 'sw.js'), swContent);
+}
+
 // Основная функция сборки
 async function build() {
   try {
@@ -110,8 +174,14 @@ async function build() {
     // Очистка
     cleanBuild();
     
+    // Оптимизация изображений
+    await optimizeImages();
+    
     // Копирование статических файлов
     await copyStaticFiles();
+    
+    // Сборка TypeScript
+    await buildTypeScript();
     
     // Сборка ассетов
     await buildAssets();
@@ -121,6 +191,9 @@ async function build() {
     
     // Сборка HTML
     await buildHtml();
+    
+    // Создание service worker
+    await buildServiceWorker();
     
     console.log('✨ Build completed successfully!');
   } catch (error) {
