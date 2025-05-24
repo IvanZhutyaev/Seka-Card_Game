@@ -137,10 +137,115 @@
             color: #EA4335;
         }
 
+        .invite-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            margin-top: 20px;
+        }
 
+        .invite-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
 
+        .invite-description {
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 24px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+        }
 
+        .invite-benefits {
+            margin-bottom: 24px;
+        }
 
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .benefit-icon {
+            margin-right: 12px;
+            font-size: 24px;
+        }
+
+        .invite-link-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .invite-link {
+            color: var(--blue-accent);
+            font-size: 14px;
+            word-break: break-all;
+            margin-right: 12px;
+        }
+
+        .copy-button {
+            background: var(--blue-accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .copy-button:hover {
+            background: #3367d6;
+        }
+
+        .share-button {
+            width: 100%;
+            background: #34A853;
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            margin-top: 16px;
+        }
+
+        .share-button:hover {
+            background: #2d9249;
+        }
+
+        .referral-stats {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .stat-value {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -179,39 +284,91 @@
         </div>
     </div>
 
+    <div class="invite-container">
+        <div class="invite-title">Пригласите друга и получите бонус!</div>
+        <div class="invite-description">
+            За каждого приглашенного друга вы получите 100₽ на баланс, а ваш друг получит 50₽ при первом пополнении.
+        </div>
 
+        <div class="invite-benefits">
+            <div class="benefit-item">
+                <span class="benefit-icon">🎁</span>
+                <span>Бонус 100₽ за каждого друга</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">💰</span>
+                <span>Друг получает 50₽ при первом пополнении</span>
+            </div>
+            <div class="benefit-item">
+                <span class="benefit-icon">🎮</span>
+                <span>Играйте вместе с друзьями</span>
+            </div>
+        </div>
 
+        <div class="invite-link-container">
+            <div class="invite-link" id="inviteLink">https://t.me/your_bot?start=123456</div>
+            <button class="copy-button" onclick="copyInviteLink()">Копировать</button>
+        </div>
+
+        <button class="share-button" onclick="shareInviteLink()">
+            Поделиться с другом
+        </button>
+
+        <div class="referral-stats">
+            <div class="stat-item">
+                <span class="stat-label">Приглашено друзей:</span>
+                <span class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Заработано бонусов:</span>
+                <span class="stat-value">0₽</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/telegram-utils.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.enableClosingConfirmation();
+            // Инициализируем Telegram WebApp
+            if (!TelegramUtils.init()) {
+                TelegramUtils.showAlert('Ошибка инициализации приложения');
+                return;
+            }
+
+            // Получаем данные пользователя для формирования реферальной ссылки
+            const user = TelegramUtils.getUser();
+            if (user) {
+                const inviteLink = `https://t.me/your_bot?start=${user.id}`;
+                document.getElementById('inviteLink').textContent = inviteLink;
             }
         });
 
-        function openInTelegram(page) {
+        function copyInviteLink() {
+            const inviteLink = document.getElementById('inviteLink').textContent;
+            navigator.clipboard.writeText(inviteLink).then(() => {
+                TelegramUtils.showAlert('Ссылка скопирована!');
+                TelegramUtils.hapticFeedback('light');
+            }).catch(() => {
+                TelegramUtils.showAlert('Не удалось скопировать ссылку');
+            });
+        }
+
+        function shareInviteLink() {
+            const inviteLink = document.getElementById('inviteLink').textContent;
             if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
+                Telegram.WebApp.openLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent('Присоединяйся ко мне в игре!')}`);
             } else {
-                window.location.href = page;
+                TelegramUtils.showAlert('Функция шаринга недоступна');
             }
+            TelegramUtils.hapticFeedback('medium');
         }
 
         function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
+            TelegramUtils.openLink(page);
         }
 
         function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
+            TelegramUtils.closeWebApp();
         }
 
         function toggleDropdown() {
@@ -231,25 +388,12 @@
             }
         }
 
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
         function logout() {
-            function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-            }   
+            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
+                if (confirmed) {
+                    TelegramUtils.closeWebApp();
+                }
+            });
         }
     </script>
 </body>

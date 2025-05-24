@@ -4,7 +4,7 @@ import PlayerHand from './PlayerHand';
 import './GameTable.css';
 
 const GameTable: React.FC = () => {
-    const { connect, initTelegramUser, gameState } = useGameState();
+    const { connect, initTelegramUser, gameState, exitGame } = useGameState();
     
     useEffect(() => {
         // Инициализируем данные Telegram пользователя
@@ -19,6 +19,14 @@ const GameTable: React.FC = () => {
     
     return (
         <div className="table-container">
+            <div className="header">
+                <button className="menu-button" onClick={() => {/* TODO: Добавить меню */}} />
+                <button className="sound-button" onClick={() => {/* TODO: Добавить звук */}} />
+                <button className="exit-button" onClick={exitGame} />
+                <div className="player-queue-info">
+                    {gameState.status === 'waiting' ? 'Поиск игры...' : 'Игра идет'}
+                </div>
+            </div>
             <div className="poker-table">
                 <div className="table-logo">СЕКА</div>
                 <div className="bank">Банк: {gameState.bank}</div>

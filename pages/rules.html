@@ -202,75 +202,30 @@
         <img src="static/rules.png" alt="Правила игры">
     </div>
 
+    <script src="static/js/telegram-utils.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.enableClosingConfirmation();
+            // Инициализируем Telegram WebApp
+            if (!TelegramUtils.init()) {
+                TelegramUtils.showAlert('Ошибка инициализации приложения');
+                return;
             }
         });
 
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-        }
-
         function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
+            TelegramUtils.openLink(page);
         }
 
         function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
+            TelegramUtils.closeWebApp();
         }
 
-        function toggleDropdown() {
-            const dropdown = document.getElementById('dropdownMenu');
-            dropdown.classList.toggle('show');
-        }
-
-        window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-                const dropdowns = document.getElementsByClassName("dropdown-menu");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    const openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                        openDropdown.classList.remove('show');
-                    }
-                }
-            }
-        }
-
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
         function logout() {
-            function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-            }   
+            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
+                if (confirmed) {
+                    TelegramUtils.closeWebApp();
+                }
+            });
         }
     </script>
 </body>

@@ -299,44 +299,53 @@
         <div class="button-label">Сека</div>
     </div>
 
+    <script src="static/js/telegram-utils.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-
-
-
-
-                Telegram.WebApp.enableClosingConfirmation();
-
-
+            // Инициализируем Telegram WebApp
+            if (!TelegramUtils.init()) {
+                TelegramUtils.showAlert('Ошибка инициализации приложения');
+                return;
+            }
+            
+            // Получаем данные пользователя
+            const user = TelegramUtils.getUser();
+            if (user) {
+                const avatarContainer = document.getElementById('avatar-container');
+                const defaultAvatar = avatarContainer.querySelector('.default-avatar');
+                const userAvatar = document.getElementById('user-avatar');
+                
+                if (user.photo_url) {
+                    // Если есть фото в Telegram, показываем его
+                    defaultAvatar.style.display = 'none';
+                    userAvatar.src = user.photo_url;
+                    userAvatar.style.display = 'block';
+                } else {
+                    // Если фото нет, показываем дефолтный аватар с инициалами
+                    defaultAvatar.textContent = user.first_name.charAt(0);
+                }
             }
         });
 
-
-
-
         function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
+            TelegramUtils.openLink(page);
             document.getElementById('dropdownMenu').classList.remove('show');
         }
 
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdownMenu');
             dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
         }
 
         function openSection(section) {
-            alert(`Функционал "${section}" в разработке`);
+            TelegramUtils.showAlert(`Функционал "${section}" в разработке`);
             document.getElementById('dropdownMenu').classList.remove('show');
         }
 
         function handleSekaButtonClick() {
-            alert('Кнопка "Сека" нажата!');
+            TelegramUtils.hapticFeedback('medium');
+            TelegramUtils.showAlert('Кнопка "Сека" нажата!');
         }
 
         window.onclick = function(event) {
@@ -351,25 +360,12 @@
             }
         }
 
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
         function logout() {
-            function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-            }   
+            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
+                if (confirmed) {
+                    TelegramUtils.closeWebApp();
+                }
+            });
         }
     </script>
 </body>

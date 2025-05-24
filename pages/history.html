@@ -137,10 +137,140 @@
             color: #EA4335;
         }
 
+        .history-container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+        }
 
+        .filter-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
 
+        .filter-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: var(--text-color);
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
 
+        .filter-button.active {
+            background: var(--blue-accent);
+            border-color: var(--blue-accent);
+        }
 
+        .transaction-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .transaction-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .transaction-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .transaction-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .transaction-type {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .transaction-date {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .transaction-amount {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .amount-positive {
+            color: #34A853;
+        }
+
+        .amount-negative {
+            color: #EA4335;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .load-more {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-color);
+            font-size: 16px;
+            margin-top: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-more:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .transaction-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .status-completed {
+            background: rgba(52, 168, 83, 0.2);
+            color: #34A853;
+        }
+
+        .status-pending {
+            background: rgba(255, 152, 0, 0.2);
+            color: #FFA000;
+        }
+
+        .status-failed {
+            background: rgba(234, 67, 53, 0.2);
+            color: #EA4335;
+        }
     </style>
 </head>
 <body>
@@ -168,7 +298,7 @@
             Бонусы и акции
         </div>
 
-        <div class="dropdown-item" onclick="openPage('invite)">
+        <div class="dropdown-item" onclick="openPage('invite')">
             <span class="dropdown-icon">👥</span>
             Пригласить друга
         </div>
@@ -179,39 +309,193 @@
         </div>
     </div>
 
+    <div class="history-container">
+        <div class="filter-container">
+            <button class="filter-button active" onclick="filterTransactions('all')">Все</button>
+            <button class="filter-button" onclick="filterTransactions('deposit')">Пополнения</button>
+            <button class="filter-button" onclick="filterTransactions('withdraw')">Выводы</button>
+            <button class="filter-button" onclick="filterTransactions('transfer')">Переводы</button>
+            <button class="filter-button" onclick="filterTransactions('bonus')">Бонусы</button>
+        </div>
 
+        <div class="transaction-list" id="transactionList">
+            <!-- Транзакции будут добавлены через JavaScript -->
+        </div>
 
+        <button class="load-more" onclick="loadMoreTransactions()" id="loadMoreButton" style="display: none;">
+            Загрузить еще
+        </button>
+    </div>
+
+    <script src="static/js/telegram-utils.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.enableClosingConfirmation();
+            // Инициализируем Telegram WebApp
+            if (!TelegramUtils.init()) {
+                TelegramUtils.showAlert('Ошибка инициализации приложения');
+                return;
             }
+
+            // Загружаем первые транзакции
+            loadTransactions();
         });
 
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
+        let currentPage = 1;
+        let currentFilter = 'all';
+        let isLoading = false;
+
+        // Пример данных транзакций (в реальном приложении будут приходить с сервера)
+        const mockTransactions = [
+            {
+                id: 1,
+                type: 'deposit',
+                amount: 1000,
+                date: '2024-03-20T10:30:00',
+                status: 'completed',
+                description: 'Пополнение баланса'
+            },
+            {
+                id: 2,
+                type: 'withdraw',
+                amount: -500,
+                date: '2024-03-19T15:45:00',
+                status: 'pending',
+                description: 'Вывод средств'
+            },
+            {
+                id: 3,
+                type: 'transfer',
+                amount: -200,
+                date: '2024-03-18T12:20:00',
+                status: 'completed',
+                description: 'Перевод пользователю @user123'
+            },
+            {
+                id: 4,
+                type: 'bonus',
+                amount: 100,
+                date: '2024-03-17T09:15:00',
+                status: 'completed',
+                description: 'Бонус за приглашение друга'
             }
+        ];
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatAmount(amount) {
+            return `${amount > 0 ? '+' : ''}${amount.toFixed(2)} ₽`;
+        }
+
+        function getStatusClass(status) {
+            switch (status) {
+                case 'completed': return 'status-completed';
+                case 'pending': return 'status-pending';
+                case 'failed': return 'status-failed';
+                default: return '';
+            }
+        }
+
+        function getStatusText(status) {
+            switch (status) {
+                case 'completed': return 'Выполнено';
+                case 'pending': return 'В обработке';
+                case 'failed': return 'Ошибка';
+                default: return status;
+            }
+        }
+
+        function createTransactionElement(transaction) {
+            const div = document.createElement('div');
+            div.className = 'transaction-item';
+            div.innerHTML = `
+                <div class="transaction-info">
+                    <div class="transaction-type">${transaction.description}</div>
+                    <div class="transaction-date">${formatDate(transaction.date)}</div>
+                    <div class="transaction-status ${getStatusClass(transaction.status)}">
+                        ${getStatusText(transaction.status)}
+                    </div>
+                </div>
+                <div class="transaction-amount ${transaction.amount > 0 ? 'amount-positive' : 'amount-negative'}">
+                    ${formatAmount(transaction.amount)}
+                </div>
+            `;
+            return div;
+        }
+
+        function loadTransactions() {
+            if (isLoading) return;
+            isLoading = true;
+
+            // В реальном приложении здесь будет запрос к API
+            setTimeout(() => {
+                const transactionList = document.getElementById('transactionList');
+                
+                if (currentPage === 1) {
+                    transactionList.innerHTML = '';
+                }
+
+                const filteredTransactions = mockTransactions.filter(t => 
+                    currentFilter === 'all' || t.type === currentFilter
+                );
+
+                if (filteredTransactions.length === 0 && currentPage === 1) {
+                    transactionList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <div class="empty-state-text">История транзакций пуста</div>
+                        </div>
+                    `;
+                } else {
+                    filteredTransactions.forEach(transaction => {
+                        transactionList.appendChild(createTransactionElement(transaction));
+                    });
+                }
+
+                // Показываем кнопку "Загрузить еще" если есть еще транзакции
+                document.getElementById('loadMoreButton').style.display = 
+                    filteredTransactions.length >= 10 ? 'block' : 'none';
+
+                isLoading = false;
+            }, 500);
+        }
+
+        function loadMoreTransactions() {
+            currentPage++;
+            loadTransactions();
+            TelegramUtils.hapticFeedback('light');
+        }
+
+        function filterTransactions(filter) {
+            currentFilter = filter;
+            currentPage = 1;
+            
+            // Обновляем активную кнопку фильтра
+            document.querySelectorAll('.filter-button').forEach(button => {
+                button.classList.remove('active');
+                if (button.textContent.toLowerCase().includes(filter)) {
+                    button.classList.add('active');
+                }
+            });
+
+            loadTransactions();
+            TelegramUtils.hapticFeedback('light');
         }
 
         function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
+            TelegramUtils.openLink(page);
         }
 
         function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
+            TelegramUtils.closeWebApp();
         }
 
         function toggleDropdown() {
@@ -231,25 +515,12 @@
             }
         }
 
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
         function logout() {
-            function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-            }   
+            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
+                if (confirmed) {
+                    TelegramUtils.closeWebApp();
+                }
+            });
         }
     </script>
 </body>

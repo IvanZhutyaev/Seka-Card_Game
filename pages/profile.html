@@ -3,14 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; font-src 'self' data:;">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
     <title>Игровой профиль</title>
     <style>
         :root {
-            --bg-color: #0a1a2a; /* Темно-синий фон */
+            --bg-color: #0a1a2a;
             --text-color: #e0e0e0;
             --blue-accent: #4285F4;
             --white: #ffffff;
             --menu-btn: rgba(66, 133, 244, 0.3);
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --focus-outline: 2px solid #FFD700;
         }
 
         * {
@@ -23,34 +31,56 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: url(static/background.png);
+            background-image: url('../static/background.png');
             color: var(--text-color);
             padding: 16px;
             max-width: 100%;
             margin: 0 auto;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
+
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
         }
 
-        .plus-btn {
-            color: white;
-            font-size: 20px;
-            margin-left: 8px;
-            cursor: pointer;
+        .page-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
         }
 
-        .back-button {
+        .back-button, .menu-button {
             background: none;
             border: none;
             color: var(--text-color);
-            font-size: 32px;
             cursor: pointer;
             padding: 8px;
+            z-index: 1;
+            transition: transform 0.2s ease;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        .back-button:hover, .back-button:focus,
+        .menu-button:hover, .menu-button:focus {
+            transform: scale(1.1);
+            outline: var(--focus-outline);
+        }
+
+        .back-button {
+            font-size: 32px;
             width: 40px;
             height: 40px;
             display: flex;
@@ -59,11 +89,6 @@
         }
 
         .menu-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            cursor: pointer;
-            padding: 8px;
             display: flex;
             flex-direction: column;
             gap: 5px;
@@ -77,148 +102,6 @@
             border-radius: 2px;
         }
 
-        .profile-header {
-            display: flex;
-            gap: 16px;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .avatar-container {
-            width: 70px;
-            height: 70px;
-            border-radius: 50%;
-            border: 3px solid white;
-            overflow: hidden;
-            flex-shrink: 0;
-            background-color: #555;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .avatar {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .default-avatar {
-            font-size: 35px;
-            color: white;
-        }
-
-        .user-info {
-            flex-grow: 1;
-        }
-
-        .user-name {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-color);
-        }
-
-        .balance {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-color);
-            margin-bottom: 4px;
-        }
-
-        .user-id {
-            font-size: 14px;
-            color: var(--text-color);
-            opacity: 0.8;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 500;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            color: white;
-            text-align: center;
-        }
-
-        .btn-primary {
-            background-color: #34A853;
-        }
-
-        .btn-secondary {
-            background-color: #EA4335;
-        }
-
-        .btn-transfer {
-            background-color: #4285F4;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-
-        .btn-icon {
-            margin-right: 6px;
-            font-size: 16px;
-        }
-
-        .menu {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .menu-item {
-            background-color: var(--menu-btn);
-            border-radius: 8px;
-            padding: 14px 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            backdrop-filter: blur(5px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(100, 181, 246, 0.8);
-            margin-bottom: 8px;
-        }
-
-        .menu-item {
-            background-color: var(--menu-btn);
-            border-radius: 8px;
-            padding: 14px 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center; /* Выравнивание по вертикали */
-            justify-content: center; /* Добавьте это для горизонтального выравнивания */
-            backdrop-filter: blur(5px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(100, 181, 246, 0.8);
-            margin-bottom: 8px;
-            text-align: center; /* Дополнительное выравнивание текста */
-        }
-
-        .menu-item-icon {
-            margin-right: 12px;
-            font-size: 20px;
-        }
-
-        .menu-item-text {
-            font-size: 16px;
-            font-weight: 500;
-        }
-
         .dropdown-menu {
             display: none;
             position: absolute;
@@ -229,8 +112,10 @@
             padding: 8px 0;
             min-width: 220px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            z-index: 1;
+            z-index: 10;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            will-change: transform, opacity;
+            transform: translateZ(0);
         }
 
         .dropdown-menu.show {
@@ -245,10 +130,16 @@
             color: var(--text-color);
             border-radius: 0;
             transition: background-color 0.2s;
+            text-decoration: none;
         }
 
-        .dropdown-item:hover {
+        .dropdown-item:hover, .dropdown-item:focus {
             background-color: rgba(66, 133, 244, 0.2);
+            outline: none;
+        }
+
+        .dropdown-item:focus {
+            outline: var(--focus-outline);
         }
 
         .dropdown-icon {
@@ -268,186 +159,515 @@
             color: #EA4335;
         }
 
+        .profile-container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20px;
+            contain: content;
+        }
+
+        .profile-header {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--blue-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: white;
+            background-size: cover;
+            background-position: center;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+
+        .profile-info {
+            flex-grow: 1;
+        }
+
+        .username {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .user-id {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .balance {
+            font-size: 24px;
+            font-weight: 700;
+            color: #34A853;
+        }
+
+        .settings-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            contain: content;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--blue-accent);
+        }
+
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            will-change: background-color;
+        }
+
+        .settings-item:hover, .settings-item:focus {
+            background: rgba(255, 255, 255, 0.05);
+            outline: none;
+        }
+
+        .settings-item:focus {
+            outline: var(--focus-outline);
+        }
+
+        .settings-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .settings-icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .settings-value {
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s;
+            border-radius: 24px;
+            will-change: transform;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--blue-accent);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+            contain: layout style;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--blue-accent);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+                will-change: auto !important;
+            }
+        }
+
+        /* High contrast mode */
+        @media (forced-colors: active) {
+            :root {
+                --focus-outline: 2px solid CanvasText;
+            }
+
+            .avatar {
+                border: 1px solid CanvasText;
+            }
+
+            .settings-item {
+                border: 1px solid CanvasText;
+            }
+        }
+
+        /* Screen reader only */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         @media (max-width: 400px) {
             .balance {
                 font-size: 20px;
             }
-            .avatar-container {
+            .avatar {
                 width: 60px;
                 height: 60px;
             }
+            .profile-container {
+                contain: strict;
+            }
+        }
+
+        /* Small mobile devices */
+        @media (max-width: 360px) {
+            .header {
+                margin-bottom: 15px;
+            }
+
+            .page-title {
+                font-size: 16px;
+            }
+
+            .back-button {
+                font-size: 28px;
+                width: 35px;
+                height: 35px;
+            }
+
+            .menu-button {
+                padding: 6px;
+            }
+
+            .menu-line {
+                width: 20px;
+                height: 2px;
+            }
+
+            .profile-header {
+                padding: 15px;
+                gap: 12px;
+            }
+
+            .avatar {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+
+            .username {
+                font-size: 18px;
+            }
+
+            .balance {
+                font-size: 18px;
+            }
+
+            .user-id {
+                font-size: 12px;
+            }
+
+            .settings-section {
+                padding: 15px;
+            }
+
+            .section-title {
+                font-size: 16px;
+                margin-bottom: 12px;
+            }
+
+            .settings-item {
+                padding: 10px;
+            }
+
+            .settings-icon {
+                font-size: 18px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+        }
+
+        /* Landscape mode */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .profile-container {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 20px;
+                justify-content: center;
+            }
+
+            .profile-header {
+                width: 300px;
+                margin-bottom: 0;
+            }
+
+            .settings-section {
+                width: calc(50% - 10px);
+                margin-bottom: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* High-DPI screens */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .avatar {
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .settings-item {
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #0a1a2a;
+                --text-color: #e0e0e0;
+                --text-secondary: rgba(255, 255, 255, 0.6);
+            }
+
+            .dropdown-menu {
+                background-color: #0f2233;
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .settings-item {
+                background: rgba(255, 255, 255, 0.03);
+            }
+
+            .settings-item:hover {
+                background: rgba(255, 255, 255, 0.05);
+            }
+        }
+
+        /* Оптимизация анимаций для мобильных устройств */
+        @media (max-width: 768px) {
+            * {
+                transition-duration: 0.15s;
+            }
+        }
+
+        /* Оптимизация шрифтов */
+        @font-face {
+            font-family: 'System UI';
+            font-display: swap;
+        }
+
+        /* Оптимизация прокрутки */
+        .profile-container {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Оптимизация теней */
+        .dropdown-menu {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Оптимизация прозрачности */
+        .settings-item {
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <button class="back-button" onclick="goBack()">←</button>
-        <button class="menu-button" onclick="toggleDropdown()">
+        <button class="back-button" onclick="goBack()" aria-label="Вернуться назад">←</button>
+        <div class="page-title">Профиль</div>
+        <button class="menu-button" onclick="toggleDropdown()" aria-label="Открыть меню" aria-expanded="false" aria-controls="dropdownMenu">
             <div class="menu-line"></div>
             <div class="menu-line"></div>
             <div class="menu-line"></div>
         </button>
     </div>
 
-    <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules')">
-            <span class="dropdown-icon">📜</span>
+    <div class="dropdown-menu" id="dropdownMenu" role="menu" aria-label="Меню профиля">
+        <a href="#" class="dropdown-item" onclick="openPage('rules')" role="menuitem">
+            <span class="dropdown-icon" aria-hidden="true">📜</span>
             Правила игры
-        </div>
-
-        <div class="dropdown-item" onclick="openPage('bonus')">
-            <span class="dropdown-icon">🎁</span>
+        </a>
+        <a href="#" class="dropdown-item" onclick="openPage('bonus')" role="menuitem">
+            <span class="dropdown-icon" aria-hidden="true">🎁</span>
             Бонусы и акции
-        </div>
-        <div class="dropdown-item" onclick="openPage('history')">
-            <span class="dropdown-icon">📊</span>
+        </a>
+        <a href="#" class="dropdown-item" onclick="openPage('history')" role="menuitem">
+            <span class="dropdown-icon" aria-hidden="true">📊</span>
             История транзакций
-        </div>
-        <div class="dropdown-item" onclick="openPage('invite)">
-            <span class="dropdown-icon">👥</span>
+        </a>
+        <a href="#" class="dropdown-item" onclick="openPage('invite')" role="menuitem">
+            <span class="dropdown-icon" aria-hidden="true">👥</span>
             Пригласить друга
-        </div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item logout-item" onclick="logout()">
-            <span class="dropdown-icon">🚪</span>
+        </a>
+        <div class="dropdown-divider" role="separator"></div>
+        <a href="#" class="dropdown-item logout-item" onclick="logout()" role="menuitem">
+            <span class="dropdown-icon" aria-hidden="true">🚪</span>
             Выйти
+        </a>
+    </div>
+
+    <div class="profile-container" role="main">
+        <div class="profile-header">
+            <div class="avatar" id="avatar" role="img" aria-label="Аватар пользователя">
+                <span id="avatar-text" aria-hidden="true">👤</span>
+            </div>
+            <div class="profile-info">
+                <div class="username" id="username">Игрок</div>
+                <div class="balance" id="balance">0.00 ₽</div>
+                <div class="user-id" id="user-id">ID: -</div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="section-title">Статистика</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value" id="games-played">0</div>
+                    <div class="stat-label">Игр сыграно</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="games-won">0</div>
+                    <div class="stat-label">Побед</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="win-rate">0%</div>
+                    <div class="stat-label">Процент побед</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="total-winnings">0</div>
+                    <div class="stat-label">Общий выигрыш</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="section-title">Настройки</div>
+            <div class="settings-list">
+                <div class="settings-item">
+                    <div class="settings-label">
+                        <span class="settings-icon" aria-hidden="true">🔔</span>
+                        Уведомления
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifications-toggle" checked aria-label="Включить уведомления">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-label">
+                        <span class="settings-icon" aria-hidden="true">🎵</span>
+                        Звуки
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sounds-toggle" checked aria-label="Включить звуки">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="profile-header">
-        <div class="avatar-container" id="avatar-container">
-            <div class="default-avatar">👤</div>
-            <img class="avatar" id="user-avatar" style="display: none;">
-        </div>
-        
-        <div class="user-info">
-            <div class="user-name" id="user-name">Игрок</div>
-            <div class="balance">Баланс: 900.00 ₽<span class="plus-btn" onclick="openSection('deposit')">+</span></div>
-            <div class="user-id" id="user-id">ID: 123456</div>
-        </div>
-    </div>
+    <!-- Модули приложения -->
+    <script type="module">
+        // Приложение
+        import { App } from './modules/app.js';
 
-    <div class="action-buttons">
-        <button class="btn btn-primary" onclick="openPage('deposit')">
-            <span class="btn-icon">+</span>
-            Пополнить
-        </button>
-        <button class="btn btn-secondary" onclick="openPage('withdraw')">
-            <span class="btn-icon">—</span>
-            Вывести
-        </button>
-    </div>
-
-    <button class="btn btn-transfer" onclick="openPage('transfer')">
-        <span class="btn-icon">🫂</span>
-        Перевести другу
-    </button>
-
-    <div class="menu">
-        <div class="menu-item" onclick="openPage('rules')">
-            <span class="menu-item-icon">📜</span>
-            <div class="menu-item-text">Правила Игры</div>
-        </div>
-
-        <div class="menu-item" onclick="openPage('profile')">
-            <span class="menu-item-icon">⚙️</span>
-            <div class="menu-item-text">Профиль и настройки</div>
-        </div>
-
-        <div class="menu-item" onclick="openPage('bonus')">
-            <span class="menu-item-icon">🎁</span>
-            <div class="menu-item-text">Бонусы и акции</div>
-        </div>
-
-        <div class="menu-item" onclick="openPage('history')">
-            <span class="menu-item-icon">💳</span>
-            <div class="menu-item-text">История Транзакций</div>
-        </div>
-
-        <div class="menu-item" onclick="openPage('invite')">
-            <span class="menu-item-icon">👥</span>
-            <div class="menu-item-text">Пригласить друга</div>
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                 const user = Telegram.WebApp.initDataUnsafe.user
-                if(user)
-                {
-                    alert("user found")
-                    document.getElementById('user-id').textContent = `ID: ${user.id}`
-
-                }else{alert("user not found")}
-                Telegram.WebApp.enableClosingConfirmation();
-
-
-            }
+        // Инициализация приложения
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new App();
+            app.init();
         });
+    </script>
 
-
-
-        function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
-        }
-
-        function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
-        }
-
-        function toggleDropdown() {
-            const dropdown = document.getElementById('dropdownMenu');
-            dropdown.classList.toggle('show');
-        }
-        function openSection(section) {
-            alert(`Функционал "${section}" в разработке`);
-            document.getElementById('dropdownMenu').classList.remove('show');
-        }
-
-        window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-                const dropdowns = document.getElementsByClassName("dropdown-menu");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    const openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                        openDropdown.classList.remove('show');
-                    }
-                }
-            }
-        }
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
-        function logout() {
-
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-
-        }
-
-
+    <!-- Fallback для старых браузеров -->
+    <script nomodule>
+        document.body.innerHTML = '<div style="text-align: center; padding: 20px;">Для работы приложения необходим современный браузер с поддержкой JavaScript модулей.</div>';
     </script>
 </body>
 </html>

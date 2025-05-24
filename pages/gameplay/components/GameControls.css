@@ -55,11 +55,11 @@
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s ease;
+    color: white;
 }
 
 .bet-button {
     background: #4CAF50;
-    color: white;
 }
 
 .bet-button:hover {
@@ -68,7 +68,6 @@
 
 .fold-button {
     background: #f44336;
-    color: white;
 }
 
 .fold-button:hover {
@@ -105,4 +104,107 @@
 
 .bet-button:active {
     animation: pulse 0.2s ease-in-out;
+}
+
+/* Mobile version adjustments */
+@media (max-width: 768px) {
+    .game-controls {
+        padding: 15px;
+        width: 95%;
+        bottom: 15px;
+    }
+
+    .bet-input-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .bet-input-group input {
+        width: 100%;
+    }
+
+    .bet-buttons {
+        flex-direction: column;
+    }
+
+    .bet-button, .fold-button {
+        width: 100%;
+    }
+
+    .quick-bets {
+        flex-wrap: wrap;
+    }
+
+    .quick-bets button {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 100px;
+    }
+}
+
+/* Small mobile devices */
+@media (max-width: 360px) {
+    .game-controls {
+        padding: 10px;
+        bottom: 10px;
+    }
+
+    .bet-input-group label {
+        font-size: 14px;
+    }
+
+    .bet-input-group input {
+        padding: 6px;
+        font-size: 14px;
+    }
+
+    .bet-range {
+        font-size: 0.8em;
+    }
+
+    .bet-button, .fold-button {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .quick-bets button {
+        padding: 6px;
+        font-size: 12px;
+    }
+}
+
+/* Landscape mode */
+@media (max-height: 500px) and (orientation: landscape) {
+    .game-controls {
+        padding: 10px;
+        bottom: 10px;
+    }
+
+    .bet-controls {
+        gap: 10px;
+    }
+
+    .bet-input-group {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .bet-input-group input {
+        width: 100px;
+    }
+
+    .bet-buttons {
+        flex-direction: row;
+    }
+}
+
+/* High-DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .bet-input-group input {
+        border-width: 1px;
+    }
+
+    .bet-button, .fold-button {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
 } 

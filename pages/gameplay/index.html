@@ -51,21 +51,37 @@
             justify-content: center;
             top: 50%;
             transform: translateY(-50%);
+            transition: transform 0.2s ease;
         }
 
         .menu-button {
             left: 15px;
-            background-image: url('/static/images/menu.svg');
+            background-image: url('../../static/images/menu.svg');
+        }
+
+        .menu-button:hover, .menu-button:focus {
+            transform: translateY(-50%) scale(1.1);
+            outline: 2px solid #FFD700;
         }
 
         .sound-button {
             right: 60px;
-            background-image: url('/static/images/sound.svg');
+            background-image: url('../../static/images/sound.svg');
+        }
+
+        .sound-button:hover, .sound-button:focus {
+            transform: translateY(-50%) scale(1.1);
+            outline: 2px solid #FFD700;
         }
 
         .exit-button {
             right: 15px;
-            background-image: url('/static/images/exit.svg');
+            background-image: url('../../static/images/exit.svg');
+        }
+
+        .exit-button:hover, .exit-button:focus {
+            transform: translateY(-50%) scale(1.1);
+            outline: 2px solid #FFD700;
         }
 
         .player-queue-info {
@@ -197,6 +213,17 @@
             cursor: pointer;
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .action-button:hover, .action-button:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            outline: 2px solid #FFD700;
+        }
+
+        .action-button:focus {
+            outline: 2px solid #FFD700;
         }
 
         .bet-button {
@@ -264,10 +291,16 @@
             padding: 10px 15px;
             text-decoration: none;
             color: #0a1a3a;
+            transition: background-color 0.2s ease;
         }
 
-        .dropdown-menu a:hover {
+        .dropdown-menu a:hover, .dropdown-menu a:focus {
             background: #f0f0f0;
+            outline: none;
+        }
+
+        .dropdown-menu a:focus {
+            outline: 2px solid #4285F4;
         }
 
         .chair-selection {
@@ -308,6 +341,17 @@
             border: 2px solid transparent;
             background-size: cover;
             background-position: center;
+            transition: all 0.2s ease;
+        }
+
+        .chair-option:hover, .chair-option:focus {
+            transform: scale(1.05);
+            border-color: #FFD700;
+            outline: none;
+        }
+
+        .chair-option:focus {
+            outline: 2px solid #FFD700;
         }
 
         .chair-option.occupied {
@@ -327,6 +371,17 @@
             border: none;
             border-radius: 20px;
             cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .confirm-chair:hover, .confirm-chair:focus {
+            background: #45a049;
+            transform: translateY(-2px);
+            outline: 2px solid #FFD700;
+        }
+
+        .confirm-chair:focus {
+            outline: 2px solid #FFD700;
         }
 
         /* Mobile version adjustments */
@@ -365,8 +420,12 @@
             }
             
             .player-name, .player-balance {
-                text-align: left;
                 width: 100%;
+            }
+            
+            .left-column .player-name,
+            .left-column .player-balance {
+                text-align: left;
                 padding-left: 5px;
             }
             
@@ -374,7 +433,6 @@
             .right-column .player-balance {
                 text-align: right;
                 padding-right: 5px;
-                padding-left: 0;
             }
             
             .bottom-panel {
@@ -404,10 +462,134 @@
                 display: none;
             }
         }
+
+        /* Small mobile devices */
+        @media (max-width: 360px) {
+            .player-avatar {
+                width: 40px;
+                height: 40px;
+            }
+
+            .bank-title {
+                font-size: 18px;
+            }
+
+            .bank-amount-container {
+                width: 130px;
+            }
+
+            .bank-amount {
+                font-size: 16px;
+            }
+
+            .player-name {
+                font-size: 12px;
+            }
+
+            .player-balance {
+                font-size: 10px;
+            }
+
+            .action-button {
+                padding: 8px 15px;
+                font-size: 12px;
+            }
+
+            .chair-option {
+                width: 60px;
+                height: 60px;
+            }
+
+            .bottom-panel {
+                height: 35vh;
+            }
+        }
+
+        /* Landscape mode */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .bank-container {
+                bottom: 40vh;
+            }
+
+            .bottom-panel {
+                height: 30vh;
+            }
+
+            .player-avatar {
+                width: 35px;
+                height: 35px;
+            }
+
+            .action-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+
+        /* High-DPI screens */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .player-avatar {
+                border-width: 1px;
+            }
+
+            .action-button {
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root" role="main" aria-label="Игровой стол"></div>
     <script type="module" src="index.tsx"></script>
+    <script>
+        // Проверка загрузки изображений
+        function checkImageLoad(imagePath) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => reject(false);
+                img.src = imagePath;
+            });
+        }
+
+        // Проверяем все изображения при загрузке страницы
+        window.addEventListener('load', async () => {
+            const images = [
+                '../../static/images/menu.svg',
+                '../../static/images/sound.svg',
+                '../../static/images/exit.svg'
+            ];
+
+            for (const image of images) {
+                try {
+                    await checkImageLoad(image);
+                } catch (error) {
+                    console.error(`Ошибка загрузки изображения: ${image}`);
+                    // Можно добавить fallback изображение или показать уведомление пользователю
+                }
+            }
+        });
+
+        // Добавляем поддержку клавиатурной навигации
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const dropdowns = document.getElementsByClassName("dropdown-menu");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>

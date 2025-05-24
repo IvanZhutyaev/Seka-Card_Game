@@ -20,6 +20,7 @@ interface GameStore {
     fold: () => void;
     
     initTelegramUser: () => TelegramUser | null;
+    exitGame: () => void;
 }
 
 interface TelegramUser {
@@ -162,6 +163,24 @@ export const useGameState = create<GameStore>((set, get) => ({
                 action: 'fold'
             };
             ws.send(JSON.stringify(action));
+        }
+    },
+    
+    exitGame: () => {
+        const { ws } = get();
+        if (ws) {
+            ws.close();
+        }
+        
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.close();
+            
+            // Если через 0.3 сек WebApp еще открыт — редиректим в бота
+            setTimeout(() => {
+                window.location.href = "tg://";
+            }, 300);
+        } else {
+            window.close();
         }
     }
 })); 

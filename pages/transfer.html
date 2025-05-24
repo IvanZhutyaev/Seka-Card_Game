@@ -313,7 +313,7 @@
             <span class="dropdown-icon">🎁</span>
             Бонусы и акции
         </div>
-        <div class="dropdown-item" onclick="openPage('history)">
+        <div class="dropdown-item" onclick="openPage('history')">
             <span class="dropdown-icon">📊</span>
             История транзакций
         </div>
@@ -407,13 +407,58 @@
         </div>
     </div>
 
+    <script src="static/js/telegram-utils.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.enableClosingConfirmation();
+            // Инициализируем Telegram WebApp
+            if (!TelegramUtils.init()) {
+                TelegramUtils.showAlert('Ошибка инициализации приложения');
+                return;
             }
         });
+
+        function validateForm() {
+            const amount = document.getElementById('amount').value;
+            const username = document.getElementById('username').value;
+            
+            if (!amount || !username) {
+                TelegramUtils.showAlert('Заполните все поля');
+                return false;
+            }
+            
+            if (isNaN(amount) || amount <= 0) {
+                TelegramUtils.showAlert('Введите корректную сумму');
+                return false;
+            }
+            
+            return true;
+        }
+
+        function submitTransfer() {
+            if (!validateForm()) {
+                return;
+            }
+            
+            TelegramUtils.hapticFeedback('medium');
+            // TODO: Добавить отправку данных на сервер
+            TelegramUtils.showAlert('Перевод выполнен успешно');
+        }
+
+        function openPage(page) {
+            TelegramUtils.openLink(page);
+        }
+
+        function goBack() {
+            TelegramUtils.closeWebApp();
+        }
+
+        function logout() {
+            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
+                if (confirmed) {
+                    TelegramUtils.closeWebApp();
+                }
+            });
+        }
 
         function showPage(pageId) {
             // Скрываем все страницы
@@ -477,24 +522,6 @@
             showPage('successPage');
         }
 
-        function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
-        }
-
-            //под вопросом
-        //function goBack() {
-        //    if (window.Telegram?.WebApp?.close) {
-        //        Telegram.WebApp.close();
-        //    } else {
-        //        window.history.back();
-        //    }
-        //}
-
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdownMenu');
             dropdown.classList.toggle('show');
@@ -522,12 +549,6 @@
             } else {
                 alert("WebApp закрыта");
                 window.close();
-            }
-        }
-
-        function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp();
             }
         }
     </script>
