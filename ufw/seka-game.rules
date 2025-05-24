@@ -1,0 +1,14 @@
+# Allow HTTP
+ufw allow 80/tcp
+
+# Allow HTTPS
+ufw allow 443/tcp
+
+# Allow PostgreSQL
+ufw allow from 127.0.0.1 to any port 5432
+
+# Allow Redis
+ufw allow from 127.0.0.1 to any port 6379
+
+# Allow WebSocket
+ufw allow 3000/tcp 

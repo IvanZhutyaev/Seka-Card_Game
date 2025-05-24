@@ -1,22 +1,170 @@
-aiogram==3.20.0.post0
-fastapi==0.115.12
-uvicorn==0.34.2
-python-dotenv==1.1.0
-sqlalchemy==2.0.40
+# Основные зависимости
+fastapi==0.104.1
+uvicorn==0.24.0
+python-dotenv==1.0.0
+pydantic==2.4.2
+sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-redis==6.1.0
-python-multipart==0.0.9
-aiohttp==3.11.16
+redis==5.0.1
 websockets==12.0
-pydantic==2.11.3
-pydantic-settings==2.1.0
-aiofiles==24.1.0
-APScheduler==3.9.1
-bcrypt==4.3.0
-cryptography==43.0.3
-python-dateutil==2.9.0.post0
+python-jose==3.3.0
+passlib==1.7.4
+python-multipart==0.0.6
+aiohttp==3.9.1
+aioredis==2.0.1
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# Зависимости для разработки
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+isort==5.12.0
+bandit==1.7.5
+safety==2.3.5
+
+# Зависимости для документации
+mkdocs==1.5.3
+mkdocs-material==9.4.14
+mkdocstrings==0.23.0
+mkdocstrings-python==1.7.1
+
+# Зависимости для тестирования
+locust==2.20.0
+faker==20.1.0
+factory-boy==3.3.0
+coverage==7.3.2
+
+# Зависимости для мониторинга
+prometheus-client==0.19.0
+grafana-api-client==2.0.0
+statsd==4.0.1
+
+# Зависимости для безопасности
+cryptography==41.0.5
+bcrypt==4.0.1
+python-jose==3.3.0
+passlib==1.7.4
+
+# Зависимости для кэширования
+cachetools==5.3.2
+redis==5.0.1
+
+# Зависимости для логирования
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Зависимости для работы с датами
 pytz==2023.3
-PyYAML==6.0.2
-requests==2.32.3
-starlette==0.46.2
-typing_extensions==4.13.2 
+python-dateutil==2.8.2
+
+# Зависимости для работы с файлами
+aiofiles==23.2.1
+python-magic==0.4.27
+
+# Зависимости для работы с сетью
+aiohttp==3.9.1
+requests==2.31.0
+urllib3==2.1.0
+
+# Зависимости для работы с данными
+numpy==1.26.2
+pandas==2.1.3
+
+# Зависимости для работы с изображениями
+Pillow==10.1.0
+python-magic==0.4.27
+
+# Зависимости для работы с API
+swagger-ui-bundle==0.0.9
+apispec==6.3.0
+apispec-webframeworks==0.5.2
+
+# Зависимости для работы с WebSocket
+websockets==12.0
+python-socketio==5.10.0
+
+# Зависимости для работы с очередями
+celery==5.3.6
+flower==2.0.1
+
+# Зависимости для работы с базой данных
+alembic==1.12.1
+sqlalchemy-utils==0.41.1
+psycopg2-binary==2.9.9
+
+# Зависимости для работы с Redis
+redis==5.0.1
+hiredis==2.3.2
+
+# Зависимости для работы с Telegram
+python-telegram-bot==20.7
+telethon==1.32.1
+
+# Зависимости для работы с метриками
+prometheus-client==0.19.0
+statsd==4.0.1
+
+# Зависимости для работы с логированием
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Зависимости для работы с безопасностью
+cryptography==41.0.5
+bcrypt==4.0.1
+python-jose==3.3.0
+passlib==1.7.4
+
+# Зависимости для работы с кэшированием
+cachetools==5.3.2
+redis==5.0.1
+
+# Зависимости для работы с датами
+pytz==2023.3
+python-dateutil==2.8.2
+
+# Зависимости для работы с файлами
+aiofiles==23.2.1
+python-magic==0.4.27
+
+# Зависимости для работы с сетью
+aiohttp==3.9.1
+requests==2.31.0
+urllib3==2.1.0
+
+# Зависимости для работы с данными
+numpy==1.26.2
+pandas==2.1.3
+
+# Зависимости для работы с изображениями
+Pillow==10.1.0
+python-magic==0.4.27
+
+# Зависимости для работы с API
+swagger-ui-bundle==0.0.9
+apispec==6.3.0
+apispec-webframeworks==0.5.2
+
+# Зависимости для работы с WebSocket
+websockets==12.0
+python-socketio==5.10.0
+
+# Зависимости для работы с очередями
+celery==5.3.6
+flower==2.0.1
+
+# Зависимости для работы с базой данных
+alembic==1.12.1
+sqlalchemy-utils==0.41.1
+psycopg2-binary==2.9.9
+
+# Зависимости для работы с Redis
+redis==5.0.1
+hiredis==2.3.2
+
+# Зависимости для работы с Telegram
+python-telegram-bot==20.7
+telethon==1.32.1 
