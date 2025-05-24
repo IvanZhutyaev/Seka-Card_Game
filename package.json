@@ -19,11 +19,12 @@
     "clean": "rimraf node_modules package-lock.json",
     "reinstall": "npm run clean && npm install",
     "update-deps": "npm-check-updates -u && npm install",
-    "check-deps": "npm-check-updates"
+    "check-deps": "npm-check-updates",
+    "dev": "nodemon server.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/seka-card-game.git"
+    "url": "git+https://github.com/IvanZhutyaev/Seka-Card_Game.git"
   },
   "keywords": [
     "card-game",
@@ -31,38 +32,43 @@
     "mini-app",
     "game"
   ],
-  "author": "Your Name",
+  "author": "Ivan Zhutyaev",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/your-username/seka-card-game/issues"
+    "url": "https://github.com/IvanZhutyaev/Seka-Card_Game/issues"
   },
-  "homepage": "https://github.com/your-username/seka-card-game#readme",
+  "homepage": "https://github.com/IvanZhutyaev/Seka-Card_Game#readme",
   "dependencies": {
-    "express": "^5.1.0",
-    "ws": "^8.18.2",
-    "dotenv": "^16.5.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2",
+    "dotenv": "^16.3.1",
     "cors": "^2.8.5",
-    "helmet": "^8.1.0",
-    "compression": "^1.8.0",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
     "morgan": "^1.10.0",
-    "winston": "^3.17.0"
+    "winston": "^3.11.0",
+    "@twa-dev/sdk": "^6.9.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.27.1",
-    "@babel/preset-env": "^7.27.2",
+    "@babel/core": "^7.23.3",
+    "@babel/preset-env": "^7.23.3",
     "babel-jest": "^29.7.0",
-    "conventional-changelog-cli": "^5.0.0",
+    "conventional-changelog-cli": "^4.1.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "rimraf": "^6.0.1",
-    "npm-check-updates": "^18.0.1",
-    "nodemon": "^3.1.10",
-    "eslint": "^9.27.0",
-    "eslint-config-prettier": "^10.1.5",
-    "prettier": "^3.5.3",
-    "esbuild": "^0.20.2",
-    "esbuild-sass-plugin": "^3.3.1",
-    "glob": "^10.3.10"
+    "rimraf": "^5.0.5",
+    "npm-check-updates": "^16.14.17",
+    "nodemon": "^3.0.1",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.1.0",
+    "esbuild": "^0.19.8",
+    "esbuild-sass-plugin": "^2.16.0",
+    "glob": "^10.3.10",
+    "sass": "^1.69.5",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^14.1.2"
   },
   "jest": {
     "testEnvironment": "jsdom",
@@ -77,6 +83,10 @@
     ],
     "transformIgnorePatterns": [
       "node_modules/(?!(@jest/globals)/)"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/?(*.)+(spec|test).js"
     ]
   },
   "engines": {
