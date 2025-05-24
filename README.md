@@ -143,19 +143,7 @@ docker build -t seka-game .
 
 ## Контакты
 
-- Автор: Your Name
-- Email: your.email@example.com
-- Проект: [https://github.com/your-username/seka-card-game](https://github.com/your-username/seka-card-game)
-
-BOT_TOKEN=your_bot_token
-WEB_APP_URL=your_web_app_url
-POSTGRES_DB=seka_game
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-REDIS_HOST=localhost
-REDIS_PORT=6379
-DEBUG=True
-ADMIN_IDS=your_admin_id
+- Авторы: Жутяев Иван, Ломовской Артём
+- Email: ivan.zhutyaev@mail.ru
+- Проект: [https://github.com/IvanZhutyaev/seka-card-game](https://github.com/IvanZhutyaev/seka-card-game)
 
