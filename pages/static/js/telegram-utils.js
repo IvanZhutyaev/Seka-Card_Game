@@ -2,180 +2,192 @@
  * Утилиты для работы с Telegram WebApp
  */
 
-class TelegramUtils {
-    static init() {
-        if (!window.Telegram?.WebApp) {
-            console.error('Telegram WebApp не доступен');
+const TelegramUtils = {
+    webApp: null,
+    isInitialized: false,
+    previousPage: null,
+
+    init() {
+        try {
+            // Если уже инициализировано, возвращаем true
+            if (this.isInitialized) {
+                return true;
+            }
+
+            // Проверяем доступность Telegram WebApp
+            if (window.Telegram && window.Telegram.WebApp) {
+                this.webApp = window.Telegram.WebApp;
+                
+                // Инициализируем WebApp
+                this.webApp.ready();
+                this.webApp.expand();
+
+                // Настраиваем тему
+                document.documentElement.className = this.webApp.colorScheme;
+
+                // Включаем кнопку "назад" если это не главное меню
+                const currentPath = window.location.pathname;
+                if (currentPath !== '/' && currentPath !== '/main_menu') {
+                    this.webApp.BackButton.show();
+                } else {
+                    this.webApp.BackButton.hide();
+                }
+
+                // Обработчик кнопки "назад"
+                this.webApp.BackButton.onClick(() => {
+                    if (this.previousPage) {
+                        this.openLink(this.previousPage);
+                    } else {
+                        this.openLink('main_menu');
+                    }
+                });
+
+                // Скрываем MainButton если она есть
+                if (this.webApp.MainButton) {
+                    this.webApp.MainButton.hide();
+                }
+                
+                this.isInitialized = true;
+                console.log('Telegram WebApp initialized successfully');
+                return true;
+            } else {
+                // Если открыто не в Telegram, инициализируем базовый режим
+                console.log('Running in standalone mode (not in Telegram WebApp)');
+                this.isInitialized = true;
+                return true;
+            }
+        } catch (error) {
+            console.error('Error initializing Telegram WebApp:', error);
             return false;
         }
+    },
 
+    getUser() {
         try {
-            // Расширяем WebApp на весь экран
-            Telegram.WebApp.expand();
-            
-            // Включаем подтверждение закрытия
-            Telegram.WebApp.enableClosingConfirmation();
-            
-            // Проверяем подпись initData
-            if (!this.validateInitData()) {
-                console.error('Неверная подпись initData');
-                return false;
+            if (this.webApp && this.webApp.initDataUnsafe && this.webApp.initDataUnsafe.user) {
+                return this.webApp.initDataUnsafe.user;
             }
-            
-            return true;
+            // Возвращаем базовый объект пользователя для локальной разработки
+            return {
+                id: 0,
+                first_name: 'Guest',
+                username: 'guest',
+                photo_url: null
+            };
         } catch (error) {
-            console.error('Ошибка инициализации Telegram WebApp:', error);
-            return false;
-        }
-    }
-
-    static validateInitData() {
-        try {
-            const initData = Telegram.WebApp.initData;
-            const initDataUnsafe = Telegram.WebApp.initDataUnsafe;
-            
-            if (!initData || !initDataUnsafe) {
-                console.error('initData не найден');
-                return false;
-            }
-
-            // Проверяем наличие необходимых данных
-            if (!initDataUnsafe.user || !initDataUnsafe.auth_date) {
-                console.error('Отсутствуют необходимые данные в initData');
-                return false;
-            }
-
-            // Проверяем время жизни initData (24 часа)
-            const authDate = new Date(initDataUnsafe.auth_date * 1000);
-            const now = new Date();
-            if (now - authDate > 24 * 60 * 60 * 1000) {
-                console.error('initData устарел');
-                return false;
-            }
-
-            // Отправляем initData на сервер для проверки подписи
-            return this.validateInitDataOnServer(initData);
-        } catch (error) {
-            console.error('Ошибка проверки initData:', error);
-            return false;
-        }
-    }
-
-    static async validateInitDataOnServer(initData) {
-        try {
-            const response = await fetch('/api/validate-init-data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ initData }),
-            });
-
-            if (!response.ok) {
-                console.error('Ошибка валидации initData на сервере');
-                return false;
-            }
-
-            const result = await response.json();
-            return result.valid;
-        } catch (error) {
-            console.error('Ошибка отправки initData на сервер:', error);
-            return false;
-        }
-    }
-
-    static getUser() {
-        try {
-            const user = Telegram.WebApp.initDataUnsafe.user;
-            if (!user) {
-                console.error('Данные пользователя не найдены');
-                return null;
-            }
-            return user;
-        } catch (error) {
-            console.error('Ошибка получения данных пользователя:', error);
+            console.error('Error getting user:', error);
             return null;
         }
-    }
+    },
 
-    static async closeWebApp() {
+    showAlert(message) {
         try {
-            if (window.Telegram?.WebApp) {
-                // Пытаемся закрыть стандартным методом
-                Telegram.WebApp.close();
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://";
-                }, 300);
-            } else {
-                window.close();
-            }
-        } catch (error) {
-            console.error('Ошибка закрытия WebApp:', error);
-            window.close();
-        }
-    }
-
-    static async openLink(url) {
-        try {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(url);
-            } else {
-                window.location.href = url;
-            }
-        } catch (error) {
-            console.error('Ошибка открытия ссылки:', error);
-            window.location.href = url;
-        }
-    }
-
-    static showAlert(message) {
-        try {
-            if (window.Telegram?.WebApp?.showAlert) {
-                Telegram.WebApp.showAlert(message);
+            if (this.webApp) {
+                this.webApp.showAlert(message);
             } else {
                 alert(message);
             }
         } catch (error) {
-            console.error('Ошибка показа уведомления:', error);
+            console.error('Error showing alert:', error);
             alert(message);
         }
-    }
+    },
 
-    static showConfirm(message, callback) {
+    showConfirm(message, callback) {
         try {
-            if (window.Telegram?.WebApp?.showConfirm) {
-                Telegram.WebApp.showConfirm(message, callback);
+            if (this.webApp) {
+                this.webApp.showConfirm(message, callback);
             } else {
-                callback(confirm(message));
+                const result = confirm(message);
+                if (callback) callback(result);
             }
         } catch (error) {
-            console.error('Ошибка показа подтверждения:', error);
-            callback(confirm(message));
+            console.error('Error showing confirm:', error);
+            const result = confirm(message);
+            if (callback) callback(result);
         }
-    }
+    },
 
-    static showPopup(params) {
+    hapticFeedback(style) {
         try {
-            if (window.Telegram?.WebApp?.showPopup) {
-                Telegram.WebApp.showPopup(params);
+            if (this.webApp && this.webApp.HapticFeedback) {
+                switch (style) {
+                    case 'light':
+                        this.webApp.HapticFeedback.impactOccurred('light');
+                        break;
+                    case 'medium':
+                        this.webApp.HapticFeedback.impactOccurred('medium');
+                        break;
+                    case 'heavy':
+                        this.webApp.HapticFeedback.impactOccurred('heavy');
+                        break;
+                }
+            }
+        } catch (error) {
+            console.error('Error in haptic feedback:', error);
+        }
+    },
+
+    openLink(page) {
+        try {
+            // Сохраняем текущую страницу перед переходом
+            const currentPath = window.location.pathname.substring(1) || 'main_menu';
+            this.previousPage = currentPath;
+
+            // Получаем текущий initData
+            const initData = this.webApp ? this.webApp.initData : '';
+            
+            // Добавляем initData в заголовки для нового запроса
+            const headers = new Headers();
+            if (initData) {
+                headers.append('X-Telegram-Init-Data', initData);
+            }
+
+            // Загружаем новую страницу с сохранением контекста WebApp
+            fetch(`/${page}`, { headers })
+                .then(response => response.text())
+                .then(html => {
+                    // Заменяем содержимое страницы
+                    document.open();
+                    document.write(html);
+                    document.close();
+                    
+                    // Реинициализируем Telegram WebApp на новой странице
+                    this.init();
+                    
+                    // Обновляем URL без перезагрузки страницы
+                    window.history.pushState({}, '', `/${page}`);
+
+                    // Управляем видимостью кнопки "назад"
+                    if (this.webApp) {
+                        if (page === 'main_menu') {
+                            this.webApp.BackButton.hide();
+                        } else {
+                            this.webApp.BackButton.show();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading page:', error);
+                    this.showAlert('Ошибка при загрузке страницы');
+                });
+        } catch (error) {
+            console.error('Error in openLink:', error);
+            // Fallback к обычной навигации
+            window.location.href = `/${page}`;
+        }
+    },
+
+    closeWebApp() {
+        try {
+            if (this.webApp) {
+                this.webApp.close();
             } else {
-                alert(params.message);
+                window.close();
             }
         } catch (error) {
-            console.error('Ошибка показа попапа:', error);
-            alert(params.message);
+            console.error('Error closing WebApp:', error);
+            window.close();
         }
     }
-
-    static hapticFeedback(style = 'light') {
-        try {
-            if (window.Telegram?.WebApp?.HapticFeedback) {
-                Telegram.WebApp.HapticFeedback.impactOccurred(style);
-            }
-        } catch (error) {
-            console.error('Ошибка тактильной обратной связи:', error);
-        }
-    }
-} 
+}; 

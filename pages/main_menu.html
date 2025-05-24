@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Лобби</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -21,10 +29,9 @@
             transition: all 0.2s;
         }
 
-
         body {
             background-color: var(--bg-color);
-            background-image: url(static/background.png);
+            background-image: url('/static/background.png');
             color: var(--text-color);
             padding: 16px;
             max-width: 100%;
@@ -135,9 +142,8 @@
 
         .image-button {
             width: 100%;
-
             aspect-ratio: 1/1;
-            background-image: url('static/LobbySekaCard.jpeg');
+            background-image: url('/static/LobbySekaCard.jpeg');
             background-size: cover;
             background-position: center;
             border-radius: 12px;
@@ -299,31 +305,34 @@
         <div class="button-label">Сека</div>
     </div>
 
-    <script src="static/js/telegram-utils.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Инициализируем Telegram WebApp
-            if (!TelegramUtils.init()) {
-                TelegramUtils.showAlert('Ошибка инициализации приложения');
-                return;
-            }
-            
-            // Получаем данные пользователя
-            const user = TelegramUtils.getUser();
-            if (user) {
-                const avatarContainer = document.getElementById('avatar-container');
-                const defaultAvatar = avatarContainer.querySelector('.default-avatar');
-                const userAvatar = document.getElementById('user-avatar');
-                
-                if (user.photo_url) {
-                    // Если есть фото в Telegram, показываем его
-                    defaultAvatar.style.display = 'none';
-                    userAvatar.src = user.photo_url;
-                    userAvatar.style.display = 'block';
-                } else {
-                    // Если фото нет, показываем дефолтный аватар с инициалами
-                    defaultAvatar.textContent = user.first_name.charAt(0);
+        // Ждем загрузки всех скриптов
+        window.addEventListener('load', async function() {
+            try {
+                // Инициализируем Telegram WebApp
+                if (!TelegramUtils.init()) {
+                    console.error('Failed to initialize Telegram WebApp');
+                    return;
                 }
+
+                // Получаем данные пользователя
+                const user = TelegramUtils.getUser();
+                if (user) {
+                    const avatarContainer = document.getElementById('avatar-container');
+                    const defaultAvatar = avatarContainer.querySelector('.default-avatar');
+                    const userAvatar = document.getElementById('user-avatar');
+                    
+                    if (user.photo_url) {
+                        defaultAvatar.style.display = 'none';
+                        userAvatar.src = user.photo_url;
+                        userAvatar.style.display = 'block';
+                    } else {
+                        defaultAvatar.textContent = user.first_name.charAt(0);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in initialization:', error);
+                TelegramUtils.showAlert('Ошибка инициализации приложения: ' + error.message);
             }
         });
 
@@ -348,8 +357,11 @@
             TelegramUtils.showAlert('Кнопка "Сека" нажата!');
         }
 
+        // Закрываем меню при клике вне его
         window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
+            if (!event.target.matches('.menu-button') && 
+                !event.target.matches('.menu-line') && 
+                !event.target.closest('#dropdownMenu')) {
                 const dropdowns = document.getElementsByClassName("dropdown-menu");
                 for (let i = 0; i < dropdowns.length; i++) {
                     const openDropdown = dropdowns[i];
@@ -358,7 +370,7 @@
                     }
                 }
             }
-        }
+        };
 
         function logout() {
             TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
@@ -367,6 +379,17 @@
                 }
             });
         }
+
+        // Обработка навигации браузера
+        window.addEventListener('popstate', function(event) {
+            // Получаем текущий путь из URL
+            const path = window.location.pathname.substring(1) || 'main_menu';
+            
+            // Загружаем соответствующую страницу
+            if (path !== window.location.pathname.substring(1)) {
+                TelegramUtils.openLink(path);
+            }
+        });
     </script>
 </body>
 </html>

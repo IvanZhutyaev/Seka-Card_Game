@@ -1,197 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Пригласить друга</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
-        :root {
-            --bg-color: #0a1a2a;
-            --text-color: #e0e0e0;
-            --blue-accent: #4285F4;
-            --white: #ffffff;
-            --menu-btn: rgba(66, 133, 244, 0.3);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            transition: all 0.2s;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            background-image: url(static/background.png);
-            color: var(--text-color);
-            padding: 16px;
-            max-width: 100%;
-            margin: 0 auto;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center; /* Центрируем содержимое */
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            position: relative;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .page-title {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-color);
-        }
-
-        .back-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 32px;
-            cursor: pointer;
-            padding: 8px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1;
-        }
-
-        .menu-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-self: center;
-            z-index: 1;
-        }
-
-        .menu-line {
-            width: 24px;
-            height: 3px;
-            background-color: var(--text-color);
-            border-radius: 2px;
-        }
-
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            right: 16px;
-            top: 60px;
-            background-color: #0f2233;
-            border-radius: 12px;
-            padding: 8px 0;
-            min-width: 220px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .dropdown-menu.show {
-            display: block;
-        }
-
-        .dropdown-item {
-            padding: 12px 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            color: var(--text-color);
-            border-radius: 0;
-            transition: background-color 0.2s;
-        }
-
-        .dropdown-item:hover {
-            background-color: rgba(66, 133, 244, 0.2);
-        }
-
-        .dropdown-icon {
-            margin-right: 12px;
-            font-size: 20px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .dropdown-divider {
-            height: 1px;
-            background-color: rgba(255, 255, 255, 0.1);
-            margin: 8px 0;
-        }
-
-        .logout-item {
-            color: #EA4335;
-        }
-
+        /* Специфичные стили для страницы приглашения */
         .invite-container {
-            width: 100%;
-            max-width: 600px;
             padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .invite-section {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            margin-top: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
         }
 
         .invite-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            text-align: center;
+            font-size: 24px;
+            color: var(--blue-accent);
+            margin-bottom: 15px;
         }
 
         .invite-description {
-            font-size: 16px;
-            line-height: 1.5;
-            margin-bottom: 24px;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin-bottom: 20px;
         }
 
-        .invite-benefits {
-            margin-bottom: 24px;
-        }
-
-        .benefit-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-
-        .benefit-icon {
-            margin-right: 12px;
-            font-size: 24px;
-        }
-
-        .invite-link-container {
+        .invite-link {
             background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        .invite-link {
+        .link-text {
             color: var(--blue-accent);
-            font-size: 14px;
+            font-family: monospace;
+            font-size: 16px;
             word-break: break-all;
-            margin-right: 12px;
         }
 
         .copy-button {
@@ -201,199 +64,134 @@
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            margin-left: 10px;
             white-space: nowrap;
         }
 
         .copy-button:hover {
-            background: #3367d6;
+            opacity: 0.9;
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .share-button {
-            width: 100%;
-            background: #34A853;
-            color: white;
+            background: rgba(255, 255, 255, 0.1);
             border: none;
-            padding: 14px;
+            padding: 12px 24px;
             border-radius: 8px;
+            color: var(--text-color);
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .share-button:hover {
-            background: #2d9249;
+            background: rgba(255, 255, 255, 0.15);
         }
 
-        .referral-stats {
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        .bonus-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(52, 168, 83, 0.1);
+            border-radius: 8px;
+            color: #34A853;
         }
 
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
+        @media (max-width: 400px) {
+            .invite-title {
+                font-size: 20px;
+            }
 
-        .stat-label {
-            color: rgba(255, 255, 255, 0.7);
-        }
+            .link-text {
+                font-size: 14px;
+            }
 
-        .stat-value {
-            font-weight: 500;
+            .copy-button {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+
+            .share-button {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <button class="back-button" onclick="goBack()">←</button>
-        <div class="page-title">Пригласить друга</div>
-        <button class="menu-button" onclick="toggleDropdown()">
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-        </button>
-    </div>
+    <!-- Подключаем общий заголовок -->
+    <div id="header-container"></div>
 
-    <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules')">
-            <span class="dropdown-icon">📜</span>
-            Правила игры
-        </div>
-        <div class="dropdown-item" onclick="openPage('profile')">
-            <span class="dropdown-icon">👤</span>
-            Профиль и настройки
-        </div>
-        <div class="dropdown-item" onclick="openPage('bonus')">
-            <span class="dropdown-icon">🎁</span>
-            Бонусы и акции
-        </div>
-        <div class="dropdown-item" onclick="openPage('history')">
-            <span class="dropdown-icon">📊</span>
-            История транзакций
-        </div>
-
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item logout-item" onclick="logout()">
-            <span class="dropdown-icon">🚪</span>
-            Выйти
-        </div>
-    </div>
-
+    <!-- Контент страницы -->
     <div class="invite-container">
-        <div class="invite-title">Пригласите друга и получите бонус!</div>
-        <div class="invite-description">
-            За каждого приглашенного друга вы получите 100₽ на баланс, а ваш друг получит 50₽ при первом пополнении.
-        </div>
+        <div class="invite-section">
+            <h2 class="invite-title">Пригласите друзей и получите бонус!</h2>
+            <p class="invite-description">
+                За каждого приглашенного друга, который зарегистрируется по вашей ссылке и сделает первую ставку, 
+                вы получите 100 рублей на игровой счет!
+            </p>
 
-        <div class="invite-benefits">
-            <div class="benefit-item">
-                <span class="benefit-icon">🎁</span>
-                <span>Бонус 100₽ за каждого друга</span>
+            <div class="invite-link">
+                <span class="link-text" id="referral-link">https://t.me/SekaGameBot?start=ref123456</span>
+                <button class="copy-button" onclick="copyLink()">Копировать</button>
             </div>
-            <div class="benefit-item">
-                <span class="benefit-icon">💰</span>
-                <span>Друг получает 50₽ при первом пополнении</span>
-            </div>
-            <div class="benefit-item">
-                <span class="benefit-icon">🎮</span>
-                <span>Играйте вместе с друзьями</span>
-            </div>
-        </div>
 
-        <div class="invite-link-container">
-            <div class="invite-link" id="inviteLink">https://t.me/your_bot?start=123456</div>
-            <button class="copy-button" onclick="copyInviteLink()">Копировать</button>
-        </div>
-
-        <button class="share-button" onclick="shareInviteLink()">
-            Поделиться с другом
-        </button>
-
-        <div class="referral-stats">
-            <div class="stat-item">
-                <span class="stat-label">Приглашено друзей:</span>
-                <span class="stat-value">0</span>
+            <div class="share-buttons">
+                <button class="share-button" onclick="shareToTelegram()">
+                    <span>📱</span> Поделиться в Telegram
+                </button>
+                <button class="share-button" onclick="shareToWhatsApp()">
+                    <span>💬</span> WhatsApp
+                </button>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Заработано бонусов:</span>
-                <span class="stat-value">0₽</span>
+
+            <div class="bonus-info">
+                Приглашено друзей: 5 | Получено бонусов: 500 ₽
             </div>
         </div>
     </div>
 
-    <script src="static/js/telegram-utils.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Инициализируем Telegram WebApp
-            if (!TelegramUtils.init()) {
-                TelegramUtils.showAlert('Ошибка инициализации приложения');
-                return;
-            }
+        // Загружаем общий заголовок
+        fetch('/static/common-header.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('header-container').innerHTML = html;
+                // Переинициализируем обработчики после загрузки заголовка
+                initializeMenuHandlers();
+            })
+            .catch(error => console.error('Error loading header:', error));
 
-            // Получаем данные пользователя для формирования реферальной ссылки
-            const user = TelegramUtils.getUser();
-            if (user) {
-                const inviteLink = `https://t.me/your_bot?start=${user.id}`;
-                document.getElementById('inviteLink').textContent = inviteLink;
-            }
-        });
-
-        function copyInviteLink() {
-            const inviteLink = document.getElementById('inviteLink').textContent;
-            navigator.clipboard.writeText(inviteLink).then(() => {
-                TelegramUtils.showAlert('Ссылка скопирована!');
-                TelegramUtils.hapticFeedback('light');
-            }).catch(() => {
-                TelegramUtils.showAlert('Не удалось скопировать ссылку');
-            });
+        function copyLink() {
+            const link = document.getElementById('referral-link').textContent;
+            navigator.clipboard.writeText(link)
+                .then(() => {
+                    TelegramUtils.showAlert('Ссылка скопирована!');
+                    TelegramUtils.hapticFeedback('light');
+                })
+                .catch(() => {
+                    TelegramUtils.showAlert('Не удалось скопировать ссылку');
+                });
         }
 
-        function shareInviteLink() {
-            const inviteLink = document.getElementById('inviteLink').textContent;
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(`https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent('Присоединяйся ко мне в игре!')}`);
-            } else {
-                TelegramUtils.showAlert('Функция шаринга недоступна');
-            }
-            TelegramUtils.hapticFeedback('medium');
+        function shareToTelegram() {
+            const link = document.getElementById('referral-link').textContent;
+            const text = `Присоединяйся к игре в Секу! Используй мою реферальную ссылку:\n${link}`;
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
+            TelegramUtils.hapticFeedback('light');
         }
 
-        function openPage(page) {
-            TelegramUtils.openLink(page);
-        }
-
-        function goBack() {
-            TelegramUtils.closeWebApp();
-        }
-
-        function toggleDropdown() {
-            const dropdown = document.getElementById('dropdownMenu');
-            dropdown.classList.toggle('show');
-        }
-
-        window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-                const dropdowns = document.getElementsByClassName("dropdown-menu");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    const openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                        openDropdown.classList.remove('show');
-                    }
-                }
-            }
-        }
-
-        function logout() {
-            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
-                if (confirmed) {
-                    TelegramUtils.closeWebApp();
-                }
-            });
+        function shareToWhatsApp() {
+            const link = document.getElementById('referral-link').textContent;
+            const text = `Присоединяйся к игре в Секу! Используй мою реферальную ссылку: ${link}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`);
+            TelegramUtils.hapticFeedback('light');
         }
     </script>
 </body>

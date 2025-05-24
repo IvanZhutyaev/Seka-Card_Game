@@ -1,5 +1,4 @@
-# Используем официальный образ Python
-FROM python:3.8-slim
+FROM python:3.10-slim
 
 # Устанавливаем рабочую директорию
 WORKDIR /var/www/seka-game
@@ -12,10 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 # Копируем файлы зависимостей
 COPY requirements.txt .
-COPY requirements-dev.txt .
 
-# Устанавливаем Python зависимости
-RUN pip install --no-cache-dir -r requirements.txt
+# Обновляем pip и устанавливаем зависимости
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Копируем исходный код
 COPY . .
@@ -31,4 +30,4 @@ USER seka
 EXPOSE 3000
 
 # Запускаем приложение
-CMD ["python", "server.py"] 
+CMD ["python", "server.py"]

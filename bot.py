@@ -156,6 +156,8 @@ async def main():
     """Запуск бота"""
     try:
         logger.info("🚀 Бот запускается...")
+        # Удаляем webhook перед запуском
+        await bot.delete_webhook()
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"❌ Ошибка при запуске бота: {e}")

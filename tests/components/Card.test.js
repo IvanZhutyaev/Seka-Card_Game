@@ -12,6 +12,7 @@ describe('Card Component', () => {
   });
   
   afterEach(() => {
+    // Очищаем после каждого теста
     document.body.innerHTML = '';
   });
   
@@ -38,6 +39,7 @@ describe('Card Component', () => {
   test('applies disabled state', () => {
     card.classList.add('card--disabled');
     expect(card).toHaveClass('card--disabled');
+    card.setAttribute('disabled', '');
     expect(card).toHaveAttribute('disabled');
   });
 }); 

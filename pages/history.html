@@ -1,9 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>История транзакций</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -138,26 +146,25 @@
         }
 
         .history-container {
-            width: 100%;
-            max-width: 600px;
-            margin-top: 20px;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
-        .filter-container {
+        .history-filters {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 10px;
+            margin-bottom: 20px;
             overflow-x: auto;
-            padding-bottom: 8px;
+            padding-bottom: 10px;
         }
 
         .filter-button {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-color);
-            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 20px;
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
@@ -171,42 +178,55 @@
         .transaction-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
         .transaction-item {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            padding: 16px;
+            padding: 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.2s;
-        }
-
-        .transaction-item:hover {
-            background: rgba(255, 255, 255, 0.08);
         }
 
         .transaction-info {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .transaction-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .transaction-details {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
         .transaction-type {
-            font-size: 16px;
             font-weight: 500;
+            color: var(--text-color);
         }
 
         .transaction-date {
             font-size: 14px;
-            color: rgba(255, 255, 255, 0.6);
+            color: var(--text-color);
+            opacity: 0.7;
         }
 
         .transaction-amount {
-            font-size: 18px;
             font-weight: 600;
+            font-size: 18px;
         }
 
         .amount-positive {
@@ -220,308 +240,110 @@
         .empty-state {
             text-align: center;
             padding: 40px 20px;
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
-        }
-
-        .empty-state-text {
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        .load-more {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
             color: var(--text-color);
-            font-size: 16px;
-            margin-top: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
+            opacity: 0.7;
         }
 
-        .load-more:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
+        @media (max-width: 400px) {
+            .transaction-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
 
-        .transaction-status {
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-top: 4px;
-        }
+            .transaction-amount {
+                font-size: 16px;
+            }
 
-        .status-completed {
-            background: rgba(52, 168, 83, 0.2);
-            color: #34A853;
-        }
+            .transaction-type {
+                font-size: 14px;
+            }
 
-        .status-pending {
-            background: rgba(255, 152, 0, 0.2);
-            color: #FFA000;
-        }
+            .transaction-date {
+                font-size: 12px;
+            }
 
-        .status-failed {
-            background: rgba(234, 67, 53, 0.2);
-            color: #EA4335;
+            .filter-button {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <button class="back-button" onclick="goBack()">←</button>
-        <div class="page-title">История транзакций</div>
-        <button class="menu-button" onclick="toggleDropdown()">
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-        </button>
-    </div>
+    <!-- Подключаем общий заголовок -->
+    <div id="header-container"></div>
 
-    <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules')">
-            <span class="dropdown-icon">📜</span>
-            Правила игры
-        </div>
-        <div class="dropdown-item" onclick="openPage('profile')">
-            <span class="dropdown-icon">👤</span>
-            Профиль и настройки
-        </div>
-        <div class="dropdown-item" onclick="openPage('bonus')">
-            <span class="dropdown-icon">🎁</span>
-            Бонусы и акции
-        </div>
-
-        <div class="dropdown-item" onclick="openPage('invite')">
-            <span class="dropdown-icon">👥</span>
-            Пригласить друга
-        </div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item logout-item" onclick="logout()">
-            <span class="dropdown-icon">🚪</span>
-            Выйти
-        </div>
-    </div>
-
+    <!-- Контент страницы -->
     <div class="history-container">
-        <div class="filter-container">
-            <button class="filter-button active" onclick="filterTransactions('all')">Все</button>
-            <button class="filter-button" onclick="filterTransactions('deposit')">Пополнения</button>
-            <button class="filter-button" onclick="filterTransactions('withdraw')">Выводы</button>
-            <button class="filter-button" onclick="filterTransactions('transfer')">Переводы</button>
-            <button class="filter-button" onclick="filterTransactions('bonus')">Бонусы</button>
+        <div class="history-filters">
+            <button class="filter-button active">Все</button>
+            <button class="filter-button">Пополнения</button>
+            <button class="filter-button">Выводы</button>
+            <button class="filter-button">Выигрыши</button>
+            <button class="filter-button">Проигрыши</button>
         </div>
 
-        <div class="transaction-list" id="transactionList">
-            <!-- Транзакции будут добавлены через JavaScript -->
-        </div>
-
-        <button class="load-more" onclick="loadMoreTransactions()" id="loadMoreButton" style="display: none;">
-            Загрузить еще
-        </button>
-    </div>
-
-    <script src="static/js/telegram-utils.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Инициализируем Telegram WebApp
-            if (!TelegramUtils.init()) {
-                TelegramUtils.showAlert('Ошибка инициализации приложения');
-                return;
-            }
-
-            // Загружаем первые транзакции
-            loadTransactions();
-        });
-
-        let currentPage = 1;
-        let currentFilter = 'all';
-        let isLoading = false;
-
-        // Пример данных транзакций (в реальном приложении будут приходить с сервера)
-        const mockTransactions = [
-            {
-                id: 1,
-                type: 'deposit',
-                amount: 1000,
-                date: '2024-03-20T10:30:00',
-                status: 'completed',
-                description: 'Пополнение баланса'
-            },
-            {
-                id: 2,
-                type: 'withdraw',
-                amount: -500,
-                date: '2024-03-19T15:45:00',
-                status: 'pending',
-                description: 'Вывод средств'
-            },
-            {
-                id: 3,
-                type: 'transfer',
-                amount: -200,
-                date: '2024-03-18T12:20:00',
-                status: 'completed',
-                description: 'Перевод пользователю @user123'
-            },
-            {
-                id: 4,
-                type: 'bonus',
-                amount: 100,
-                date: '2024-03-17T09:15:00',
-                status: 'completed',
-                description: 'Бонус за приглашение друга'
-            }
-        ];
-
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ru-RU', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        function formatAmount(amount) {
-            return `${amount > 0 ? '+' : ''}${amount.toFixed(2)} ₽`;
-        }
-
-        function getStatusClass(status) {
-            switch (status) {
-                case 'completed': return 'status-completed';
-                case 'pending': return 'status-pending';
-                case 'failed': return 'status-failed';
-                default: return '';
-            }
-        }
-
-        function getStatusText(status) {
-            switch (status) {
-                case 'completed': return 'Выполнено';
-                case 'pending': return 'В обработке';
-                case 'failed': return 'Ошибка';
-                default: return status;
-            }
-        }
-
-        function createTransactionElement(transaction) {
-            const div = document.createElement('div');
-            div.className = 'transaction-item';
-            div.innerHTML = `
+        <div class="transaction-list">
+            <div class="transaction-item">
                 <div class="transaction-info">
-                    <div class="transaction-type">${transaction.description}</div>
-                    <div class="transaction-date">${formatDate(transaction.date)}</div>
-                    <div class="transaction-status ${getStatusClass(transaction.status)}">
-                        ${getStatusText(transaction.status)}
+                    <div class="transaction-icon">🎮</div>
+                    <div class="transaction-details">
+                        <div class="transaction-type">Выигрыш в игре</div>
+                        <div class="transaction-date">21 марта 2024, 15:30</div>
                     </div>
                 </div>
-                <div class="transaction-amount ${transaction.amount > 0 ? 'amount-positive' : 'amount-negative'}">
-                    ${formatAmount(transaction.amount)}
+                <div class="transaction-amount amount-positive">+500.00 ₽</div>
+            </div>
+
+            <div class="transaction-item">
+                <div class="transaction-info">
+                    <div class="transaction-icon">💳</div>
+                    <div class="transaction-details">
+                        <div class="transaction-type">Пополнение баланса</div>
+                        <div class="transaction-date">20 марта 2024, 12:15</div>
+                    </div>
                 </div>
-            `;
-            return div;
-        }
+                <div class="transaction-amount amount-positive">+1000.00 ₽</div>
+            </div>
 
-        function loadTransactions() {
-            if (isLoading) return;
-            isLoading = true;
+            <div class="transaction-item">
+                <div class="transaction-info">
+                    <div class="transaction-icon">🎮</div>
+                    <div class="transaction-details">
+                        <div class="transaction-type">Проигрыш в игре</div>
+                        <div class="transaction-date">19 марта 2024, 18:45</div>
+                    </div>
+                </div>
+                <div class="transaction-amount amount-negative">-200.00 ₽</div>
+            </div>
+        </div>
+    </div>
 
-            // В реальном приложении здесь будет запрос к API
-            setTimeout(() => {
-                const transactionList = document.getElementById('transactionList');
-                
-                if (currentPage === 1) {
-                    transactionList.innerHTML = '';
-                }
+    <script>
+        // Загружаем общий заголовок
+        fetch('/static/common-header.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('header-container').innerHTML = html;
+                // Переинициализируем обработчики после загрузки заголовка
+                initializeMenuHandlers();
+            })
+            .catch(error => console.error('Error loading header:', error));
 
-                const filteredTransactions = mockTransactions.filter(t => 
-                    currentFilter === 'all' || t.type === currentFilter
-                );
-
-                if (filteredTransactions.length === 0 && currentPage === 1) {
-                    transactionList.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📊</div>
-                            <div class="empty-state-text">История транзакций пуста</div>
-                        </div>
-                    `;
-                } else {
-                    filteredTransactions.forEach(transaction => {
-                        transactionList.appendChild(createTransactionElement(transaction));
-                    });
-                }
-
-                // Показываем кнопку "Загрузить еще" если есть еще транзакции
-                document.getElementById('loadMoreButton').style.display = 
-                    filteredTransactions.length >= 10 ? 'block' : 'none';
-
-                isLoading = false;
-            }, 500);
-        }
-
-        function loadMoreTransactions() {
-            currentPage++;
-            loadTransactions();
-            TelegramUtils.hapticFeedback('light');
-        }
-
-        function filterTransactions(filter) {
-            currentFilter = filter;
-            currentPage = 1;
-            
-            // Обновляем активную кнопку фильтра
-            document.querySelectorAll('.filter-button').forEach(button => {
-                button.classList.remove('active');
-                if (button.textContent.toLowerCase().includes(filter)) {
-                    button.classList.add('active');
-                }
+        // Обработчики фильтров
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Убираем активный класс у всех кнопок
+                document.querySelectorAll('.filter-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                // Добавляем активный класс нажатой кнопке
+                button.classList.add('active');
+                // Добавляем тактильный отклик
+                TelegramUtils.hapticFeedback('light');
             });
-
-            loadTransactions();
-            TelegramUtils.hapticFeedback('light');
-        }
-
-        function openPage(page) {
-            TelegramUtils.openLink(page);
-        }
-
-        function goBack() {
-            TelegramUtils.closeWebApp();
-        }
-
-        function toggleDropdown() {
-            const dropdown = document.getElementById('dropdownMenu');
-            dropdown.classList.toggle('show');
-        }
-
-        window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-                const dropdowns = document.getElementsByClassName("dropdown-menu");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    const openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                        openDropdown.classList.remove('show');
-                    }
-                }
-            }
-        }
-
-        function logout() {
-            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
-                if (confirmed) {
-                    TelegramUtils.closeWebApp();
-                }
-            });
-        }
+        });
     </script>
 </body>
 </html>

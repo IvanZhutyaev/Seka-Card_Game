@@ -9,7 +9,15 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
-    <title>Игровой профиль</title>
+    <title>Профиль</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css">
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -160,161 +168,86 @@
         }
 
         .profile-container {
-            width: 100%;
+            padding: 20px;
             max-width: 600px;
-            margin-top: 20px;
-            contain: content;
+            margin: 0 auto;
         }
 
-        .profile-header {
+        .profile-section {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
         }
 
-        .avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--blue-accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            color: white;
-            background-size: cover;
-            background-position: center;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-        }
-
-        .profile-info {
-            flex-grow: 1;
-        }
-
-        .username {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .user-id {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .balance {
-            font-size: 24px;
-            font-weight: 700;
-            color: #34A853;
-        }
-
-        .settings-section {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            contain: content;
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 16px;
+        .profile-section h2 {
             color: var(--blue-accent);
+            margin-bottom: 15px;
+            font-size: 20px;
         }
 
-        .settings-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .settings-item {
+        .profile-field {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px;
+            margin-bottom: 15px;
+            padding: 10px;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            will-change: background-color;
         }
 
-        .settings-item:hover, .settings-item:focus {
-            background: rgba(255, 255, 255, 0.05);
-            outline: none;
+        .profile-field label {
+            color: var(--text-color);
+            opacity: 0.8;
         }
 
-        .settings-item:focus {
-            outline: var(--focus-outline);
+        .profile-field span {
+            color: var(--text-color);
         }
 
-        .settings-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .settings-icon {
-            font-size: 20px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .settings-value {
-            color: var(--text-secondary);
-        }
-
-        .toggle-switch {
+        .settings-toggle {
             position: relative;
             display: inline-block;
-            width: 44px;
+            width: 50px;
             height: 24px;
         }
 
-        .toggle-switch input {
+        .settings-toggle input {
             opacity: 0;
             width: 0;
             height: 0;
         }
 
-        .toggle-slider {
+        .slider {
             position: absolute;
             cursor: pointer;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: #555;
             transition: .4s;
             border-radius: 24px;
-            will-change: transform;
         }
 
-        .toggle-slider:before {
+        .slider:before {
             position: absolute;
             content: "";
-            height: 20px;
-            width: 20px;
-            left: 2px;
-            bottom: 2px;
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
             background-color: white;
             transition: .4s;
             border-radius: 50%;
         }
 
-        input:checked + .toggle-slider {
+        input:checked + .slider {
             background-color: var(--blue-accent);
         }
 
-        input:checked + .toggle-slider:before {
-            transform: translateX(20px);
+        input:checked + .slider:before {
+            transform: translateX(26px);
         }
 
         .stats-grid {
@@ -391,6 +324,21 @@
             }
             .profile-container {
                 contain: strict;
+            }
+            .profile-section h2 {
+                font-size: 18px;
+            }
+            .profile-field {
+                padding: 8px;
+                font-size: 14px;
+            }
+            .settings-toggle {
+                width: 44px;
+                height: 22px;
+            }
+            .slider:before {
+                height: 14px;
+                width: 14px;
             }
         }
 
@@ -558,116 +506,86 @@
     </style>
 </head>
 <body>
-    <div class="header">
-        <button class="back-button" onclick="goBack()" aria-label="Вернуться назад">←</button>
-        <div class="page-title">Профиль</div>
-        <button class="menu-button" onclick="toggleDropdown()" aria-label="Открыть меню" aria-expanded="false" aria-controls="dropdownMenu">
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-            <div class="menu-line"></div>
-        </button>
-    </div>
+    <!-- Подключаем общий заголовок -->
+    <div id="header-container"></div>
 
-    <div class="dropdown-menu" id="dropdownMenu" role="menu" aria-label="Меню профиля">
-        <a href="#" class="dropdown-item" onclick="openPage('rules')" role="menuitem">
-            <span class="dropdown-icon" aria-hidden="true">📜</span>
-            Правила игры
-        </a>
-        <a href="#" class="dropdown-item" onclick="openPage('bonus')" role="menuitem">
-            <span class="dropdown-icon" aria-hidden="true">🎁</span>
-            Бонусы и акции
-        </a>
-        <a href="#" class="dropdown-item" onclick="openPage('history')" role="menuitem">
-            <span class="dropdown-icon" aria-hidden="true">📊</span>
-            История транзакций
-        </a>
-        <a href="#" class="dropdown-item" onclick="openPage('invite')" role="menuitem">
-            <span class="dropdown-icon" aria-hidden="true">👥</span>
-            Пригласить друга
-        </a>
-        <div class="dropdown-divider" role="separator"></div>
-        <a href="#" class="dropdown-item logout-item" onclick="logout()" role="menuitem">
-            <span class="dropdown-icon" aria-hidden="true">🚪</span>
-            Выйти
-        </a>
-    </div>
-
-    <div class="profile-container" role="main">
-        <div class="profile-header">
-            <div class="avatar" id="avatar" role="img" aria-label="Аватар пользователя">
-                <span id="avatar-text" aria-hidden="true">👤</span>
+    <!-- Контент страницы -->
+    <div class="profile-container">
+        <div class="profile-section">
+            <h2>Личные данные</h2>
+            <div class="profile-field">
+                <label>Имя</label>
+                <span id="user-name">Загрузка...</span>
             </div>
-            <div class="profile-info">
-                <div class="username" id="username">Игрок</div>
-                <div class="balance" id="balance">0.00 ₽</div>
-                <div class="user-id" id="user-id">ID: -</div>
+            <div class="profile-field">
+                <label>ID пользователя</label>
+                <span id="user-id">Загрузка...</span>
+            </div>
+            <div class="profile-field">
+                <label>Дата регистрации</label>
+                <span>21.03.2024</span>
             </div>
         </div>
 
-        <div class="settings-section">
-            <div class="section-title">Статистика</div>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value" id="games-played">0</div>
-                    <div class="stat-label">Игр сыграно</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="games-won">0</div>
-                    <div class="stat-label">Побед</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="win-rate">0%</div>
-                    <div class="stat-label">Процент побед</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="total-winnings">0</div>
-                    <div class="stat-label">Общий выигрыш</div>
-                </div>
+        <div class="profile-section">
+            <h2>Настройки</h2>
+            <div class="profile-field">
+                <label>Звуковые эффекты</label>
+                <label class="settings-toggle">
+                    <input type="checkbox" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="profile-field">
+                <label>Вибрация</label>
+                <label class="settings-toggle">
+                    <input type="checkbox" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="profile-field">
+                <label>Уведомления</label>
+                <label class="settings-toggle">
+                    <input type="checkbox" checked>
+                    <span class="slider"></span>
+                </label>
             </div>
         </div>
 
-        <div class="settings-section">
-            <div class="section-title">Настройки</div>
-            <div class="settings-list">
-                <div class="settings-item">
-                    <div class="settings-label">
-                        <span class="settings-icon" aria-hidden="true">🔔</span>
-                        Уведомления
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="notifications-toggle" checked aria-label="Включить уведомления">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="settings-item">
-                    <div class="settings-label">
-                        <span class="settings-icon" aria-hidden="true">🎵</span>
-                        Звуки
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="sounds-toggle" checked aria-label="Включить звуки">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
+        <div class="profile-section">
+            <h2>Статистика</h2>
+            <div class="profile-field">
+                <label>Всего игр</label>
+                <span>42</span>
+            </div>
+            <div class="profile-field">
+                <label>Побед</label>
+                <span>28</span>
+            </div>
+            <div class="profile-field">
+                <label>Процент побед</label>
+                <span>66.7%</span>
             </div>
         </div>
     </div>
 
-    <!-- Модули приложения -->
-    <script type="module">
-        // Приложение
-        import { App } from './modules/app.js';
-
-        // Инициализация приложения
-        document.addEventListener('DOMContentLoaded', () => {
-            const app = new App();
-            app.init();
-        });
-    </script>
-
-    <!-- Fallback для старых браузеров -->
-    <script nomodule>
-        document.body.innerHTML = '<div style="text-align: center; padding: 20px;">Для работы приложения необходим современный браузер с поддержкой JavaScript модулей.</div>';
+    <script>
+        // Загружаем общий заголовок
+        fetch('/static/common-header.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('header-container').innerHTML = html;
+                // Переинициализируем обработчики после загрузки заголовка
+                initializeMenuHandlers();
+                
+                // Заполняем данные пользователя
+                const user = TelegramUtils.getUser();
+                if (user) {
+                    document.getElementById('user-name').textContent = user.first_name;
+                    document.getElementById('user-id').textContent = user.id;
+                }
+            })
+            .catch(error => console.error('Error loading header:', error));
     </script>
 </body>
 </html>

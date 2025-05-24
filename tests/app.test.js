@@ -1,15 +1,14 @@
 import { jest } from '@jest/globals';
 import { App } from '../modules/app.js';
+import { mockServices } from './mocks/services';
 
 describe('App', () => {
     let app;
 
     beforeEach(() => {
-        app = new App();
-    });
-
-    afterEach(() => {
+        // Clear all mocks before each test
         jest.clearAllMocks();
+        app = new App();
     });
 
     describe('constructor', () => {
@@ -49,15 +48,18 @@ describe('App', () => {
 
     describe('init', () => {
         it('should initialize security service if init method exists', async () => {
-            const securityInitSpy = jest.spyOn(app.services.security, 'init');
             await app.init();
-            expect(securityInitSpy).toHaveBeenCalled();
+            expect(mockServices.security.init).toHaveBeenCalled();
         });
 
         it('should initialize components with init method', async () => {
-            const componentInitSpy = jest.spyOn(app.components.profile, 'init');
             await app.init();
-            expect(componentInitSpy).toHaveBeenCalled();
+            // Check if all components with init method were initialized
+            Object.values(app.components).forEach(component => {
+                if (component.init) {
+                    expect(component.init).toHaveBeenCalled();
+                }
+            });
         });
     });
 
