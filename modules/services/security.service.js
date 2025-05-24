@@ -3,6 +3,7 @@ import { Utils } from '../utils.js';
 
 export class SecurityService {
     constructor() {
+        console.log('SecurityService initialized');
         this.xssObserver = null;
         this.csrfToken = null;
     }

@@ -1,5 +1,7 @@
 export class SettingsService {
-    constructor() {}
+    constructor() {
+        console.log('SettingsService initialized');
+    }
     // Добавьте методы по мере необходимости
 }
 

@@ -4,6 +4,7 @@ import { StorageService } from './storage.service.js';
 
 export class ProfileService {
     constructor() {
+        console.log('ProfileService initialized');
         this.imageService = new ImageService();
         this.storageService = new StorageService();
     }

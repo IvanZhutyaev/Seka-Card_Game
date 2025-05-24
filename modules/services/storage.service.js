@@ -2,6 +2,7 @@ import { CONFIG } from '../config.js';
 
 export class StorageService {
     constructor() {
+        console.log('StorageService initialized');
         this.storage = window.localStorage;
         this.cache = new Map();
     }
