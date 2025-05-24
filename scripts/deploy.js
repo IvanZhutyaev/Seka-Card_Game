@@ -1,65 +1,109 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Загружаем переменные окружения
+const envPath = path.resolve(process.cwd(), '.env.deploy');
+if (!fs.existsSync(envPath)) {
+  console.error('Error: .env.deploy file not found');
+  process.exit(1);
+}
 
-// Конфигурация деплоя
-const config = {
-  distDir: path.join(__dirname, '..', 'dist'),
-  serverDir: process.env.DEPLOY_PATH || '/var/www/seka-card-game',
-  backupDir: process.env.BACKUP_PATH || '/var/www/backups/seka-card-game'
-};
+const envConfig = dotenv.parse(fs.readFileSync(envPath));
 
-// Создание бэкапа
+// Проверяем наличие необходимых ключей
+const requiredKeys = ['DEPLOY_KEY', 'API_KEY'];
+const missingKeys = requiredKeys.filter(key => !envConfig[key]);
+
+if (missingKeys.length > 0) {
+  console.error(`Error: Missing required environment variables: ${missingKeys.join(', ')}`);
+  process.exit(1);
+}
+
+// Функция для проверки доступа
+function checkAccess() {
+  try {
+    const deployKey = envConfig.DEPLOY_KEY;
+    if (!deployKey) {
+      throw new Error('DEPLOY_KEY is not set');
+    }
+    
+    // Проверяем формат ключа
+    if (!/^[A-Za-z0-9-_]{32,}$/.test(deployKey)) {
+      throw new Error('Invalid DEPLOY_KEY format');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Access check failed:', error.message);
+    return false;
+  }
+}
+
+// Функция для создания бэкапа
 function createBackup() {
-  console.log('📦 Creating backup...');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupPath = path.join(config.backupDir, `backup-${timestamp}`);
+  const backupDir = path.join(process.cwd(), 'backups');
   
-  if (!fs.existsSync(config.backupDir)) {
-    fs.mkdirSync(config.backupDir, { recursive: true });
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir);
   }
   
-  if (fs.existsSync(config.serverDir)) {
-    execSync(`cp -r ${config.serverDir} ${backupPath}`);
-    console.log('✅ Backup created successfully');
+  const backupPath = path.join(backupDir, `backup-${timestamp}.zip`);
+  
+  try {
+    execSync(`zip -r ${backupPath} . -x "node_modules/*" "backups/*" ".git/*"`, {
+      stdio: 'inherit'
+    });
+    console.log(`Backup created: ${backupPath}`);
+    return backupPath;
+  } catch (error) {
+    console.error('Backup creation failed:', error);
+    return null;
   }
 }
 
-// Деплой файлов
-function deployFiles() {
-  console.log('🚀 Deploying files...');
-  
-  // Создаем директорию если её нет
-  if (!fs.existsSync(config.serverDir)) {
-    fs.mkdirSync(config.serverDir, { recursive: true });
-  }
-  
-  // Копируем файлы
-  execSync(`cp -r ${config.distDir}/* ${config.serverDir}/`);
-  console.log('✅ Files deployed successfully');
-}
-
-// Основная функция деплоя
+// Функция для деплоя
 async function deploy() {
   try {
-    console.log('🚀 Starting deployment...');
+    // Проверяем доступ
+    if (!checkAccess()) {
+      throw new Error('Access check failed');
+    }
     
-    // Создание бэкапа
-    createBackup();
+    // Создаем бэкап
+    const backupPath = createBackup();
+    if (!backupPath) {
+      throw new Error('Backup creation failed');
+    }
     
-    // Деплой файлов
-    deployFiles();
+    // Выполняем деплой
+    console.log('Starting deployment...');
     
-    console.log('✨ Deployment completed successfully!');
+    // Обновляем зависимости
+    execSync('npm install --production', { stdio: 'inherit' });
+    
+    // Собираем проект
+    execSync('npm run build', { stdio: 'inherit' });
+    
+    // Перезапускаем сервер
+    execSync('pm2 restart all', { stdio: 'inherit' });
+    
+    console.log('Deployment completed successfully');
   } catch (error) {
-    console.error('❌ Deployment failed:', error);
+    console.error('Deployment failed:', error);
+    
+    // Восстанавливаем из бэкапа при ошибке
+    if (backupPath && fs.existsSync(backupPath)) {
+      console.log('Restoring from backup...');
+      execSync(`unzip -o ${backupPath}`, { stdio: 'inherit' });
+      console.log('Restore completed');
+    }
+    
     process.exit(1);
   }
 }
 
-// Запуск деплоя
+// Запускаем деплой
 deploy(); 

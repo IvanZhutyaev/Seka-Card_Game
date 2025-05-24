@@ -116,8 +116,20 @@ npm run test:coverage
 ## Лицензия
 
 MIT
-
 ## Контакты
 
 - Email: your-email@example.com
 - Telegram: @your-username
+
+BOT_TOKEN=your_bot_token
+WEB_APP_URL=your_web_app_url
+POSTGRES_DB=seka_game
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+REDIS_HOST=localhost
+REDIS_PORT=6379
+DEBUG=True
+ADMIN_IDS=your_admin_id
+
