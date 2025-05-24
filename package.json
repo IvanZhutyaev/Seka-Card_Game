@@ -10,8 +10,8 @@
     "test": "jest",
     "deploy": "node scripts/deploy.js",
     "backup": "node scripts/backup.js",
-    "lint": "eslint . --ext .js",
-    "lint:fix": "eslint . --ext .js --fix"
+    "lint": "eslint 'public/js/**/*.js' 'modules/**/*.js' 'tests/**/*.js' 'server.js'",
+    "lint:fix": "eslint 'public/js/**/*.js' 'modules/**/*.js' 'tests/**/*.js' 'server.js' --fix"
   },
   "dependencies": {
     "@twa-dev/sdk": "^6.6.0",
@@ -30,7 +30,7 @@
     "@testing-library/jest-dom": "^5.16.5",
     "babel-jest": "^29.7.0",
     "babel-loader": "^9.1.2",
-    "eslint": "^9.27.0",
+    "eslint": "^8.56.0",
     "jest": "^29.5.0",
     "jest-environment-jsdom": "^29.7.0",
     "nodemon": "^2.0.22",

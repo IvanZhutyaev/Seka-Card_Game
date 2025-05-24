@@ -88,12 +88,12 @@ export class SecurityService {
 
         const meta = document.createElement('meta');
         meta.httpEquiv = 'Content-Security-Policy';
-        meta.content = "default-src 'self'; " +
-                      "img-src 'self' data: https:; " +
-                      "style-src 'self' 'unsafe-inline'; " +
-                      "script-src 'self' 'unsafe-inline'; " +
-                      "connect-src 'self' https:; " +
-                      "font-src 'self' data:;";
+        meta.content = 'default-src \'self\'; ' +
+                      'img-src \'self\' data: https:; ' +
+                      'style-src \'self\' \'unsafe-inline\'; ' +
+                      'script-src \'self\' \'unsafe-inline\'; ' +
+                      'connect-src \'self\' https:; ' +
+                      'font-src \'self\' data:;';
         document.head.appendChild(meta);
     }
 

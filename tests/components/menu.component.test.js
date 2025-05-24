@@ -1,127 +1,111 @@
-import { jest } from '@jest/globals';
-import { MenuComponent } from '../../modules/components/menu.component.js';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Menu from '../../pages/gameplay/components/Menu';
+import { useGameState } from '../../pages/gameplay/store/gameStore';
 
-describe('MenuComponent', () => {
-    let component;
-    let mockServices;
-    let mockEventBus;
+jest.mock('../../pages/gameplay/store/gameStore');
+
+describe('Menu Component', () => {
+    const mockGameState = {
+        status: 'waiting',
+        bank: 0,
+        current_turn: null,
+        players: {}
+    };
+
+    const mockActions = {
+        exitGame: jest.fn(),
+        toggleSound: jest.fn(),
+        toggleNotifications: jest.fn(),
+        openRules: jest.fn(),
+        openSettings: jest.fn()
+    };
 
     beforeEach(() => {
-        // Создаем моки для сервисов
-        mockServices = {
-            navigation: {
-                openPage: jest.fn(),
-                handleClickOutside: jest.fn()
-            },
-            security: {
-                sanitizeData: jest.fn(data => data)
-            }
-        };
-
-        // Создаем мок для EventBus
-        mockEventBus = {
-            emit: jest.fn()
-        };
-
-        // Создаем тестовый DOM
-        document.body.innerHTML = `
-            <button class="menu-button"></button>
-            <div id="dropdownMenu" class="dropdown-menu">
-                <a href="#" class="dropdown-item" data-page="rules">Rules</a>
-                <a href="#" class="dropdown-item" data-page="settings">Settings</a>
-            </div>
-        `;
-
-        component = new MenuComponent(mockServices, mockEventBus);
+        useGameState.mockReturnValue({
+            gameState: mockGameState,
+            ...mockActions
+        });
     });
 
     afterEach(() => {
-        document.body.innerHTML = '';
         jest.clearAllMocks();
     });
 
-    describe('init', () => {
-        it('should set up event listeners on initialization', () => {
-            const addEventListenerSpy = jest.spyOn(document, 'addEventListener');
-            component.init();
-            expect(addEventListenerSpy).toHaveBeenCalled();
-        });
+    test('renders menu button and items', () => {
+        render(<Menu />);
+        expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+        expect(screen.getByText('Rules')).toBeInTheDocument();
+        expect(screen.getByText('Settings')).toBeInTheDocument();
     });
 
-    describe('toggleMenu', () => {
-        it('should open menu when closed', () => {
-            component.toggleMenu();
-            expect(document.getElementById('dropdownMenu').classList.contains('show')).toBe(true);
-            expect(document.querySelector('.menu-button').getAttribute('aria-expanded')).toBe('true');
-        });
+    test('toggles menu visibility', () => {
+        render(<Menu />);
+        const menuButton = screen.getByRole('button', { name: 'Menu' });
+        const menu = screen.getByRole('menu');
 
-        it('should close menu when open', () => {
-            // Сначала открываем меню
-            component.toggleMenu();
-            // Затем закрываем
-            component.toggleMenu();
-            expect(document.getElementById('dropdownMenu').classList.contains('show')).toBe(false);
-            expect(document.querySelector('.menu-button').getAttribute('aria-expanded')).toBe('false');
-        });
+        // Initially hidden
+        expect(menu).not.toHaveClass('show');
+
+        // Show menu
+        fireEvent.click(menuButton);
+        expect(menu).toHaveClass('show');
+
+        // Hide menu
+        fireEvent.click(menuButton);
+        expect(menu).not.toHaveClass('show');
     });
 
-    describe('handleMenuItemClick', () => {
-        it('should handle menu item click correctly', async () => {
-            const page = 'rules';
-            mockServices.navigation.openPage.mockResolvedValue(true);
+    test('handles menu item clicks', () => {
+        render(<Menu />);
+        const menuButton = screen.getByRole('button', { name: 'Menu' });
+        
+        // Open menu
+        fireEvent.click(menuButton);
 
-            await component.handleMenuItemClick(page);
+        // Click Rules
+        fireEvent.click(screen.getByText('Rules'));
+        expect(mockActions.openRules).toHaveBeenCalled();
+        expect(screen.getByRole('menu')).not.toHaveClass('show');
 
-            expect(mockServices.security.sanitizeData).toHaveBeenCalledWith(page);
-            expect(mockServices.navigation.openPage).toHaveBeenCalledWith(page);
-            expect(mockEventBus.emit).toHaveBeenCalledWith('menu:item-clicked', page);
-            expect(document.getElementById('dropdownMenu').classList.contains('show')).toBe(false);
-        });
-
-        it('should handle navigation errors', async () => {
-            const page = 'rules';
-            mockServices.navigation.openPage.mockRejectedValue(new Error('Navigation failed'));
-
-            await component.handleMenuItemClick(page);
-
-            expect(mockServices.navigation.openPage).toHaveBeenCalledWith(page);
-        });
+        // Click Settings
+        fireEvent.click(screen.getByText('Settings'));
+        expect(mockActions.openSettings).toHaveBeenCalled();
+        expect(screen.getByRole('menu')).not.toHaveClass('show');
     });
 
-    describe('menu item management', () => {
-        it('should add menu item correctly', () => {
-            const item = {
-                page: 'test',
-                icon: '🔍',
-                text: 'Test Item'
-            };
-
-            component.addMenuItem(item);
-
-            const addedItem = document.querySelector('[data-page="test"]');
-            expect(addedItem).toBeTruthy();
-            expect(addedItem.textContent).toContain('Test Item');
-        });
-
-        it('should remove menu item correctly', () => {
-            const page = 'rules';
-            component.removeMenuItem(page);
-            expect(document.querySelector(`[data-page="${page}"]`)).toBeNull();
-        });
+    test('handles sound toggle', () => {
+        render(<Menu />);
+        const soundButton = screen.getByRole('button', { name: 'Toggle Sound' });
+        fireEvent.click(soundButton);
+        expect(mockActions.toggleSound).toHaveBeenCalled();
     });
 
-    describe('accessibility', () => {
-        it('should set accessibility state correctly', () => {
-            component.setAccessibility(false);
-            expect(document.querySelector('.menu-button').getAttribute('aria-disabled')).toBe('true');
-            expect(document.getElementById('dropdownMenu').getAttribute('aria-hidden')).toBe('true');
-        });
+    test('handles notifications toggle', () => {
+        render(<Menu />);
+        const notificationsButton = screen.getByRole('button', { name: 'Toggle Notifications' });
+        fireEvent.click(notificationsButton);
+        expect(mockActions.toggleNotifications).toHaveBeenCalled();
     });
 
-    describe('animation', () => {
-        it('should set animation state correctly', () => {
-            component.setAnimation(true);
-            expect(document.getElementById('dropdownMenu').classList.contains('animated')).toBe(true);
-        });
+    test('handles exit game', () => {
+        render(<Menu />);
+        const exitButton = screen.getByRole('button', { name: 'Exit Game' });
+        fireEvent.click(exitButton);
+        expect(mockActions.exitGame).toHaveBeenCalled();
+    });
+
+    test('closes menu when clicking outside', () => {
+        render(<Menu />);
+        const menuButton = screen.getByRole('button', { name: 'Menu' });
+        const menu = screen.getByRole('menu');
+
+        // Open menu
+        fireEvent.click(menuButton);
+        expect(menu).toHaveClass('show');
+
+        // Click outside
+        fireEvent.mouseDown(document.body);
+        expect(menu).not.toHaveClass('show');
     });
 }); 

@@ -1,87 +1,126 @@
-import { jest } from '@jest/globals';
-import { App } from '../modules/app.js';
-import { mockServices } from './mocks/services';
+import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { WebApp } from '@twa-dev/sdk';
+import App from '../pages/gameplay/App';
+import { useGameState } from '../pages/gameplay/store/gameStore';
+
+jest.mock('@twa-dev/sdk');
+jest.mock('../pages/gameplay/store/gameStore');
 
 describe('App', () => {
-    let app;
+    const mockGameState = {
+        status: 'waiting',
+        bank: 0,
+        current_turn: null,
+        players: {}
+    };
+
+    const mockServices = {
+        connect: jest.fn(),
+        disconnect: jest.fn(),
+        setGameState: jest.fn(),
+        setPlayerId: jest.fn(),
+        setGameId: jest.fn(),
+        findGame: jest.fn(),
+        placeBet: jest.fn(),
+        fold: jest.fn(),
+        initTelegramUser: jest.fn(() => ({
+            id: '123',
+            first_name: 'Test',
+            username: 'testuser'
+        })),
+        exitGame: jest.fn()
+    };
 
     beforeEach(() => {
-        // Clear all mocks before each test
+        // Mock WebApp
+        WebApp.isInitialized = true;
+        WebApp.initDataUnsafe = {
+            user: {
+                id: '123',
+                username: 'testuser'
+            }
+        };
+        WebApp.expand = jest.fn();
+        WebApp.enableClosingConfirmation = jest.fn();
+
+        // Mock gameStore hook
+        useGameState.mockReturnValue({
+            gameState: mockGameState,
+            ...mockServices
+        });
+    });
+
+    afterEach(() => {
         jest.clearAllMocks();
-        app = new App();
     });
 
-    describe('constructor', () => {
-        it('should initialize services', () => {
-            expect(app.services).toBeDefined();
-            expect(app.services.config).toBeDefined();
-            expect(app.services.utils).toBeDefined();
-            expect(app.services.storage).toBeDefined();
-            expect(app.services.image).toBeDefined();
-            expect(app.services.profile).toBeDefined();
-            expect(app.services.navigation).toBeDefined();
-            expect(app.services.security).toBeDefined();
-        });
-
-        it('should initialize event bus', () => {
-            expect(app.eventBus).toBeDefined();
-            expect(app.eventBus.events).toBeDefined();
-        });
-
-        it('should initialize components', () => {
-            expect(app.components).toBeDefined();
-            expect(app.components.profile).toBeDefined();
-            expect(app.components.menu).toBeDefined();
-            expect(app.components.settings).toBeDefined();
-            expect(app.components.help).toBeDefined();
-            expect(app.components.notifications).toBeDefined();
-            expect(app.components.leaderboard).toBeDefined();
-            expect(app.components.chat).toBeDefined();
-            expect(app.components.game).toBeDefined();
-            expect(app.components.error).toBeDefined();
-            expect(app.components.loading).toBeDefined();
-            expect(app.components.empty).toBeDefined();
-            expect(app.components.confirm).toBeDefined();
-            expect(app.components.modal).toBeDefined();
-        });
+    test('initializes correctly', () => {
+        render(<App />);
+        expect(mockServices.initTelegramUser).toHaveBeenCalled();
+        expect(mockServices.connect).toHaveBeenCalled();
+        expect(WebApp.expand).toHaveBeenCalled();
+        expect(WebApp.enableClosingConfirmation).toHaveBeenCalled();
     });
 
-    describe('init', () => {
-        it('should initialize security service if init method exists', async () => {
-            await app.init();
-            expect(mockServices.security.init).toHaveBeenCalled();
-        });
+    test('handles game search', () => {
+        render(<App />);
+        const findGameButton = screen.getByText('Найти игру');
+        fireEvent.click(findGameButton);
+        expect(mockServices.findGame).toHaveBeenCalled();
+    });
 
-        it('should initialize components with init method', async () => {
-            await app.init();
-            // Check if all components with init method were initialized
-            Object.values(app.components).forEach(component => {
-                if (component.init) {
-                    expect(component.init).toHaveBeenCalled();
+    test('handles game exit', () => {
+        render(<App />);
+        const exitButton = screen.getByRole('button', { name: 'Выйти' });
+        fireEvent.click(exitButton);
+        expect(mockServices.exitGame).toHaveBeenCalled();
+    });
+
+    test('updates game state', () => {
+        const { rerender } = render(<App />);
+        
+        // Initial state
+        expect(screen.getByText('Поиск игры...')).toBeInTheDocument();
+
+        // Update game state
+        const newGameState = {
+            ...mockGameState,
+            status: 'playing',
+            bank: 1000,
+            current_turn: 'player1',
+            players: {
+                player1: {
+                    bet: 100,
+                    folded: false
                 }
-            });
+            }
+        };
+
+        useGameState.mockReturnValue({
+            gameState: newGameState,
+            ...mockServices
         });
+
+        rerender(<App />);
+        expect(screen.getByText('Игра идет')).toBeInTheDocument();
+        expect(screen.getByText('1000')).toBeInTheDocument();
     });
 
-    describe('EventBus', () => {
-        it('should handle event subscription', () => {
-            const handler = jest.fn();
-            app.eventBus.on('test:event', handler);
-            expect(app.eventBus.events['test:event']).toContain(handler);
+    test('handles WebApp not initialized', () => {
+        WebApp.isInitialized = false;
+        render(<App />);
+        expect(screen.getByText('Telegram Mini App not initialized')).toBeInTheDocument();
+    });
+
+    test('handles connection errors', () => {
+        useGameState.mockReturnValue({
+            gameState: mockGameState,
+            ...mockServices,
+            isConnected: false
         });
 
-        it('should handle event unsubscription', () => {
-            const handler = jest.fn();
-            app.eventBus.on('test:event', handler);
-            app.eventBus.off('test:event', handler);
-            expect(app.eventBus.events['test:event']).not.toContain(handler);
-        });
-
-        it('should emit events to subscribers', () => {
-            const handler = jest.fn();
-            app.eventBus.on('test:event', handler);
-            app.eventBus.emit('test:event', { data: 'test' });
-            expect(handler).toHaveBeenCalledWith({ data: 'test' });
-        });
+        render(<App />);
+        expect(screen.getByText('Ошибка подключения')).toBeInTheDocument();
     });
 }); 

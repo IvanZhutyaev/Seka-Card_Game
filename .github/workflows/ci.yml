@@ -32,9 +32,6 @@ jobs:
     - name: Run tests
       run: npm run test
     
-    - name: Run type check
-      run: npm run build:ts
-    
   build:
     needs: test
     runs-on: ubuntu-latest

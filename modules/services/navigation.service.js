@@ -38,7 +38,7 @@ export class NavigationService {
 
     handleClickOutside = Utils.debounce((event) => {
         if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-            const dropdowns = document.getElementsByClassName("dropdown-menu");
+            const dropdowns = document.getElementsByClassName('dropdown-menu');
             for (const dropdown of dropdowns) {
                 if (dropdown.classList.contains('show')) {
                     dropdown.classList.remove('show');

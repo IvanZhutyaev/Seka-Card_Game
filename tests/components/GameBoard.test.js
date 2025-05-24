@@ -1,56 +1,97 @@
-import { jest } from '@jest/globals';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import GameTable from '../../pages/gameplay/components/GameTable';
+import { useGameState } from '../../pages/gameplay/store/gameStore';
 
-describe('GameBoard Component', () => {
-  let gameBoard;
-  
-  beforeEach(() => {
-    gameBoard = document.createElement('div');
-    gameBoard.className = 'game-board';
-    document.body.appendChild(gameBoard);
-  });
-  
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
-  
-  test('renders with correct layout', () => {
-    expect(gameBoard).toHaveClass('game-board');
-    expect(gameBoard.querySelector('.game-board__table')).toBeTruthy();
-    expect(gameBoard.querySelector('.game-board__players')).toBeTruthy();
-  });
-  
-  test('updates game state', () => {
-    const gameState = {
-      status: 'playing',
-      players: [
-        { userId: 1, username: 'Player 1', cards: [], score: 0 },
-        { userId: 2, username: 'Player 2', cards: [], score: 0 }
-      ],
-      currentPlayer: 1,
-      table: []
+// Mock the gameStore hook
+jest.mock('../../pages/gameplay/store/gameStore', () => ({
+    useGameState: jest.fn()
+}));
+
+describe('GameTable Component', () => {
+    const mockGameState = {
+        status: 'playing',
+        bank: 1000,
+        current_turn: 'player1',
+        players: {
+            player1: {
+                bet: 100,
+                folded: false,
+                hand: {
+                    cards: [
+                        { str: '♠A' },
+                        { str: '♥K' }
+                    ]
+                }
+            },
+            player2: {
+                bet: 200,
+                folded: true,
+                hand: {
+                    cards: [
+                        { str: '♦Q' },
+                        { str: '♣J' }
+                    ]
+                }
+            }
+        }
     };
-    
-    gameBoard.dataset.gameState = JSON.stringify(gameState);
-    expect(JSON.parse(gameBoard.dataset.gameState)).toEqual(gameState);
-  });
-  
-  test('handles player actions', () => {
-    const onAction = jest.fn();
-    gameBoard.addEventListener('game:action', onAction);
-    
-    const action = {
-      type: 'play',
-      cardId: 'card1'
+
+    const mockActions = {
+        connect: jest.fn(),
+        initTelegramUser: jest.fn(() => ({ first_name: 'Test User' })),
+        exitGame: jest.fn(),
+        placeBet: jest.fn(),
+        fold: jest.fn()
     };
-    
-    gameBoard.dispatchEvent(new CustomEvent('game:action', { detail: action }));
-    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ detail: action }));
-  });
-  
-  test('shows game over state', () => {
-    gameBoard.classList.add('game-board--game-over');
-    expect(gameBoard).toHaveClass('game-board--game-over');
-    expect(gameBoard.querySelector('.game-board__game-over')).toBeTruthy();
-  });
+
+    beforeEach(() => {
+        useGameState.mockReturnValue({
+            gameState: mockGameState,
+            ...mockActions
+        });
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('renders with correct layout', () => {
+        render(<GameTable />);
+        expect(screen.getByText('СЕКА')).toBeInTheDocument();
+        expect(screen.getByText(/Банк:/)).toBeInTheDocument();
+        expect(screen.getByText('1000')).toBeInTheDocument();
+    });
+
+    test('initializes game and connects to WebSocket', () => {
+        render(<GameTable />);
+        expect(mockActions.initTelegramUser).toHaveBeenCalled();
+        expect(mockActions.connect).toHaveBeenCalled();
+    });
+
+    test('renders players and their hands', () => {
+        render(<GameTable />);
+        expect(screen.getByText('Test User')).toBeInTheDocument();
+        expect(screen.getByText('100')).toBeInTheDocument();
+        expect(screen.getByText('200')).toBeInTheDocument();
+    });
+
+    test('handles game actions', () => {
+        render(<GameTable />);
+        
+        // Test bet action
+        fireEvent.click(screen.getByText('Ставка'));
+        expect(mockActions.placeBet).toHaveBeenCalled();
+
+        // Test fold action
+        fireEvent.click(screen.getByText('Пас'));
+        expect(mockActions.fold).toHaveBeenCalled();
+    });
+
+    test('handles game exit', () => {
+        render(<GameTable />);
+        const exitButton = screen.getByRole('button', { name: '' }); // Exit button has no text
+        fireEvent.click(exitButton);
+        expect(mockActions.exitGame).toHaveBeenCalled();
+    });
 }); 

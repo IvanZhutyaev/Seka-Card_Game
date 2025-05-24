@@ -1,35 +1,59 @@
-import { jest } from '@jest/globals';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import Button from '../../pages/gameplay/components/Button';
 
 describe('Button Component', () => {
-  let button;
-  
-  beforeEach(() => {
-    // Создаем кнопку
-    button = document.createElement('button');
-    button.className = 'button';
-    document.body.appendChild(button);
-  });
-  
-  afterEach(() => {
-    // Очищаем после каждого теста
-    document.body.innerHTML = '';
-  });
-  
-  test('renders with primary style by default', () => {
-    expect(button).toHaveClass('button');
-    expect(button).not.toHaveClass('button--secondary');
-  });
-  
-  test('renders with secondary style when specified', () => {
-    button.classList.add('button--secondary');
-    expect(button).toHaveClass('button--secondary');
-  });
-  
-  test('handles click events', () => {
-    const onClick = jest.fn();
-    button.addEventListener('click', onClick);
-    button.click();
-    expect(onClick).toHaveBeenCalled();
-  });
+    const defaultProps = {
+        onClick: jest.fn(),
+        variant: 'primary',
+        disabled: false,
+        children: 'Click me'
+    };
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('renders with primary style by default', () => {
+        render(<Button {...defaultProps} />);
+        const button = screen.getByRole('button', { name: 'Click me' });
+        expect(button).toHaveClass('button');
+        expect(button).not.toHaveClass('button--secondary');
+    });
+
+    test('renders with secondary style when specified', () => {
+        render(<Button {...defaultProps} variant="secondary" />);
+        const button = screen.getByRole('button', { name: 'Click me' });
+        expect(button).toHaveClass('button--secondary');
+    });
+
+    test('handles click events', () => {
+        render(<Button {...defaultProps} />);
+        const button = screen.getByRole('button', { name: 'Click me' });
+        fireEvent.click(button);
+        expect(defaultProps.onClick).toHaveBeenCalled();
+    });
+
+    test('can be disabled', () => {
+        render(<Button {...defaultProps} disabled={true} />);
+        const button = screen.getByRole('button', { name: 'Click me' });
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(defaultProps.onClick).not.toHaveBeenCalled();
+    });
+
+    test('renders children correctly', () => {
+        render(
+            <Button {...defaultProps}>
+                <span>Custom content</span>
+            </Button>
+        );
+        expect(screen.getByText('Custom content')).toBeInTheDocument();
+    });
+
+    test('applies custom className', () => {
+        render(<Button {...defaultProps} className="custom-class" />);
+        const button = screen.getByRole('button', { name: 'Click me' });
+        expect(button).toHaveClass('custom-class');
+    });
 }); 

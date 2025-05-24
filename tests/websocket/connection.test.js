@@ -6,96 +6,127 @@ jest.mock('socket.io-client');
 jest.mock('@twa-dev/sdk');
 
 describe('WebSocket Connection', () => {
-  let mockSocket;
-  
-  beforeEach(() => {
-    // Reset DOM
-    document.body.innerHTML = '<div id="app"></div>';
+    let mockSocket;
+    let mockConnect;
+    let mockError;
+    let mockApp;
     
-    // Mock socket.io
-    mockSocket = {
-      on: jest.fn(),
-      emit: jest.fn(),
-      connect: jest.fn(),
-      disconnect: jest.fn()
-    };
-    
-    io.mockReturnValue(mockSocket);
+    beforeEach(() => {
+        // Reset DOM
+        document.body.innerHTML = '<div id="app"></div>';
+        
+        // Mock socket.io
+        mockConnect = jest.fn();
+        mockError = jest.fn();
+        
+        mockSocket = {
+            on: jest.fn((event, handler) => {
+                if (event === 'connect') mockConnect = handler;
+                if (event === 'connect_error') mockError = handler;
+            }),
+            emit: jest.fn(),
+            connect: jest.fn(),
+            disconnect: jest.fn()
+        };
+        
+        io.mockReturnValue(mockSocket);
 
-    // Mock WebApp
-    WebApp.isInitialized = true;
-    WebApp.initDataUnsafe = {
-      user: {
-        id: '123',
-        username: 'testuser'
-      }
-    };
-    WebApp.expand = jest.fn();
-    WebApp.enableClosingConfirmation = jest.fn();
+        // Mock WebApp
+        WebApp.isInitialized = true;
+        WebApp.initDataUnsafe = {
+            user: {
+                id: '123',
+                username: 'testuser'
+            }
+        };
+        WebApp.expand = jest.fn();
+        WebApp.enableClosingConfirmation = jest.fn();
 
-    // Mock window.SOCKET_URL
-    window.SOCKET_URL = 'ws://test:3000';
-  });
-  
-  afterEach(() => {
-    jest.clearAllMocks();
-    delete window.SOCKET_URL;
-  });
-  
-  test('connects to server on initialization', async () => {
-    // Import app.js which will initialize the connection
-    await import('../../public/js/app.js');
-    
-    // Trigger DOMContentLoaded
-    document.dispatchEvent(new Event('DOMContentLoaded'));
-    
-    expect(io).toHaveBeenCalledWith('ws://test:3000', expect.objectContaining({
-      transports: ['websocket'],
-      autoConnect: false
-    }));
-    expect(mockSocket.connect).toHaveBeenCalled();
-  });
-  
-  test('emits user data on connection', async () => {
-    await import('../../public/js/app.js');
-    document.dispatchEvent(new Event('DOMContentLoaded'));
-    
-    // Simulate connection event
-    const connectHandler = mockSocket.on.mock.calls.find(
-      call => call[0] === 'connect'
-    )[1];
-    
-    connectHandler();
-    
-    expect(mockSocket.emit).toHaveBeenCalledWith('user:init', {
-      userId: '123',
-      username: 'testuser'
+        // Mock window.SOCKET_URL
+        window.SOCKET_URL = 'ws://test:3000';
+
+        // Clear any previous error messages
+        console.error = jest.fn();
     });
-  });
-  
-  test('handles connection errors', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
     
-    await import('../../public/js/app.js');
-    document.dispatchEvent(new Event('DOMContentLoaded'));
+    afterEach(() => {
+        jest.clearAllMocks();
+        delete window.SOCKET_URL;
+        console.error.mockRestore();
+    });
     
-    // Simulate error event
-    const errorHandler = mockSocket.on.mock.calls.find(
-      call => call[0] === 'connect_error'
-    )[1];
+    test('connects to server on initialization', async () => {
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        
+        expect(io).toHaveBeenCalledWith('ws://test:3000', expect.objectContaining({
+            transports: ['websocket'],
+            autoConnect: false
+        }));
+        expect(mockSocket.connect).toHaveBeenCalled();
+    });
     
-    errorHandler(new Error('Connection failed'));
+    test('emits user data on connection', async () => {
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        
+        mockConnect();
+        
+        expect(mockSocket.emit).toHaveBeenCalledWith('user:init', {
+            userId: '123',
+            username: 'testuser'
+        });
+    });
     
-    expect(consoleSpy).toHaveBeenCalledWith('Connection error:', expect.any(Error));
-    expect(document.querySelector('.error-message')).toBeTruthy();
+    test('handles connection errors', async () => {
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        
+        const error = new Error('Connection failed');
+        mockError(error);
+        
+        expect(console.error).toHaveBeenCalledWith('Connection error:', error);
+        
+        const errorMessage = document.querySelector('.error-message');
+        expect(errorMessage).toBeTruthy();
+        expect(errorMessage.textContent).toContain('Connection failed');
+    });
     
-    consoleSpy.mockRestore();
-  });
-  
-  test('shows error when WebApp is not initialized', async () => {
-    WebApp.isInitialized = false;
-    
-    await expect(import('../../public/js/app.js')).rejects.toThrow('Telegram Mini App not initialized');
-    expect(document.body.innerHTML).toContain('Telegram Mini App not initialized');
-  });
+    test('shows error when WebApp is not initialized', async () => {
+        WebApp.isInitialized = false;
+        
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+        
+        const errorMessage = document.querySelector('.error-message');
+        expect(errorMessage).toBeTruthy();
+        expect(errorMessage.textContent).toContain('Telegram Mini App not initialized');
+    });
+
+    test('reconnects on connection loss', async () => {
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+
+        // Simulate initial connection
+        mockConnect();
+        expect(mockSocket.emit).toHaveBeenCalledWith('user:init', expect.any(Object));
+
+        // Simulate connection loss
+        mockSocket.on.mock.calls.find(call => call[0] === 'disconnect')[1]();
+
+        // Should attempt to reconnect
+        expect(mockSocket.connect).toHaveBeenCalledTimes(2);
+    });
+
+    test('handles server disconnect', async () => {
+        mockApp = await import('../../public/js/app.js');
+        document.dispatchEvent(new Event('DOMContentLoaded'));
+
+        // Simulate server disconnect
+        mockSocket.on.mock.calls.find(call => call[0] === 'disconnect')[1]('io server disconnect');
+
+        // Should attempt to reconnect
+        expect(mockSocket.connect).toHaveBeenCalledTimes(2);
+        expect(console.error).toHaveBeenCalledWith('Server disconnected, attempting to reconnect...');
+    });
 }); 

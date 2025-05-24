@@ -1,128 +1,144 @@
-import { jest } from '@jest/globals';
-import { ProfileComponent } from '../../modules/components/profile.component.js';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Profile from '../../pages/gameplay/components/Profile';
+import { useGameState } from '../../pages/gameplay/store/gameStore';
 
-describe('ProfileComponent', () => {
-    let component;
-    let mockServices;
-    let mockEventBus;
+jest.mock('../../pages/gameplay/store/gameStore');
+
+describe('Profile Component', () => {
+    const mockUser = {
+        id: '123',
+        first_name: 'Test User',
+        username: 'testuser',
+        photo_url: 'https://example.com/avatar.jpg'
+    };
+
+    const mockStats = {
+        gamesPlayed: 100,
+        gamesWon: 60,
+        winRate: '60%',
+        totalWinnings: 5000
+    };
+
+    const mockSettings = {
+        notifications: true,
+        sound: true
+    };
+
+    const mockActions = {
+        updateProfile: jest.fn(),
+        updateStats: jest.fn(),
+        updateSettings: jest.fn(),
+        uploadAvatar: jest.fn()
+    };
 
     beforeEach(() => {
-        // Создаем моки для сервисов
-        mockServices = {
-            profile: {
-                loadProfile: jest.fn(),
-                updateProfile: jest.fn(),
-                updateStats: jest.fn(),
-                updateSettings: jest.fn()
-            },
-            security: {
-                sanitizeData: jest.fn(data => data),
-                validateFile: jest.fn(file => Promise.resolve({ file }))
-            },
-            storage: {
-                getUserData: jest.fn()
-            }
-        };
-
-        // Создаем мок для EventBus
-        mockEventBus = {
-            emit: jest.fn()
-        };
-
-        // Создаем тестовый DOM
-        document.body.innerHTML = `
-            <div id="avatar"></div>
-            <div id="avatar-text"></div>
-            <div id="username"></div>
-            <div id="user-id"></div>
-            <div id="balance"></div>
-            <div id="games-played"></div>
-            <div id="games-won"></div>
-            <div id="win-rate"></div>
-            <div id="total-winnings"></div>
-            <input type="checkbox" id="notifications-toggle" checked>
-            <input type="checkbox" id="sounds-toggle" checked>
-        `;
-
-        component = new ProfileComponent(mockServices, mockEventBus);
+        useGameState.mockReturnValue({
+            user: mockUser,
+            stats: mockStats,
+            settings: mockSettings,
+            ...mockActions
+        });
     });
 
     afterEach(() => {
-        document.body.innerHTML = '';
         jest.clearAllMocks();
     });
 
-    describe('init', () => {
-        it('should load profile on initialization', async () => {
-            await component.init();
-            expect(mockServices.profile.loadProfile).toHaveBeenCalled();
+    test('renders profile information', () => {
+        render(<Profile />);
+        expect(screen.getByText(mockUser.first_name)).toBeInTheDocument();
+        expect(screen.getByText(mockUser.username)).toBeInTheDocument();
+        expect(screen.getByText(`ID: ${mockUser.id}`)).toBeInTheDocument();
+        expect(screen.getByAltText('Profile Avatar')).toHaveAttribute('src', mockUser.photo_url);
+    });
+
+    test('renders statistics', () => {
+        render(<Profile />);
+        expect(screen.getByText(`Games Played: ${mockStats.gamesPlayed}`)).toBeInTheDocument();
+        expect(screen.getByText(`Games Won: ${mockStats.gamesWon}`)).toBeInTheDocument();
+        expect(screen.getByText(`Win Rate: ${mockStats.winRate}`)).toBeInTheDocument();
+        expect(screen.getByText(`Total Winnings: ${mockStats.totalWinnings}`)).toBeInTheDocument();
+    });
+
+    test('handles avatar upload', async () => {
+        render(<Profile />);
+        const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
+        const avatarInput = screen.getByTestId('avatar-input');
+
+        Object.defineProperty(avatarInput, 'files', {
+            value: [file]
+        });
+
+        fireEvent.change(avatarInput);
+
+        await waitFor(() => {
+            expect(mockActions.uploadAvatar).toHaveBeenCalledWith(file);
         });
     });
 
-    describe('updateProfile', () => {
-        it('should update profile and emit event', async () => {
-            const user = { name: 'Test User' };
-            mockServices.profile.updateProfile.mockResolvedValue(true);
-
-            const result = await component.updateProfile(user);
-
-            expect(mockServices.security.sanitizeData).toHaveBeenCalledWith(user);
-            expect(mockServices.profile.updateProfile).toHaveBeenCalledWith(user);
-            expect(mockEventBus.emit).toHaveBeenCalledWith('profile:updated', user);
-            expect(result).toBe(true);
+    test('handles settings changes', () => {
+        render(<Profile />);
+        
+        // Toggle notifications
+        const notificationsToggle = screen.getByRole('checkbox', { name: 'Notifications' });
+        fireEvent.click(notificationsToggle);
+        expect(mockActions.updateSettings).toHaveBeenCalledWith({
+            ...mockSettings,
+            notifications: !mockSettings.notifications
         });
 
-        it('should handle errors when updating profile', async () => {
-            const user = { name: 'Test User' };
-            mockServices.profile.updateProfile.mockRejectedValue(new Error('Update failed'));
-
-            const result = await component.updateProfile(user);
-
-            expect(result).toBe(false);
+        // Toggle sound
+        const soundToggle = screen.getByRole('checkbox', { name: 'Sound' });
+        fireEvent.click(soundToggle);
+        expect(mockActions.updateSettings).toHaveBeenCalledWith({
+            ...mockSettings,
+            sound: !mockSettings.sound
         });
     });
 
-    describe('updateSettings', () => {
-        it('should update settings and emit event', async () => {
-            const settings = { notifications: true };
-            mockServices.profile.updateSettings.mockResolvedValue(true);
-
-            const result = await component.updateSettings(settings);
-
-            expect(mockServices.security.sanitizeData).toHaveBeenCalledWith(settings);
-            expect(mockServices.profile.updateSettings).toHaveBeenCalledWith(settings);
-            expect(mockEventBus.emit).toHaveBeenCalledWith('profile:settings-updated', settings);
-            expect(result).toBe(true);
+    test('shows loading state', () => {
+        useGameState.mockReturnValue({
+            user: null,
+            stats: null,
+            settings: null,
+            isLoading: true,
+            ...mockActions
         });
+
+        render(<Profile />);
+        expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 
-    describe('handleAvatarClick', () => {
-        it('should create and trigger file input', () => {
-            const createElementSpy = jest.spyOn(document, 'createElement');
-            const appendChildSpy = jest.spyOn(document.body, 'appendChild');
-            const clickSpy = jest.spyOn(HTMLInputElement.prototype, 'click');
-
-            component.handleAvatarClick();
-
-            expect(createElementSpy).toHaveBeenCalledWith('input');
-            expect(appendChildSpy).toHaveBeenCalled();
-            expect(clickSpy).toHaveBeenCalled();
+    test('shows error state', () => {
+        useGameState.mockReturnValue({
+            user: null,
+            stats: null,
+            settings: null,
+            error: 'Failed to load profile',
+            ...mockActions
         });
+
+        render(<Profile />);
+        expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
     });
 
-    describe('DOM manipulation', () => {
-        it('should show profile elements', () => {
-            component.show();
-            expect(document.getElementById('avatar').classList.contains('hidden')).toBe(false);
-            expect(document.getElementById('username').classList.contains('hidden')).toBe(false);
-            expect(document.getElementById('user-id').classList.contains('hidden')).toBe(false);
-        });
+    test('handles profile update', async () => {
+        render(<Profile />);
+        const editButton = screen.getByRole('button', { name: 'Edit Profile' });
+        fireEvent.click(editButton);
 
-        it('should hide profile elements', () => {
-            component.hide();
-            expect(document.getElementById('avatar').classList.contains('hidden')).toBe(true);
-            expect(document.getElementById('username').classList.contains('hidden')).toBe(true);
-            expect(document.getElementById('user-id').classList.contains('hidden')).toBe(true);
+        const nameInput = screen.getByLabelText('Name');
+        fireEvent.change(nameInput, { target: { value: 'New Name' } });
+
+        const saveButton = screen.getByRole('button', { name: 'Save' });
+        fireEvent.click(saveButton);
+
+        await waitFor(() => {
+            expect(mockActions.updateProfile).toHaveBeenCalledWith({
+                ...mockUser,
+                first_name: 'New Name'
+            });
         });
     });
 }); 
