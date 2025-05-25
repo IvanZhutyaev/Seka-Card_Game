@@ -1,40 +1,45 @@
 import React from 'react';
 import { useGameState } from '../store/gameStore';
+import './PlayerHand.css';
 
 interface PlayerHandProps {
     playerId: string;
 }
 
 const PlayerHand: React.FC<PlayerHandProps> = ({ playerId }) => {
-    const { gameState, telegramUser } = useGameState();
+    const { gameState } = useGameState();
     const player = gameState.players[playerId];
     
     if (!player) return null;
     
-    const isCurrentPlayer = playerId === gameState.current_turn;
-    const playerName = telegramUser?.first_name || 'Игрок';
-    const playerPhoto = telegramUser?.photo_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(playerName);
-    
     return (
-        <div className={`player ${isCurrentPlayer ? 'active' : ''}`}>
-            <div className="avatar" style={{ backgroundImage: `url(${playerPhoto})` }} />
-            <div className="player-name">{playerName}</div>
-            <div className="player-balance">{player.bet}</div>
-            <div className="player-status">
-                {isCurrentPlayer ? 'Ваш ход' : player.folded ? 'Пас' : ''}
+        <div className="player-hand">
+            <div className="player-info">
+                <span className="player-name">{player.name}</span>
+                <span className="player-balance">{player.balance}</span>
             </div>
-            <div className="player-cards">
-                {player.hand?.cards.map((card, index) => (
-                    <div key={index} className={`card ${player.folded ? '' : 'open'}`}>
-                        {card.str}
+            
+            <div className="cards-container">
+                {player.cards.map((card, index) => (
+                    <div 
+                        key={index}
+                        className={`card ${player.isActive ? 'active' : 'inactive'}`}
+                        style={{
+                            '--card-index': index,
+                            '--card-delay': `${index * 0.1}s`
+                        } as React.CSSProperties}
+                    >
+                        {card}
                     </div>
                 ))}
             </div>
-            {player.bet > 0 && (
-                <div className="chips">
-                    {Array(Math.ceil(player.bet / 100)).fill(0).map((_, i) => (
-                        <div key={i} className="chip" />
-                    ))}
+            
+            {gameState.lastAction?.playerId === playerId && (
+                <div className="last-action">
+                    {gameState.lastAction.type === 'bet' && 
+                        `Ставка: ${gameState.lastAction.amount}`}
+                    {gameState.lastAction.type === 'fold' && 'Пас'}
+                    {gameState.lastAction.type === 'check' && 'Чек'}
                 </div>
             )}
         </div>

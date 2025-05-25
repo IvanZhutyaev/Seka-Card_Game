@@ -1,0 +1,26 @@
+.avatar {
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s ease;
+}
+
+.avatar:hover {
+    transform: scale(1.05);
+}
+
+.avatar-small {
+    width: 32px;
+    height: 32px;
+}
+
+.avatar-medium {
+    width: 48px;
+    height: 48px;
+}
+
+.avatar-large {
+    width: 64px;
+    height: 64px;
+} 

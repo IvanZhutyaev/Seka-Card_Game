@@ -1,168 +1,79 @@
 import logging
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 import os
-import sys
-import psycopg2
-from psycopg2.extras import DictCursor
-from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from aiogram.types import (
-    ReplyKeyboardMarkup, 
-    KeyboardButton, 
-    WebAppInfo
-)
+from typing import Dict
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Загрузка переменных окружения
-load_dotenv()
-
 # Конфигурация
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    logger.error("❌ BOT_TOKEN не найден в .env файле")
-    sys.exit(1)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "your_bot_token_here")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com/pages/gameplay/index.html")
 
-WEB_APP_URL = os.getenv("WEB_APP_URL")
-if not WEB_APP_URL:
-    logger.error("❌ WEB_APP_URL не найден в .env файле")
-    sys.exit(1)
+# Хранилище данных игроков
+player_data: Dict[int, dict] = {}
 
-DB_CONFIG = {
-    'dbname': os.getenv('POSTGRES_DB', 'seka'),
-    'user': os.getenv('POSTGRES_USER', 'seka_user'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'your_password'),
-    'host': os.getenv('POSTGRES_HOST', 'localhost'),
-    'port': os.getenv('POSTGRES_PORT', '5432')
-}
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка команды /start"""
+    user = update.effective_user
+    user_id = user.id
+    
+    # Инициализация данных игрока
+    if user_id not in player_data:
+        player_data[user_id] = {
+            "balance": 1000,  # Начальный баланс
+            "games_played": 0,
+            "games_won": 0,
+            "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "photo_url": user.photo_url if hasattr(user, 'photo_url') else None
+        }
+    
+    # Создаем клавиатуру с WebApp
+    keyboard = [
+        [InlineKeyboardButton("🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL))],
+        [InlineKeyboardButton("💰 Баланс", callback_data="balance")],
+        [InlineKeyboardButton("📊 Статистика", callback_data="stats")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        f"Добро пожаловать в СЕКА, {user.first_name}!\n"
+        "Выберите действие:",
+        reply_markup=reply_markup
+    )
 
-# Инициализация бота
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-
-def get_db_connection():
-    """Устанавливает соединение с базой данных"""
-    try:
-        return psycopg2.connect(**DB_CONFIG)
-    except psycopg2.Error as e:
-        logger.error(f"❌ Ошибка подключения к базе данных: {e}")
-        return None
-
-async def is_user_registered(user_id: int) -> bool:
-    """Проверяет, зарегистрирован ли пользователь в базе данных"""
-    conn = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return False
-            
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT 1 FROM players WHERE id = %s",
-                (user_id,)
-            )
-            return bool(cur.fetchone())
-    except Exception as e:
-        logger.error(f"❌ Ошибка при проверке регистрации пользователя: {e}")
-        return False
-    finally:
-        if conn:
-            conn.close()
-
-async def register_user(user: types.User) -> bool:
-    """Регистрирует нового пользователя в базе данных"""
-    conn = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            return False
-            
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO players (id, telegram_id, first_name, last_name, username)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (id) DO NOTHING
-                RETURNING id
-                """,
-                (user.id, user.id, user.first_name, user.last_name, user.username)
-            )
-            conn.commit()
-            return bool(cur.fetchone())
-    except Exception as e:
-        logger.error(f"❌ Ошибка при регистрации пользователя: {e}")
-        if conn:
-            conn.rollback()
-        return False
-    finally:
-        if conn:
-            conn.close()
-
-@dp.message(Command("start"))
-async def cmd_start(message: types.Message):
-    """Обработчик команды /start с проверкой регистрации"""
-    try:
-        user = message.from_user
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка нажатий на кнопки"""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    if query.data == "balance":
+        balance = player_data[user_id]["balance"]
+        await query.answer(f"Ваш баланс: {balance}₽")
         
-        # Проверяем регистрацию
-        if not await is_user_registered(user.id):
-            await message.answer(
-                "⚠️ Вы не зарегистрированы!\n"
-                "Для регистрации введите команду /reg"
-            )
-            return
-        
-        # Продолжаем исходный функционал
-        web_app_button = KeyboardButton(
-            text="🎮 Играть в Сека",
-            web_app=WebAppInfo(url=WEB_APP_URL)
+    elif query.data == "stats":
+        stats = player_data[user_id]
+        await query.answer(
+            f"Статистика:\n"
+            f"Игр сыграно: {stats['games_played']}\n"
+            f"Побед: {stats['games_won']}\n"
+            f"Процент побед: {stats['games_won']/stats['games_played']*100 if stats['games_played'] > 0 else 0:.1f}%"
         )
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[[web_app_button]],
-            resize_keyboard=True
-        )
-        await message.answer(
-            "Добро пожаловать в игру Сека!\nНажмите кнопку ниже, чтобы начать:",
-            reply_markup=keyboard
-        )
-    except Exception as e:
-        logger.error(f"❌ Ошибка в команде start: {e}")
-        await message.answer("❌ Произошла ошибка. Попробуйте позже.")
 
-@dp.message(Command("reg"))
-async def cmd_reg(message: types.Message):
-    """Обработчик команды регистрации"""
-    try:
-        user = message.from_user
-        
-        if await is_user_registered(user.id):
-            await message.answer("ℹ️ Вы уже зарегистрированы!")
-            return
-        
-        if await register_user(user):
-            await message.answer(
-                "✅ Регистрация прошла успешно!\n"
-                "Теперь вы можете начать игру с помощью команды /start"
-            )
-        else:
-            await message.answer("❌ Ошибка при регистрации. Попробуйте позже.")
-    except Exception as e:
-        logger.error(f"❌ Ошибка в команде reg: {e}")
-        await message.answer("❌ Произошла ошибка. Попробуйте позже.")
-
-async def main():
+def main():
     """Запуск бота"""
-    try:
-        logger.info("🚀 Бот запускается...")
-        # Удаляем webhook перед запуском
-        await bot.delete_webhook()
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"❌ Ошибка при запуске бота: {e}")
-        sys.exit(1)
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    # Добавляем обработчики
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_handler))
+    
+    # Запускаем бота
+    application.run_polling()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()

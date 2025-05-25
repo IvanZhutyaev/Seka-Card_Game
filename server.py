@@ -1,16 +1,14 @@
 import logging
-import asyncio
-from typing import Dict, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from db import check_database_connection, get_redis, get_db
-from game.matchmaking import MatchMaker
 from game.engine import GameState
-from redis.exceptions import RedisError
-from sqlalchemy.exc import SQLAlchemyError
+from typing import Dict, Set
+import hashlib
+import hmac
+import json
+import os
+from datetime import datetime
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -31,316 +29,193 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/pages", StaticFiles(directory="pages"), name="pages")
 
-# Инициализация компонентов
-matchmaker = MatchMaker(get_redis())
+# Конфигурация
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "your_bot_token_here")
+MIN_BET = 100
+MAX_BET = 2000
 
-# Хранилище активных WebSocket соединений
+# Хранилище активных игр и соединений
+active_games: Dict[str, GameState] = {}
 active_connections: Dict[str, WebSocket] = {}
+waiting_players: Set[str] = set()
+player_balances: Dict[str, int] = {}
+
+def verify_telegram_data(init_data: str, hash: str) -> bool:
+    """Проверка подлинности данных от Telegram"""
+    secret_key = hmac.new(
+        "WebAppData".encode(),
+        TELEGRAM_BOT_TOKEN.encode(),
+        hashlib.sha256
+    ).digest()
+    
+    data_check_string = "\n".join(
+        f"{k}={v}" for k, v in sorted(
+            json.loads(init_data).items(),
+            key=lambda x: x[0]
+        )
+    )
+    
+    hmac_obj = hmac.new(
+        secret_key,
+        data_check_string.encode(),
+        hashlib.sha256
+    )
+    
+    return hmac_obj.hexdigest() == hash
 
 class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
-        self.heartbeat_interval = 30  # секунд
-        self.reconnect_attempts = 3
-        self.reconnect_delay = 5  # секунд
-        
-    async def connect(self, websocket: WebSocket, client_id: str):
+    async def connect(self, websocket: WebSocket, player_id: str):
         await websocket.accept()
-        self.active_connections[client_id] = websocket
-        asyncio.create_task(self._heartbeat(client_id))
-        logger.info(f"✅ Клиент {client_id} подключился")
+        active_connections[player_id] = websocket
         
-    def disconnect(self, client_id: str):
-        self.active_connections.pop(client_id, None)
-        logger.info(f"👋 Клиент {client_id} отключился")
+        # Инициализация баланса для нового игрока
+        if player_id not in player_balances:
+            player_balances[player_id] = 1000  # Начальный баланс
         
-    async def send_personal_message(self, message: dict, client_id: str):
-        if client_id in self.active_connections:
-            for attempt in range(self.reconnect_attempts):
-                try:
-                    await self.active_connections[client_id].send_json(message)
-                    return
-                except WebSocketDisconnect:
-                    logger.warning(f"⚠️ WebSocket отключен для клиента {client_id}")
-                    break
-                except Exception as e:
-                    logger.error(f"❌ Ошибка отправки сообщения клиенту {client_id}: {e}")
-                    if attempt < self.reconnect_attempts - 1:
-                        await asyncio.sleep(self.reconnect_delay)
-                    else:
-                        await self.disconnect(client_id)
-                
-    async def broadcast(self, message: dict, exclude: Optional[str] = None):
-        disconnected_clients = []
-        for client_id, connection in self.active_connections.items():
-            if client_id != exclude:
-                try:
-                    await connection.send_json(message)
-                except WebSocketDisconnect:
-                    logger.warning(f"⚠️ WebSocket отключен для клиента {client_id}")
-                    disconnected_clients.append(client_id)
-                except Exception as e:
-                    logger.error(f"❌ Ошибка broadcast для клиента {client_id}: {e}")
-                    disconnected_clients.append(client_id)
-        
-        # Удаляем отключенных клиентов
-        for client_id in disconnected_clients:
-            self.disconnect(client_id)
-                    
-    async def _heartbeat(self, client_id: str):
-        while client_id in self.active_connections:
-            try:
-                await self.send_personal_message({"type": "ping"}, client_id)
-                await asyncio.sleep(self.heartbeat_interval)
-            except Exception as e:
-                logger.error(f"❌ Ошибка heartbeat для клиента {client_id}: {e}")
-                break
-        self.disconnect(client_id)
+    async def disconnect(self, player_id: str):
+        if player_id in active_connections:
+            del active_connections[player_id]
+        if player_id in waiting_players:
+            waiting_players.remove(player_id)
+            
+    async def send_personal_message(self, message: dict, player_id: str):
+        if player_id in active_connections:
+            await active_connections[player_id].send_json(message)
+            
+    async def broadcast_to_game(self, message: dict, game_id: str):
+        game = active_games.get(game_id)
+        if game:
+            for player_id in game.players:
+                await self.send_personal_message(message, player_id)
 
 manager = ConnectionManager()
 
-@app.on_event("startup")
-async def startup_event():
-    """Проверка подключений при запуске сервера"""
-    try:
-        if not await check_database_connection():
-            logger.error("❌ Ошибка подключения к базам данных")
-            exit(1)
-        logger.info("✅ Сервер успешно запущен")
-        
-        # Запускаем очистку зависших игр
-        asyncio.create_task(matchmaker.cleanup_stale_games())
-    except Exception as e:
-        logger.error(f"❌ Критическая ошибка при запуске сервера: {e}")
-        exit(1)
-
-@app.get("/")
-async def read_root(request: Request):
-    return FileResponse("pages/gameplay/index.html")
-
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
+    # Проверка подлинности данных от Telegram
+    init_data = websocket.query_params.get("initData", "")
+    hash = websocket.query_params.get("hash", "")
+    
+    if not verify_telegram_data(init_data, hash):
+        await websocket.close(code=4001)
+        return
+    
     await manager.connect(websocket, player_id)
     
     try:
         while True:
-            try:
-                data = await websocket.receive_json()
-                await handle_websocket_message(websocket, player_id, data)
-            except WebSocketDisconnect:
-                logger.info(f"👋 Клиент {player_id} отключился")
-                break
-            except ValueError as e:
-                logger.warning(f"⚠️ Ошибка валидации от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": str(e)
-                    },
-                    player_id
-                )
-            except RedisError as e:
-                logger.error(f"❌ Ошибка Redis при обработке сообщения от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Ошибка сервера, попробуйте позже"
-                    },
-                    player_id
-                )
-            except SQLAlchemyError as e:
-                logger.error(f"❌ Ошибка базы данных при обработке сообщения от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Ошибка сервера, попробуйте позже"
-                    },
-                    player_id
-                )
-            except Exception as e:
-                logger.error(f"❌ Неизвестная ошибка при обработке сообщения от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Произошла ошибка, попробуйте позже"
-                    },
-                    player_id
-                )
-    finally:
-        manager.disconnect(player_id)
-        try:
-            # Удаляем из очереди при отключении
-            await matchmaker.remove_from_queue(player_id)
-        except Exception as e:
-            logger.error(f"❌ Ошибка при удалении игрока {player_id} из очереди: {e}")
+            data = await websocket.receive_json()
+            await handle_websocket_message(websocket, player_id, data)
+    except WebSocketDisconnect:
+        await manager.disconnect(player_id)
+        logger.info(f"Player {player_id} disconnected")
 
 async def handle_websocket_message(websocket: WebSocket, player_id: str, data: dict):
-    """Обработка входящих WebSocket сообщений"""
-    try:
-        message_type = data.get("type")
-        if not message_type:
-            raise ValueError("Тип сообщения не указан")
-            
-        if message_type == "find_game":
-            try:
-                # Добавляем игрока в очередь
-                rating = data.get("rating", 1000)
-                if not isinstance(rating, (int, float)) or rating < 0:
-                    raise ValueError("Некорректное значение рейтинга")
-                    
-                await matchmaker.add_to_queue(player_id, rating)
-                
-                # Пытаемся найти матч
-                match = await matchmaker.find_match(rating)
-                if match:
-                    game_id = await matchmaker.create_game(match)
-                    # Уведомляем игроков
-                    for pid in match:
-                        await manager.send_personal_message(
-                            {
-                                "type": "game_found",
-                                "game_id": game_id
-                            },
-                            pid
-                        )
-            except ValueError as e:
-                logger.warning(f"⚠️ Ошибка валидации при поиске игры от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": str(e)
-                    },
-                    player_id
-                )
-            except RedisError as e:
-                logger.error(f"❌ Ошибка Redis при поиске игры от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Ошибка сервера при поиске игры"
-                    },
-                    player_id
-                )
-            
-        elif message_type == "game_action":
-            try:
-                game_id = data.get("game_id")
-                action = data.get("action")
-                
-                if not game_id or not action:
-                    raise ValueError("Неверные параметры игрового действия")
-                    
-                game_state = await matchmaker.get_game_state(game_id)
-                if not game_state:
-                    raise ValueError("Игра не найдена")
-                    
-                game = GameState()
-                # Обновляем состояние игры
-                if action == "bet":
-                    try:
-                        amount = data.get("amount", 0)
-                        if not isinstance(amount, (int, float)) or amount <= 0:
-                            raise ValueError("Некорректная сумма ставки")
-                            
-                        if game.place_bet(player_id, amount):
-                            # Уведомляем всех игроков
-                            for pid in game.players:
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "game_state",
-                                        "data": game.to_dict()
-                                    },
-                                    pid
-                                )
-                    except ValueError as e:
-                        logger.warning(f"⚠️ Ошибка валидации ставки от {player_id}: {e}")
-                        await manager.send_personal_message(
-                            {
-                                "type": "error",
-                                "message": str(e)
-                            },
-                            player_id
-                        )
-                
-                elif action == "fold":
-                    try:
-                        game.fold(player_id)
-                        winner = game.get_winner()
-                        if winner:
-                            # Игра завершена
-                            await matchmaker.end_game(game_id)
-                            # Уведомляем всех игроков
-                            for pid in game.players:
-                                await manager.send_personal_message(
-                                    {
-                                        "type": "game_over",
-                                        "winner": winner,
-                                        "bank": game.bank
-                                    },
-                                    pid
-                                )
-                    except Exception as e:
-                        logger.error(f"❌ Ошибка при обработке фолда от {player_id}: {e}")
-                        await manager.send_personal_message(
-                            {
-                                "type": "error",
-                                "message": "Ошибка при обработке фолда"
-                            },
-                            player_id
-                        )
-                else:
-                    raise ValueError(f"Неизвестное игровое действие: {action}")
-                
-                # Сохраняем обновленное состояние
-                await matchmaker.update_game_state(game_id, game)
-                
-            except ValueError as e:
-                logger.warning(f"⚠️ Ошибка валидации игрового действия от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": str(e)
-                    },
-                    player_id
-                )
-            except RedisError as e:
-                logger.error(f"❌ Ошибка Redis при обработке игрового действия от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Ошибка сервера при обработке действия"
-                    },
-                    player_id
-                )
-            except SQLAlchemyError as e:
-                logger.error(f"❌ Ошибка базы данных при обработке игрового действия от {player_id}: {e}")
-                await manager.send_personal_message(
-                    {
-                        "type": "error",
-                        "message": "Ошибка сервера при сохранении состояния"
-                    },
-                    player_id
-                )
-            
-        else:
-            logger.warning(f"⚠️ Неизвестный тип сообщения от {player_id}: {message_type}")
-            await manager.send_personal_message(
-                {
-                    "type": "error",
-                    "message": f"Неизвестный тип сообщения: {message_type}"
-                },
-                player_id
-            )
-            
-    except Exception as e:
-        logger.error(f"❌ Неизвестная ошибка при обработке сообщения от {player_id}: {e}")
-        await manager.send_personal_message(
-            {
+    message_type = data.get("type")
+    
+    if message_type == "find_game":
+        # Проверяем баланс игрока
+        if player_balances[player_id] < MIN_BET:
+            await manager.send_personal_message({
                 "type": "error",
-                "message": "Произошла ошибка, попробуйте позже"
-            },
-            player_id
-        )
+                "message": "Недостаточно средств для игры"
+            }, player_id)
+            return
+            
+        # Добавляем игрока в очередь
+        waiting_players.add(player_id)
+        
+        # Если есть достаточно игроков, создаем игру
+        if len(waiting_players) >= 2:
+            game_id = f"game_{len(active_games)}"
+            game = GameState()
+            
+            # Добавляем игроков в игру
+            for pid in list(waiting_players)[:2]:
+                game.add_player(pid)
+                waiting_players.remove(pid)
+            
+            # Раздаем карты
+            game.deal_cards()
+            
+            # Сохраняем игру
+            active_games[game_id] = game
+            
+            # Уведомляем игроков
+            for pid in game.players:
+                await manager.send_personal_message({
+                    "type": "game_state",
+                    "state": game.to_dict(),
+                    "balance": player_balances[pid]
+                }, pid)
+    
+    elif message_type == "game_action":
+        game_id = data.get("game_id")
+        action = data.get("action")
+        
+        if not game_id or not action:
+            await manager.send_personal_message({
+                "type": "error",
+                "message": "Invalid game action"
+            }, player_id)
+            return
+            
+        game = active_games.get(game_id)
+        if not game:
+            await manager.send_personal_message({
+                "type": "error",
+                "message": "Game not found"
+            }, player_id)
+            return
+            
+        if action == "bet":
+            amount = data.get("amount", 0)
+            
+            # Проверяем баланс
+            if amount > player_balances[player_id]:
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Недостаточно средств"
+                }, player_id)
+                return
+                
+            if game.place_bet(player_id, amount):
+                # Списываем ставку
+                player_balances[player_id] -= amount
+                
+                await manager.broadcast_to_game({
+                    "type": "game_state",
+                    "state": game.to_dict(),
+                    "balance": player_balances[player_id]
+                }, game_id)
+            else:
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Invalid bet amount"
+                }, player_id)
+                
+        elif action == "fold":
+            game.fold(player_id)
+            await manager.broadcast_to_game({
+                "type": "game_state",
+                "state": game.to_dict()
+            }, game_id)
+            
+            # Проверяем, остался ли один игрок
+            active_players = [pid for pid in game.players if pid not in game.folded_players]
+            if len(active_players) == 1:
+                winner = active_players[0]
+                # Начисляем выигрыш
+                player_balances[winner] += game.bank
+                
+                await manager.broadcast_to_game({
+                    "type": "game_over",
+                    "winner": winner,
+                    "state": game.to_dict(),
+                    "balance": player_balances[winner]
+                }, game_id)
+                del active_games[game_id]
 
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000) 
