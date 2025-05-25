@@ -147,7 +147,7 @@ io.on('connection', (socket) => {
 });
 
 // Обработка ошибок
-app.use((err, req, res, _next) => {
+app.use((err, req, res) => {
     console.error(err.stack);
     res.status(500).send('Something broke!');
 });

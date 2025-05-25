@@ -154,7 +154,7 @@ export class ChatComponent {
     handleScroll() {
         if (!this.elements.chatScroll) return;
 
-        const { scrollTop, scrollHeight, clientHeight } = this.elements.chatScroll;
+        const { scrollTop } = this.elements.chatScroll;
         if (scrollTop === 0) {
             this.loadMoreMessages();
         }

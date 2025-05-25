@@ -1,7 +1,7 @@
+/* eslint-env jest */
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { WebApp } from '@twa-dev/sdk';
-import App from '../pages/gameplay/App';
 import { useGameState } from '../pages/gameplay/store/gameStore';
 
 jest.mock('@twa-dev/sdk');

@@ -1,6 +1,5 @@
 import { ConfirmService } from '../services/confirm.service.js';
 import { SecurityService } from '../services/security.service.js';
-import { Utils } from '../utils.js';
 
 export class ConfirmComponent {
     constructor() {

@@ -77,8 +77,8 @@ export class NavigationService {
     // Методы для работы с состоянием навигации
     setState(state) {
         try {
-            const stateString = JSON.stringify(state);
-            window.history.replaceState(state, '', window.location.href);
+            // Сохраняем состояние в localStorage
+            localStorage.setItem('appState', JSON.stringify(state));
             return true;
         } catch (error) {
             console.error('Error setting navigation state:', error);

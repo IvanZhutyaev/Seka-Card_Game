@@ -1,6 +1,5 @@
 import { HelpService } from '../services/help.service.js';
 import { SecurityService } from '../services/security.service.js';
-import { Utils } from '../utils.js';
 
 export class HelpComponent {
     constructor() {

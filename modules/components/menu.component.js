@@ -1,5 +1,3 @@
-import { Utils } from '../utils.js';
-
 export class MenuComponent {
     constructor(services, eventBus) {
         this.services = services;

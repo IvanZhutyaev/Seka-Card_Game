@@ -1,5 +1,4 @@
 import { LoadingService } from '../services/loading.service.js';
-import { Utils } from '../utils.js';
 
 export class LoadingComponent {
     constructor() {

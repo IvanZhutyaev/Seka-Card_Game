@@ -89,7 +89,7 @@ export class ImageService {
 
     clearCache() {
         // Освобождаем URL объекты
-        for (const [_, imageData] of this.cache) {
+        for (const imageData of this.cache.values()) {
             if (imageData.url) {
                 URL.revokeObjectURL(imageData.url);
             }
@@ -140,12 +140,13 @@ export class ImageService {
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
-                    resolve({
+                    const rest = {
                         width: img.width,
                         height: img.height,
                         type: file.type,
                         size: file.size
-                    });
+                    };
+                    resolve(rest);
                 };
                 img.onerror = () => reject(new Error('Invalid image'));
                 img.src = e.target.result;

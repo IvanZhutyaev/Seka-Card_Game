@@ -1,3 +1,4 @@
+/* eslint-env jest */
 import { jest } from '@jest/globals';
 import { io } from 'socket.io-client';
 import { WebApp } from '@twa-dev/sdk';
@@ -9,7 +10,6 @@ describe('WebSocket Connection', () => {
     let mockSocket;
     let mockConnect;
     let mockError;
-    let _mockApp;
     
     beforeEach(() => {
         // Reset DOM
@@ -56,7 +56,8 @@ describe('WebSocket Connection', () => {
     });
     
     test('connects to server on initialization', async () => {
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         expect(io).toHaveBeenCalledWith('ws://test:3000', expect.objectContaining({
@@ -67,7 +68,8 @@ describe('WebSocket Connection', () => {
     });
     
     test('emits user data on connection', async () => {
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         mockConnect();
@@ -79,7 +81,8 @@ describe('WebSocket Connection', () => {
     });
     
     test('handles connection errors', async () => {
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         const error = new Error('Connection failed');
@@ -95,7 +98,8 @@ describe('WebSocket Connection', () => {
     test('shows error when WebApp is not initialized', async () => {
         WebApp.isInitialized = false;
         
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
         
         const errorMessage = document.querySelector('.error-message');
@@ -104,7 +108,8 @@ describe('WebSocket Connection', () => {
     });
 
     test('reconnects on connection loss', async () => {
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
 
         // Simulate initial connection
@@ -119,7 +124,8 @@ describe('WebSocket Connection', () => {
     });
 
     test('handles server disconnect', async () => {
-        _mockApp = await import('../../public/js/app.js');
+        // Импортируем app.js для инициализации
+        import('../../public/js/app.js');
         document.dispatchEvent(new Event('DOMContentLoaded'));
 
         // Simulate server disconnect

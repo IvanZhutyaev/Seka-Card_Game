@@ -1,6 +1,6 @@
+/* eslint-env jest */
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Menu from '../../pages/gameplay/components/Menu';
 import { useGameState } from '../../pages/gameplay/store/gameStore';
 
 jest.mock('../../pages/gameplay/store/gameStore');

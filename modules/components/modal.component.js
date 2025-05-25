@@ -1,6 +1,5 @@
 import { ModalService } from '../services/modal.service.js';
 import { SecurityService } from '../services/security.service.js';
-import { Utils } from '../utils.js';
 
 export class ModalComponent {
     constructor() {

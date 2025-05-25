@@ -1,5 +1,4 @@
 import { EmptyService } from '../services/empty.service.js';
-import { Utils } from '../utils.js';
 
 export class EmptyComponent {
     constructor() {

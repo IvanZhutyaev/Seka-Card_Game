@@ -1,6 +1,6 @@
+/* eslint-env jest */
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Card from '../../pages/gameplay/components/Card';
 
 describe('Card Component', () => {
     const defaultProps = {

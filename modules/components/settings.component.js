@@ -1,6 +1,5 @@
 import { SettingsService } from '../services/settings.service.js';
 import { SecurityService } from '../services/security.service.js';
-import { Utils } from '../utils.js';
 
 export class SettingsComponent {
     constructor() {

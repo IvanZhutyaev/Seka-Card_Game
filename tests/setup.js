@@ -1,3 +1,4 @@
+/* eslint-env jest */
 import '@testing-library/jest-dom';
 import { mockServices } from './mocks/services';
 
