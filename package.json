@@ -10,8 +10,8 @@
     "test": "jest",
     "deploy": "node scripts/deploy.js",
     "backup": "node scripts/backup.js",
-    "lint": "eslint 'public/js/**/*.{js,jsx,ts,tsx}' 'pages/**/*.{js,jsx,ts,tsx}' 'modules/**/*.{js,jsx,ts,tsx}' 'tests/**/*.{js,jsx,ts,tsx}' 'server.js'",
-    "lint:fix": "eslint 'public/js/**/*.{js,jsx,ts,tsx}' 'pages/**/*.{js,jsx,ts,tsx}' 'modules/**/*.{js,jsx,ts,tsx}' 'tests/**/*.{js,jsx,ts,tsx}' 'server.js' --fix"
+    "lint": "eslint 'public/**/*.{js,jsx,ts,tsx}' 'pages/**/*.{js,jsx,ts,tsx}' 'modules/**/*.{js,jsx,ts,tsx}' 'tests/**/*.{js,jsx,ts,tsx}' 'server.js'",
+    "lint:fix": "eslint 'public/**/*.{js,jsx,ts,tsx}' 'pages/**/*.{js,jsx,ts,tsx}' 'modules/**/*.{js,jsx,ts,tsx}' 'tests/**/*.{js,jsx,ts,tsx}' 'server.js' --fix"
   },
   "dependencies": {
     "@twa-dev/sdk": "^6.6.0",
