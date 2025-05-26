@@ -11,6 +11,31 @@
     <script src="/static/js/telegram-init.js"></script>
     <script src="/static/js/navigation.js"></script>
     <script src="/static/js/common.js"></script>
+    <script>
+        // Инициализация кнопки "назад" при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Включаем кнопку "назад" в интерфейсе Telegram
+            Telegram.WebApp.BackButton.show();
+            // Обработчик нажатия кнопки "назад"
+            Telegram.WebApp.BackButton.onClick(() => {
+                TelegramUtils.hapticFeedback('light');
+                navigateBack();
+            });
+        });
+
+        // Функция для навигации назад
+        function navigateBack() {
+            TelegramUtils.hapticFeedback('light');
+            // Используем MainButton для возврата в главное меню
+            Telegram.WebApp.close();
+        }
+
+        // При загрузке страницы сохраняем текущую страницу в историю
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPage = window.location.pathname.split('/').pop().replace('.html', '');
+            sessionStorage.setItem('currentPage', currentPage);
+        });
+    </script>
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -257,7 +282,7 @@
 <body>
     <!-- Заголовок с кнопкой меню -->
     <div class="header">
-        <button class="back-button" onclick="history.back()">←</button>
+        <button class="back-button" onclick="navigateBack()">←</button>
         <h1 class="page-title">Пригласить друга</h1>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
@@ -325,6 +350,13 @@
     </div>
 
     <script>
+        // Функция для обработки нажатия кнопки "назад"
+        function handleBackClick() {
+            TelegramUtils.hapticFeedback('light');
+            // Закрываем текущее окно и возвращаемся на предыдущую страницу
+            Telegram.WebApp.close();
+        }
+
         // Функция для переключения выпадающего меню
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdownMenu');
@@ -349,12 +381,9 @@
         }
 
         function logout() {
-            // Здесь будет ваша логика выхода
-            console.log('Выход из системы');
-            // Пример: Telegram.WebApp.close();
 
-            // Закрываем меню после выбора
-            document.getElementById('dropdownMenu').classList.remove('show');
+                    TelegramUtils.closeWebApp();
+
         }
 
         function copyLink() {

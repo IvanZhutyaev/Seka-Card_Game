@@ -526,6 +526,11 @@
             const dropdown = document.getElementById('dropdownMenu');
             dropdown.classList.toggle('show');
         }
+        function logout() {
+
+                    TelegramUtils.closeWebApp();
+
+        }
 
         window.onclick = function(event) {
             if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line') &&

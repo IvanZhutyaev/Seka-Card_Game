@@ -373,11 +373,9 @@
         };
 
         function logout() {
-            TelegramUtils.showConfirm('Вы уверены, что хотите выйти?', (confirmed) => {
-                if (confirmed) {
+
                     TelegramUtils.closeWebApp();
-                }
-            });
+
         }
 
         // Обработка навигации браузера
