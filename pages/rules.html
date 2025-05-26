@@ -39,17 +39,48 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center; /* Центрируем содержимое */
+            align-items: center;
         }
 
+        /* Стили для меню */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            position: relative;
+            padding: 10px 15px;
             width: 100%;
-            max-width: 1200px;
+            position: relative;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .menu-line {
+            width: 24px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
         }
 
         .page-title {
@@ -61,41 +92,7 @@
             color: var(--text-color);
         }
 
-        .back-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 32px;
-            cursor: pointer;
-            padding: 8px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1;
-        }
-
-        .menu-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-self: center;
-            z-index: 1;
-        }
-
-        .menu-line {
-            width: 24px;
-            height: 3px;
-            background-color: var(--text-color);
-            border-radius: 2px;
-        }
-
+        /* Выпадающее меню */
         .dropdown-menu {
             display: none;
             position: absolute;
@@ -122,6 +119,7 @@
             color: var(--text-color);
             border-radius: 0;
             transition: background-color 0.2s;
+            font-size: 14px;
         }
 
         .dropdown-item:hover {
@@ -130,8 +128,8 @@
 
         .dropdown-icon {
             margin-right: 12px;
-            font-size: 20px;
-            width: 24px;
+            font-size: 18px;
+            width: 20px;
             text-align: center;
         }
 
@@ -145,11 +143,12 @@
             color: #EA4335;
         }
 
-        /* Специфичные стили для страницы правил */
+        /* Стили для контента страницы */
         .rules-container {
             padding: 20px;
             max-width: 800px;
             margin: 0 auto;
+            width: 100%;
         }
 
         .rules-title {
@@ -200,13 +199,50 @@
     </style>
 </head>
 <body>
-    <!-- Подключаем общий заголовок -->
-    <div id="header-container"></div>
+    <!-- Заголовок с кнопкой меню -->
+    <div class="header">
+        <button class="back-button" onclick="history.back()">←</button>
+        <h1 class="page-title">Правила игры</h1>
+        <button class="menu-button" onclick="toggleDropdown()">
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+        </button>
+
+        <!-- Выпадающее меню -->
+        <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" onclick="openPage('rules')">
+                <span class="dropdown-icon">📜</span>
+                Правила игры
+            </div>
+            <div class="dropdown-item" onclick="openPage('profile')">
+                <span class="dropdown-icon">👤</span>
+                Профиль и настройки
+            </div>
+            <div class="dropdown-item" onclick="openPage('bonus')">
+                <span class="dropdown-icon">🎁</span>
+                Бонусы и акции
+            </div>
+            <div class="dropdown-item" onclick="openPage('history')">
+                <span class="dropdown-icon">📊</span>
+                История транзакций
+            </div>
+            <div class="dropdown-item" onclick="openPage('invite')">
+                <span class="dropdown-icon">👥</span>
+                Пригласить друга
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item logout-item" onclick="logout()">
+                <span class="dropdown-icon">🚪</span>
+                Выйти
+            </div>
+        </div>
+    </div>
 
     <!-- Контент страницы -->
     <div class="rules-container">
         <h2 class="rules-title">Правила игры в Секу</h2>
-        
+
         <div class="rule-section">
             <h3>Основные правила</h3>
             <p>Сека - это карточная игра, в которой участвуют от 2 до 6 игроков. Каждому игроку раздается по три карты.</p>
@@ -234,15 +270,37 @@
     </div>
 
     <script>
-        // Загружаем общий заголовок
-        fetch('/static/common-header.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('header-container').innerHTML = html;
-                // Переинициализируем обработчики после загрузки заголовка
-                initializeMenuHandlers();
-            })
-            .catch(error => console.error('Error loading header:', error));
+        // Функция для переключения выпадающего меню
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
+        }
+
+        // Закрытие меню при клике вне его
+        window.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdownMenu');
+            const menuButton = document.querySelector('.menu-button');
+
+            if (!event.target.closest('.menu-button') && !event.target.closest('.dropdown-menu')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Функции для обработки кликов по пунктам меню
+        function openPage(page) {
+            TelegramUtils.openLink(page);
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
+
+        function logout() {
+            // Здесь будет ваша логика выхода
+            console.log('Выход из системы');
+            // Пример: Telegram.WebApp.close();
+
+            // Закрываем меню после выбора
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
     </script>
 </body>
 </html>

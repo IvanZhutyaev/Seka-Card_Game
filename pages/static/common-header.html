@@ -1,0 +1,88 @@
+<style>
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        width: 100%;
+        position: relative;
+        background-color: #0f2233;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .back-button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 5px;
+        z-index: 1;
+        flex-shrink: 0;
+    }
+    .menu-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        flex-shrink: 0;
+    }
+
+    .menu-line {
+        width: 24px;
+        height: 3px;
+        background-color: white;
+        border-radius: 2px;
+    }
+</style>
+
+<button class="menu-button" onclick="toggleDropdown()">
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+        </button>
+    </div>
+
+    <div class="dropdown-menu" id="dropdownMenu">
+        <div class="dropdown-item" onclick="openPage('rules')">
+            <span class="dropdown-icon">📜</span>
+            Правила игры
+        </div>
+        <div class="dropdown-item" onclick="openPage('profile')">
+            <span class="dropdown-icon">👤</span>
+            Профиль и настройки
+        </div>
+        <div class="dropdown-item" onclick="openPage('bonus')">
+            <span class="dropdown-icon">🎁</span>
+            Бонусы и акции
+        </div>
+        <div class="dropdown-item" onclick="openPage('history')">
+            <span class="dropdown-icon">📊</span>
+            История транзакций
+        </div>
+        <div class="dropdown-item" onclick="openPage('invite')">
+            <span class="dropdown-icon">👥</span>
+            Пригласить друга
+        </div>
+        <div class="dropdown-divider"></div>
+        <div class="dropdown-item logout-item" onclick="logout()">
+            <span class="dropdown-icon">🚪</span>
+            Выйти
+        </div>
+    </div>
+
+<script>
+ function openPage(page) {
+            TelegramUtils.openLink(page);
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
+
+function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
+        }
+</script>

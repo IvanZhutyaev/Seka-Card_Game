@@ -11,13 +11,143 @@
     <script src="/static/js/telegram-init.js"></script>
     <script src="/static/js/navigation.js"></script>
     <script src="/static/js/common.js"></script>
-    <link rel="stylesheet" href="/static/css/common.css">
     <style>
-        /* Специфичные стили для страницы приглашения */
+        :root {
+            --bg-color: #0a1a2a;
+            --text-color: #e0e0e0;
+            --blue-accent: #4285F4;
+            --white: #ffffff;
+            --menu-btn: rgba(66, 133, 244, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            transition: all 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: url(static/background.png);
+            color: var(--text-color);
+            padding: 16px;
+            max-width: 100%;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Стили для меню */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            width: 100%;
+            position: relative;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .menu-line {
+            width: 24px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+        }
+
+        .page-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* Выпадающее меню */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 16px;
+            top: 60px;
+            background-color: #0f2233;
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 220px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            border-radius: 0;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(66, 133, 244, 0.2);
+        }
+
+        .dropdown-icon {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 8px 0;
+        }
+
+        .logout-item {
+            color: #EA4335;
+        }
+
+        /* Стили для страницы приглашения */
         .invite-container {
             padding: 20px;
             max-width: 600px;
             margin: 0 auto;
+            width: 100%;
         }
 
         .invite-section {
@@ -125,15 +255,52 @@
     </style>
 </head>
 <body>
-    <!-- Подключаем общий заголовок -->
-    <div id="header-container"></div>
+    <!-- Заголовок с кнопкой меню -->
+    <div class="header">
+        <button class="back-button" onclick="history.back()">←</button>
+        <h1 class="page-title">Пригласить друга</h1>
+        <button class="menu-button" onclick="toggleDropdown()">
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+        </button>
+
+        <!-- Выпадающее меню -->
+        <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" onclick="openPage('rules')">
+                <span class="dropdown-icon">📜</span>
+                Правила игры
+            </div>
+            <div class="dropdown-item" onclick="openPage('profile')">
+                <span class="dropdown-icon">👤</span>
+                Профиль и настройки
+            </div>
+            <div class="dropdown-item" onclick="openPage('bonus')">
+                <span class="dropdown-icon">🎁</span>
+                Бонусы и акции
+            </div>
+            <div class="dropdown-item" onclick="openPage('history')">
+                <span class="dropdown-icon">📊</span>
+                История транзакций
+            </div>
+            <div class="dropdown-item" onclick="openPage('invite')">
+                <span class="dropdown-icon">👥</span>
+                Пригласить друга
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item logout-item" onclick="logout()">
+                <span class="dropdown-icon">🚪</span>
+                Выйти
+            </div>
+        </div>
+    </div>
 
     <!-- Контент страницы -->
     <div class="invite-container">
         <div class="invite-section">
             <h2 class="invite-title">Пригласите друзей и получите бонус!</h2>
             <p class="invite-description">
-                За каждого приглашенного друга, который зарегистрируется по вашей ссылке и сделает первую ставку, 
+                За каждого приглашенного друга, который зарегистрируется по вашей ссылке и сделает первую ставку,
                 вы получите 100 рублей на игровой счет!
             </p>
 
@@ -158,15 +325,37 @@
     </div>
 
     <script>
-        // Загружаем общий заголовок
-        fetch('/static/common-header.html')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('header-container').innerHTML = html;
-                // Переинициализируем обработчики после загрузки заголовка
-                initializeMenuHandlers();
-            })
-            .catch(error => console.error('Error loading header:', error));
+        // Функция для переключения выпадающего меню
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
+        }
+
+        // Закрытие меню при клике вне его
+        window.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdownMenu');
+            const menuButton = document.querySelector('.menu-button');
+
+            if (!event.target.closest('.menu-button') && !event.target.closest('.dropdown-menu')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Функции для обработки кликов по пунктам меню
+        function openPage(page) {
+            TelegramUtils.openLink(page);
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
+
+        function logout() {
+            // Здесь будет ваша логика выхода
+            console.log('Выход из системы');
+            // Пример: Telegram.WebApp.close();
+
+            // Закрываем меню после выбора
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
 
         function copyLink() {
             const link = document.getElementById('referral-link').textContent;

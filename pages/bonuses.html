@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Бонусы и акции</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
     <style>
         :root {
             --bg-color: #0a1a2a;
@@ -31,17 +38,48 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center; /* Центрируем содержимое */
+            align-items: center;
         }
 
+        /* Стили для меню */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            position: relative;
+            padding: 10px 15px;
             width: 100%;
-            max-width: 1200px;
+            position: relative;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .menu-line {
+            width: 24px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
         }
 
         .page-title {
@@ -53,41 +91,7 @@
             color: var(--text-color);
         }
 
-        .back-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            font-size: 32px;
-            cursor: pointer;
-            padding: 8px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1;
-        }
-
-        .menu-button {
-            background: none;
-            border: none;
-            color: var(--text-color);
-            cursor: pointer;
-            padding: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-self: center;
-            z-index: 1;
-        }
-
-        .menu-line {
-            width: 24px;
-            height: 3px;
-            background-color: var(--text-color);
-            border-radius: 2px;
-        }
-
+        /* Выпадающее меню */
         .dropdown-menu {
             display: none;
             position: absolute;
@@ -114,6 +118,7 @@
             color: var(--text-color);
             border-radius: 0;
             transition: background-color 0.2s;
+            font-size: 14px;
         }
 
         .dropdown-item:hover {
@@ -122,8 +127,8 @@
 
         .dropdown-icon {
             margin-right: 12px;
-            font-size: 20px;
-            width: 24px;
+            font-size: 18px;
+            width: 20px;
             text-align: center;
         }
 
@@ -137,121 +142,246 @@
             color: #EA4335;
         }
 
+        /* Стили для бонусов */
+        .bonus-container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
 
+        .bonus-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
 
+        .bonus-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--blue-accent);
+            border-radius: 2px 2px 0 0;
+        }
 
+        .bonus-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--blue-accent);
+            margin-bottom: 10px;
+        }
 
+        .bonus-description {
+            color: var(--text-color);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .bonus-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .bonus-amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: #34A853;
+        }
+
+        .bonus-button {
+            background: var(--blue-accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .bonus-button:hover {
+            opacity: 0.9;
+        }
+
+        .bonus-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+        }
+
+        .bonus-progress {
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--blue-accent);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        @media (max-width: 400px) {
+            .bonus-title {
+                font-size: 18px;
+            }
+
+            .bonus-amount {
+                font-size: 20px;
+            }
+
+            .bonus-button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Заголовок с кнопкой меню -->
     <div class="header">
-        <button class="back-button" onclick="goBack()">←</button>
-        <div class="page-title">Бонусы и акции</div>
+        <button class="back-button" onclick="history.back()">←</button>
+        <h1 class="page-title">Бонусы и акции</h1>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
             <div class="menu-line"></div>
             <div class="menu-line"></div>
         </button>
+
+        <!-- Выпадающее меню -->
+        <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" onclick="openPage('rules')">
+                <span class="dropdown-icon">📜</span>
+                Правила игры
+            </div>
+            <div class="dropdown-item" onclick="openPage('profile')">
+                <span class="dropdown-icon">👤</span>
+                Профиль и настройки
+            </div>
+            <div class="dropdown-item" onclick="openPage('bonus')">
+                <span class="dropdown-icon">🎁</span>
+                Бонусы и акции
+            </div>
+            <div class="dropdown-item" onclick="openPage('history')">
+                <span class="dropdown-icon">📊</span>
+                История транзакций
+            </div>
+            <div class="dropdown-item" onclick="openPage('invite')">
+                <span class="dropdown-icon">👥</span>
+                Пригласить друга
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item logout-item" onclick="logout()">
+                <span class="dropdown-icon">🚪</span>
+                Выйти
+            </div>
+        </div>
     </div>
 
-    <div class="dropdown-menu" id="dropdownMenu">
-        <div class="dropdown-item" onclick="openPage('rules.html')">
-            <span class="dropdown-icon">📜</span>
-            Правила игры
-        </div>
-        <div class="dropdown-item" onclick="openPage('profile.html')">
-            <span class="dropdown-icon">👤</span>
-            Профиль и настройки
+    <!-- Контент страницы -->
+    <div class="bonus-container">
+        <div class="bonus-card">
+            <div class="bonus-title">Приветственный бонус</div>
+            <div class="bonus-description">
+                Получите 100 рублей на игровой счет при первом пополнении баланса от 500 рублей.
+            </div>
+            <div class="bonus-info">
+                <div class="bonus-amount">100 ₽</div>
+                <button class="bonus-button" onclick="claimBonus('welcome')">Получить бонус</button>
+            </div>
         </div>
 
-        <div class="dropdown-item" onclick="openPage('history.html')">
-            <span class="dropdown-icon">📊</span>
-            История транзакций
+        <div class="bonus-card">
+            <div class="bonus-title">Бонус за активность</div>
+            <div class="bonus-description">
+                Играйте каждый день и получайте дополнительные бонусы. Чем больше дней подряд вы играете, тем больше бонус!
+            </div>
+            <div class="bonus-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 60%;"></div>
+                </div>
+                <div class="progress-text">3 дня подряд (осталось 2 дня до следующего бонуса)</div>
+            </div>
+            <div class="bonus-info">
+                <div class="bonus-amount">50 ₽</div>
+                <button class="bonus-button" disabled>Доступно через 2 дня</button>
+            </div>
         </div>
-        <div class="dropdown-item" onclick="openPage('invite.html')">
-            <span class="dropdown-icon">👥</span>
-            Пригласить друга
-        </div>
-        <div class="dropdown-divider"></div>
-        <div class="dropdown-item logout-item" onclick="logout()">
-            <span class="dropdown-icon">🚪</span>
-            Выйти
+
+        <div class="bonus-card">
+            <div class="bonus-title">Реферальная программа</div>
+            <div class="bonus-description">
+                Приглашайте друзей и получайте 100 рублей за каждого нового игрока, который зарегистрируется по вашей ссылке.
+            </div>
+            <div class="bonus-info">
+                <div class="bonus-amount">100 ₽</div>
+                <button class="bonus-button" onclick="openPage('invite')">Пригласить друзей</button>
+            </div>
         </div>
     </div>
-
-
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.expand();
-                Telegram.WebApp.enableClosingConfirmation();
-            }
-        });
-
-        function openInTelegram(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-        }
-
-        function openPage(page) {
-            if (window.Telegram?.WebApp?.openLink) {
-                Telegram.WebApp.openLink(page);
-            } else {
-                window.location.href = page;
-            }
-            document.getElementById('dropdownMenu').classList.remove('show');
-        }
-
-        function goBack() {
-            if (window.Telegram?.WebApp?.close) {
-                Telegram.WebApp.close();
-            } else {
-                window.history.back();
-            }
-        }
-
+        // Функция для переключения выпадающего меню
         function toggleDropdown() {
             const dropdown = document.getElementById('dropdownMenu');
             dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
         }
 
-        window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && !event.target.matches('.menu-line')) {
-                const dropdowns = document.getElementsByClassName("dropdown-menu");
-                for (let i = 0; i < dropdowns.length; i++) {
-                    const openDropdown = dropdowns[i];
-                    if (openDropdown.classList.contains('show')) {
-                        openDropdown.classList.remove('show');
-                    }
-                }
+        // Закрытие меню при клике вне его
+        window.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdownMenu');
+            const menuButton = document.querySelector('.menu-button');
+
+            if (!event.target.closest('.menu-button') && !event.target.closest('.dropdown-menu')) {
+                dropdown.classList.remove('show');
             }
+        });
+
+        // Функции для обработки кликов по пунктам меню
+        function openPage(page) {
+            TelegramUtils.openLink(page);
+            document.getElementById('dropdownMenu').classList.remove('show');
         }
 
-        function forceCloseWebApp() {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close(); // Пытаемся закрыть стандартным методом
-                
-                // Если через 0.3 сек WebApp еще открыт — редиректим в бота
-                setTimeout(() => {
-                    window.location.href = "tg://"; // Возврат в Telegram
-                }, 300);
-            } else {
-                alert("WebApp закрыта");
-                window.close();
-            }
-        }
         function logout() {
-            function logout() {
-            if (confirm('Вы уверены, что хотите выйти?')) {
-                forceCloseWebApp(); // или forceCloseWebApp()
-            }
-            }   
+            // Здесь будет ваша логика выхода
+            console.log('Выход из системы');
+            // Пример: Telegram.WebApp.close();
+
+            // Закрываем меню после выбора
+            document.getElementById('dropdownMenu').classList.remove('show');
         }
 
+        function claimBonus(type) {
+            // В реальном приложении здесь будет запрос к API
+            TelegramUtils.showAlert('Бонус успешно получен!');
+            TelegramUtils.hapticFeedback('medium');
+        }
     </script>
 </body>
 </html>

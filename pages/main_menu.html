@@ -321,7 +321,7 @@
                     const avatarContainer = document.getElementById('avatar-container');
                     const defaultAvatar = avatarContainer.querySelector('.default-avatar');
                     const userAvatar = document.getElementById('user-avatar');
-                    
+
                     if (user.photo_url) {
                         defaultAvatar.style.display = 'none';
                         userAvatar.src = user.photo_url;
@@ -359,8 +359,8 @@
 
         // Закрываем меню при клике вне его
         window.onclick = function(event) {
-            if (!event.target.matches('.menu-button') && 
-                !event.target.matches('.menu-line') && 
+            if (!event.target.matches('.menu-button') &&
+                !event.target.matches('.menu-line') &&
                 !event.target.closest('#dropdownMenu')) {
                 const dropdowns = document.getElementsByClassName("dropdown-menu");
                 for (let i = 0; i < dropdowns.length; i++) {
@@ -384,7 +384,7 @@
         window.addEventListener('popstate', function(event) {
             // Получаем текущий путь из URL
             const path = window.location.pathname.substring(1) || 'main_menu';
-            
+
             // Загружаем соответствующую страницу
             if (path !== window.location.pathname.substring(1)) {
                 TelegramUtils.openLink(path);
