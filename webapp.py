@@ -9,6 +9,11 @@ import hashlib
 import json
 from typing import Optional
 from config import settings
+from sqlalchemy.orm import Session
+from db import get_db
+from wallet import WalletManager
+from models import Player
+from urllib.parse import parse_qs, unquote
 
 app = FastAPI()
 security = HTTPBearer()
@@ -35,34 +40,57 @@ ALLOWED_PAGES = {
     "game": "pages/gameplay/index.html"
 }
 
-def verify_telegram_webapp_data(init_data: str) -> bool:
-    """Проверка подписи данных от Telegram WebApp"""
+def verify_telegram_data(init_data: str, bot_token: str) -> bool:
+    """Проверка подлинности данных от Telegram WebApp"""
     try:
-        # Разбираем initData
-        data_check_string = []
-        for key, value in sorted(init_data.items()):
-            if key != 'hash':
-                data_check_string.append(f"{key}={value}")
-        data_check_string = '\n'.join(data_check_string)
-
-        # Создаем секретный ключ
+        # Декодируем URL-encoded данные
+        decoded_data = unquote(init_data)
+        
+        # Разбираем строку init_data
+        # Используем parse_qs для корректной обработки параметров
+        data_dict = {}
+        parsed = parse_qs(decoded_data)
+        for key, values in parsed.items():
+            # Берем первое значение, так как parse_qs всегда возвращает список
+            data_dict[key] = values[0]
+        
+        if 'hash' not in data_dict:
+            print("No hash found in init_data")
+            return False
+            
+        # Извлекаем hash
+        hash_value = data_dict.pop('hash')
+        
+        # Формируем строку для проверки
+        data_check_string = '\n'.join(
+            f"{k}={v}" for k, v in sorted(data_dict.items())
+        )
+        
+        print(f"Data check string: {data_check_string}")
+        
+        # Создаем секретный ключ на основе bot_token
         secret_key = hmac.new(
-            "WebAppData".encode(),
-            settings.BOT_TOKEN.encode(),
-            hashlib.sha256
+            key=b'WebAppData',
+            msg=bot_token.encode(),
+            digestmod=hashlib.sha256
         ).digest()
-
-        # Вычисляем хеш
-        data_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
+        
+        # Вычисляем hash
+        calculated_hash = hmac.new(
+            key=secret_key,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
         ).hexdigest()
-
-        # Сравниваем хеши
-        return data_hash == init_data.get('hash', '')
+        
+        print(f"Calculated hash: {calculated_hash}")
+        print(f"Received hash: {hash_value}")
+        
+        # Сравниваем полученный hash с переданным
+        return calculated_hash == hash_value
     except Exception as e:
-        print(f"Error verifying Telegram WebApp data: {e}")
+        print(f"Error verifying Telegram data: {e}")
+        import traceback
+        print(traceback.format_exc())
         return False
 
 async def verify_telegram_request(request: Request) -> bool:
@@ -74,7 +102,7 @@ async def verify_telegram_request(request: Request) -> bool:
             return False
 
         # Проверяем подпись
-        return verify_telegram_webapp_data(json.loads(init_data))
+        return verify_telegram_data(init_data, settings.BOT_TOKEN)
     except Exception as e:
         print(f"Error verifying Telegram request: {e}")
         return False
@@ -143,7 +171,7 @@ async def validate_init_data(request: Request):
                 content={"valid": False, "error": "No initData provided"}
             )
 
-        is_valid = verify_telegram_webapp_data(init_data)
+        is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
         return JSONResponse(
             status_code=200,
             content={"valid": is_valid}
@@ -175,6 +203,64 @@ async def server_error_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error"}
     )
+
+@app.get("/api/wallet/balance")
+async def get_wallet_balance(
+    telegram_id: int,
+    init_data: str,
+    db: Session = Depends(get_db)
+):
+    """Получить баланс кошелька пользователя"""
+    # Проверка подлинности данных
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    wallet = WalletManager(db)
+    balance = await wallet.get_balance(telegram_id)
+    
+    if balance is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"balance": balance}
+
+@app.get("/api/wallet/transactions")
+async def get_wallet_transactions(
+    telegram_id: int,
+    init_data: str,
+    limit: Optional[int] = 10,
+    db: Session = Depends(get_db)
+):
+    """Получить историю транзакций пользователя"""
+    # Проверка подлинности данных
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    wallet = WalletManager(db)
+    transactions = await wallet.get_transaction_history(telegram_id, limit)
+    
+    return {"transactions": transactions}
+
+@app.post("/api/wallet/update")
+async def update_wallet_balance(
+    telegram_id: int,
+    amount: int,
+    action: str,
+    game_id: Optional[str] = None,
+    init_data: str = None,
+    db: Session = Depends(get_db)
+):
+    """Обновить баланс кошелька пользователя"""
+    # Проверка подлинности данных
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    wallet = WalletManager(db)
+    success, message = await wallet.update_balance(telegram_id, amount, action, game_id)
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    
+    return {"message": message}
 
 if __name__ == "__main__":
     import uvicorn
