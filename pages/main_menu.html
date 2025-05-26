@@ -258,7 +258,7 @@
                 <div class="default-avatar">👤</div>
                 <img class="avatar" id="user-avatar" style="display: none;">
             </div>
-            <div class="balance">900.00 ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span></div>
+            <div class="balance">0.00 ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span></div>
         </div>
         <button class="menu-button" onclick="toggleDropdown()">
             <div class="menu-line"></div>
@@ -301,38 +301,130 @@
     </div>
 
     <div class="button-container">
-        <button class="image-button" onclick="openPage('index')"></button>
+        <button class="image-button" onclick="openPage('game')"></button>
         <div class="button-label">Сека</div>
     </div>
 
     <script>
+        // Функция для безопасного получения текста ошибки
+        function getErrorMessage(error) {
+            if (typeof error === 'string') return error;
+            if (error instanceof Error) return error.message;
+            if (typeof error === 'object') {
+                try {
+                    // Более детальная инспекция объекта
+                    if (error === null) return 'null';
+                    
+                    // Собираем все свойства объекта
+                    const properties = [];
+                    for (const key in error) {
+                        try {
+                            const value = error[key];
+                            properties.push(`${key}: ${
+                                typeof value === 'object' 
+                                    ? JSON.stringify(value) 
+                                    : String(value)
+                            }`);
+                        } catch (e) {
+                            properties.push(`${key}: [Ошибка чтения: ${e.message}]`);
+                        }
+                    }
+                    
+                    if (properties.length === 0) {
+                        return '[Пустой объект]';
+                    }
+                    
+                    return `{ ${properties.join(', ')} }`;
+                } catch (e) {
+                    return `[Ошибка сериализации: ${e.message}]`;
+                }
+            }
+            return `[Неизвестный тип: ${typeof error}]`;
+        }
+
         // Ждем загрузки всех скриптов
         window.addEventListener('load', async function() {
             try {
-                // Инициализируем Telegram WebApp
-                if (!TelegramUtils.init()) {
-                    console.error('Failed to initialize Telegram WebApp');
+                // Проверяем доступность Telegram WebApp
+                if (!window.Telegram?.WebApp) {
+                    TelegramUtils.showAlert('Ошибка: WebApp не инициализирован');
                     return;
                 }
 
-                // Получаем данные пользователя
-                const user = TelegramUtils.getUser();
-                if (user) {
-                    const avatarContainer = document.getElementById('avatar-container');
-                    const defaultAvatar = avatarContainer.querySelector('.default-avatar');
-                    const userAvatar = document.getElementById('user-avatar');
+                // Инициализируем Telegram WebApp
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
 
-                    if (user.photo_url) {
-                        defaultAvatar.style.display = 'none';
-                        userAvatar.src = user.photo_url;
-                        userAvatar.style.display = 'block';
-                    } else {
-                        defaultAvatar.textContent = user.first_name.charAt(0);
+                // Получаем данные пользователя из WebApp
+                const webAppUser = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (!webAppUser || !webAppUser.id) {
+                    TelegramUtils.showAlert('Ошибка: нет данных пользователя');
+                    return;
+                }
+
+                // Настраиваем аватар
+                const avatarContainer = document.getElementById('avatar-container');
+                const defaultAvatar = avatarContainer.querySelector('.default-avatar');
+                const userAvatar = document.getElementById('user-avatar');
+
+                if (webAppUser.photo_url) {
+                    defaultAvatar.style.display = 'none';
+                    userAvatar.src = webAppUser.photo_url;
+                    userAvatar.style.display = 'block';
+                } else {
+                    defaultAvatar.textContent = webAppUser.first_name.charAt(0);
+                }
+
+                // Получаем баланс
+                const balanceElement = document.querySelector('.balance');
+                if (balanceElement) {
+                    try {
+                        // Получаем все данные из WebApp
+                        const webAppData = {
+                            query_id: window.Telegram.WebApp.initData || '',
+                            user: webAppUser,
+                            auth_date: window.Telegram.WebApp.initDataUnsafe?.auth_date,
+                            hash: window.Telegram.WebApp.initDataUnsafe?.hash
+                        };
+
+                        // Формируем URL с параметрами
+                        const url = new URL('/api/wallet/balance', window.location.origin);
+                        url.searchParams.set('telegram_id', webAppUser.id);
+                        url.searchParams.set('init_data', window.Telegram.WebApp.initData);
+
+                        // Отправляем запрос с данными в headers
+                        const response = await fetch(url.toString(), {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Telegram-Init-Data': window.Telegram.WebApp.initData,
+                                'X-Telegram-Auth': JSON.stringify(webAppData)
+                            }
+                        });
+
+                        // Получаем и обрабатываем ответ
+                        const data = await response.json();
+
+                        // Проверяем статус ответа
+                        if (!response.ok) {
+                            throw new Error(data.detail || 'Ошибка сервера');
+                        }
+
+                        // Проверяем данные баланса
+                        if (typeof data.balance === 'undefined') {
+                            throw new Error('Нет данных о балансе в ответе');
+                        }
+
+                        // Обновляем отображение баланса
+                        balanceElement.innerHTML = `${Number(data.balance).toFixed(2)} ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span>`;
+                    } catch (error) {
+                        balanceElement.innerHTML = `0.00 ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span>`;
+                        TelegramUtils.showAlert('Ошибка при получении баланса');
                     }
                 }
             } catch (error) {
-                console.error('Error in initialization:', error);
-                TelegramUtils.showAlert('Ошибка инициализации приложения: ' + error.message);
+                const errorMessage = getErrorMessage(error);
+                TelegramUtils.showAlert(`Ошибка инициализации: ${errorMessage}`);
             }
         });
 
@@ -373,9 +465,7 @@
         };
 
         function logout() {
-
-                    TelegramUtils.closeWebApp();
-
+            TelegramUtils.closeWebApp();
         }
 
         // Обработка навигации браузера

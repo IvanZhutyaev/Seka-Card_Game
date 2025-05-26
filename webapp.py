@@ -113,9 +113,11 @@ async def verify_telegram_middleware(request: Request, call_next):
     # Пропускаем проверку для всех статических файлов и ресурсов
     if any([
         request.url.path.startswith("/static/"),
-        request.url.path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".tsx")),
-        "/gameplay/static/" in request.url.path,
-        "/gameplay/public/" in request.url.path
+        request.url.path.startswith("/gameplay/"),  # Разрешаем все файлы из gameplay
+        request.url.path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".tsx", ".json", ".woff", ".woff2", ".ttf")),
+        "static" in request.url.path,
+        "public" in request.url.path,
+        "assets" in request.url.path
     ]):
         return await call_next(request)
 
@@ -184,8 +186,11 @@ async def validate_init_data(request: Request):
 
 # Монтируем статические файлы
 app.mount("/static", StaticFiles(directory="pages/static"), name="static")
+app.mount("/gameplay", StaticFiles(directory="pages/gameplay"), name="gameplay")  # Монтируем всю директорию gameplay
 app.mount("/gameplay/static", StaticFiles(directory="pages/gameplay/static"), name="gameplay_static")
 app.mount("/gameplay/public", StaticFiles(directory="pages/gameplay/public"), name="gameplay_public")
+app.mount("/gameplay/components", StaticFiles(directory="pages/gameplay/components"), name="gameplay_components")
+app.mount("/gameplay/store", StaticFiles(directory="pages/gameplay/store"), name="gameplay_store")
 
 # Добавляем обработчик ошибок
 @app.exception_handler(404)

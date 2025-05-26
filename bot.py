@@ -29,7 +29,7 @@ async def get_or_create_player(db: Session, user: dict) -> Player:
             last_name=user.last_name,
             username=user.username,
             photo_url=user.photo_url if hasattr(user, 'photo_url') else None,
-            balance=1000  # Начальный баланс
+            balance=0  # Начальный баланс
         )
         db.add(player)
         db.commit()
