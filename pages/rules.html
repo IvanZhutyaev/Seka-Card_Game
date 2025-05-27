@@ -26,8 +26,7 @@
         // Функция для навигации назад
         function navigateBack() {
             TelegramUtils.hapticFeedback('light');
-            // Используем MainButton для возврата в главное меню
-            Telegram.WebApp.close();
+            TelegramUtils.openLink('main_menu');
         }
 
         // При загрузке страницы сохраняем текущую страницу в историю

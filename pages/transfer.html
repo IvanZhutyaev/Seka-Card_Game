@@ -449,7 +449,8 @@
         }
 
         function goBack() {
-            TelegramUtils.closeWebApp();
+            TelegramUtils.hapticFeedback('light');
+            TelegramUtils.openLink('main_menu');
         }
 
         function logout() {

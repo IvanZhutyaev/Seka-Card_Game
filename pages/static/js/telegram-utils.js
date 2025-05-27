@@ -35,11 +35,7 @@ const TelegramUtils = {
 
                 // Обработчик кнопки "назад"
                 this.webApp.BackButton.onClick(() => {
-                    if (this.previousPage) {
-                        this.openLink(this.previousPage);
-                    } else {
-                        this.openLink('main_menu');
-                    }
+                    this.openLink('main_menu');
                 });
 
                 // Скрываем MainButton если она есть

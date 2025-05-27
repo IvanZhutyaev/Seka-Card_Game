@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Пополнение баланса</title>
+    <!-- Telegram WebApp script -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Our utility scripts -->
+    <script src="/static/js/telegram-utils.js"></script>
+    <script src="/static/js/telegram-init.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/common.js"></script>
+    <script>
+        // Инициализация кнопки "назад" при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            // Включаем кнопку "назад" в интерфейсе Telegram
+            Telegram.WebApp.BackButton.show();
+            // Обработчик нажатия кнопки "назад"
+            Telegram.WebApp.BackButton.onClick(() => {
+                TelegramUtils.hapticFeedback('light');
+                navigateBack();
+            });
+        });
+
+        // Функция для навигации назад
+        function navigateBack() {
+            TelegramUtils.hapticFeedback('light');
+            TelegramUtils.openLink('main_menu');
+        }
+    </script>
+    <style>
+        :root {
+            --bg-color: #0a1a2a;
+            --text-color: #e0e0e0;
+            --blue-accent: #4285F4;
+            --white: #ffffff;
+            --menu-btn: rgba(66, 133, 244, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            transition: all 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: url(static/background.png);
+            color: var(--text-color);
+            padding: 16px;
+            max-width: 100%;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Стили для меню */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            width: 100%;
+            position: relative;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .menu-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .menu-line {
+            width: 24px;
+            height: 3px;
+            background-color: white;
+            border-radius: 2px;
+        }
+
+        .page-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        /* Выпадающее меню */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 16px;
+            top: 60px;
+            background-color: #0f2233;
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 220px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text-color);
+            border-radius: 0;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(66, 133, 244, 0.2);
+        }
+
+        .dropdown-icon {
+            margin-right: 12px;
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 8px 0;
+        }
+
+        .logout-item {
+            color: #EA4335;
+        }
+
+        /* Стили для страницы пополнения */
+        .deposit-container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .deposit-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .deposit-title {
+            font-size: 24px;
+            color: var(--blue-accent);
+            margin-bottom: 15px;
+        }
+
+        .deposit-description {
+            color: var(--text-color);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .amount-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            width: 100%;
+            color: var(--text-color);
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: var(--blue-accent);
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .payment-method {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .payment-method:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .payment-method.active {
+            border-color: var(--blue-accent);
+            background: rgba(66, 133, 244, 0.1);
+        }
+
+        .payment-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .payment-name {
+            font-size: 14px;
+            color: var(--text-color);
+        }
+
+        .deposit-button {
+            background: var(--blue-accent);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .deposit-button:hover {
+            opacity: 0.9;
+        }
+
+        .deposit-button:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 400px) {
+            .deposit-title {
+                font-size: 20px;
+            }
+
+            .payment-methods {
+                grid-template-columns: 1fr;
+            }
+
+            .deposit-button {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Заголовок с кнопкой меню -->
+    <div class="header">
+        <button class="back-button" onclick="navigateBack()">←</button>
+        <h1 class="page-title">Пополнение баланса</h1>
+        <button class="menu-button" onclick="toggleDropdown()">
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+            <div class="menu-line"></div>
+        </button>
+
+        <!-- Выпадающее меню -->
+        <div class="dropdown-menu" id="dropdownMenu">
+            <div class="dropdown-item" onclick="openPage('rules')">
+                <span class="dropdown-icon">📜</span>
+                Правила игры
+            </div>
+            <div class="dropdown-item" onclick="openPage('profile')">
+                <span class="dropdown-icon">👤</span>
+                Профиль и настройки
+            </div>
+            <div class="dropdown-item" onclick="openPage('bonus')">
+                <span class="dropdown-icon">🎁</span>
+                Бонусы и акции
+            </div>
+            <div class="dropdown-item" onclick="openPage('history')">
+                <span class="dropdown-icon">📊</span>
+                История транзакций
+            </div>
+            <div class="dropdown-item" onclick="openPage('invite')">
+                <span class="dropdown-icon">👥</span>
+                Пригласить друга
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item logout-item" onclick="logout()">
+                <span class="dropdown-icon">🚪</span>
+                Выйти
+            </div>
+        </div>
+    </div>
+
+    <!-- Контент страницы -->
+    <div class="deposit-container">
+        <div class="deposit-section">
+            <h2 class="deposit-title">Пополнение баланса</h2>
+            <p class="deposit-description">
+                Выберите удобный способ пополнения и введите сумму
+            </p>
+
+            <input type="number" class="amount-input" placeholder="Введите сумму" min="100" step="100">
+
+            <div class="payment-methods">
+                <div class="payment-method active">
+                    <div class="payment-icon">💳</div>
+                    <div class="payment-name">Банковская карта</div>
+                </div>
+                <div class="payment-method">
+                    <div class="payment-icon">📱</div>
+                    <div class="payment-name">Мобильный платеж</div>
+                </div>
+                <div class="payment-method">
+                    <div class="payment-icon">🏦</div>
+                    <div class="payment-name">Банковский перевод</div>
+                </div>
+                <div class="payment-method">
+                    <div class="payment-icon">💎</div>
+                    <div class="payment-name">Криптовалюта</div>
+                </div>
+            </div>
+
+            <button class="deposit-button" onclick="processDeposit()">Пополнить</button>
+        </div>
+    </div>
+
+    <script>
+        // Функция для переключения выпадающего меню
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+            TelegramUtils.hapticFeedback('light');
+        }
+
+        // Закрытие меню при клике вне его
+        window.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('dropdownMenu');
+            const menuButton = document.querySelector('.menu-button');
+
+            if (!event.target.closest('.menu-button') && !event.target.closest('.dropdown-menu')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Функции для обработки кликов по пунктам меню
+        function openPage(page) {
+            TelegramUtils.openLink(page);
+            document.getElementById('dropdownMenu').classList.remove('show');
+        }
+
+        function logout() {
+            TelegramUtils.closeWebApp();
+        }
+
+        // Обработчики для методов оплаты
+        document.querySelectorAll('.payment-method').forEach(method => {
+            method.addEventListener('click', () => {
+                // Убираем активный класс у всех методов
+                document.querySelectorAll('.payment-method').forEach(m => {
+                    m.classList.remove('active');
+                });
+                // Добавляем активный класс выбранному методу
+                method.classList.add('active');
+                TelegramUtils.hapticFeedback('light');
+            });
+        });
+
+        function processDeposit() {
+            const amount = document.querySelector('.amount-input').value;
+            if (!amount || amount < 100) {
+                TelegramUtils.showAlert('Введите сумму не менее 100 рублей');
+                return;
+            }
+            
+            const selectedMethod = document.querySelector('.payment-method.active .payment-name').textContent;
+            TelegramUtils.showAlert(`Выбран способ оплаты: ${selectedMethod}\nСумма: ${amount} рублей`);
+            TelegramUtils.hapticFeedback('medium');
+        }
+    </script>
+</body>
+</html>
