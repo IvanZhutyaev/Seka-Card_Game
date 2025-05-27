@@ -95,3 +95,37 @@ setup_logging()
 
 # Создаем логгер для этого модуля
 logger = logging.getLogger(__name__)
+
+# Redis конфигурация
+REDIS_CONFIG = {
+    'host': os.getenv('REDIS_HOST', 'localhost'),
+    'port': int(os.getenv('REDIS_PORT', 6379)),
+    'db': 0,
+    'decode_responses': True
+}
+
+# Настройки игры
+GAME_CONFIG = {
+    'min_players': 6,
+    'max_players': 6,
+    'min_bet': 100,
+    'max_bet': 2000,
+    'initial_balance': 1000,
+    'game_timeout': 300,  # 5 минут на игру
+    'player_timeout': 30,  # 30 секунд на ход
+}
+
+# Настройки сервера
+SERVER_CONFIG = {
+    'host': os.getenv('SERVER_HOST', '0.0.0.0'),
+    'port': int(os.getenv('SERVER_PORT', 8080)),
+    'workers': int(os.getenv('WORKERS', 4)),
+    'max_connections': int(os.getenv('MAX_CONNECTIONS', 1000)),
+}
+
+# Настройки логирования
+LOGGING_CONFIG = {
+    'level': os.getenv('LOG_LEVEL', 'INFO'),
+    'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    'file': os.getenv('LOG_FILE', 'game.log'),
+}

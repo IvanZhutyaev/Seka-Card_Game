@@ -1,130 +1,186 @@
-# СЕКА - Карточная игра в Telegram
+# Seka Card Game
+
+Онлайн-версия карточной игры "Секка" с поддержкой Telegram WebApp.
 
 ## Описание
-СЕКА - это карточная игра, реализованная как Telegram Mini App. Игра позволяет пользователям играть в карты прямо в Telegram, используя WebSocket для реального времени взаимодействия.
 
-## Правила игры
-
-### Общие правила
-- Игра ведется колодой из 21 карты (4 туза, 4 короля, 4 дамы, 4 валета, 4 десятки, 1 девятка треф)
-- Участвуют от 2 до 10 игроков
-- Каждому игроку раздается по 3 карты
-- Цель игры - набрать наибольшее количество очков
-- Девятка треф всегда является джокером
-
-### Значения карт
-- Туз = 11 очков
-- Валет, Дама, Король, Десятка = 10 очков
-- Девятка треф = джокер (может быть любой картой по желанию игрока)
-
-### Подсчет очков
-- Очки считаются только при одинаковых мастях
-- Примеры комбинаций:
-  - Туз пик + Король пик = 21 очко
-  - Два туза ("Два Лба") = 22 очка
-  - Валет + Дама + Туз одной масти = 31 очко
-  - Дама пик + Туз пик + Джокер (девятка треф) = 32 очка
-  - Три одинаковые карты (от десяток до тузов)
-  - Три десятки - самая старшая комбинация (старше трех тузов!)
-
-### Ход игры
-1. **Определение дилера** - выбирается раздающий
-2. **Начальные ставки** - все игроки делают равные ставки
-3. **Раздача карт** - каждому игроку раздается по 3 карты
-4. **Торги** - игроки по очереди делают ставки или пасуют
-5. **Вскрытие карт** - подсчет очков и определение победителя
-
-### Особые правила
-- При равных очках у игроков есть два варианта:
-  1. **Поделить банк** - разделить выигрыш поровну
-  2. **Свара** - оставить деньги в банке и играть следующую игру только между победителями
-- Для участия в "Сваре" проигравшие должны внести половину банка
-- "Свара" играется только при согласии всех победителей
-- При "Сваре" все игроки могут присоединиться, внеся равную долю от банка
-
-### Ставки
-- Минимальная ставка: 100
-- Максимальная ставка: 2000
-- Игрок может:
-  - Сделать ставку
-  - Уравнять ставку
-  - Пасовать (сбросить карты)
+Это веб-приложение, реализующее карточную игру "Секка" с возможностью игры через Telegram. Игра поддерживает до 6 игроков, систему ставок и чат между игроками.
 
 ## Технологии
-- Frontend: React + TypeScript
-- Backend: Python + FastAPI
-- WebSocket для реального времени
-- Telegram Mini App API
 
-## Установка и запуск
+- Backend: Python 3.9+, FastAPI
+- Frontend: React, TypeScript
+- База данных: Redis (master-slave)
+- WebSocket для real-time коммуникации
+- Telegram Bot API
+- Docker для контейнеризации
 
-### Frontend
+## Требования
+
+- Python 3.9+
+- Redis (master-slave)
+- Node.js 14+
+- Docker (опционально)
+- Ngrok (для тестирования)
+
+## Установка
+
+1. Клонируйте репозиторий:
 ```bash
-# Установка зависимостей
-npm install
-
-# Запуск в режиме разработки
-npm run dev
-
-# Сборка для продакшена
-npm run build
+git clone https://github.com/yourusername/seka-card-game.git
+cd seka-card-game
 ```
 
-### Backend
+2. Установите зависимости Python:
 ```bash
-# Установка зависимостей
 pip install -r requirements.txt
+```
 
-# Запуск сервера
-uvicorn main:app --reload
+3. Установите зависимости Node.js:
+```bash
+cd pages
+npm install
+```
+
+4. Создайте файл конфигурации:
+```bash
+cp config.example.py config.py
+```
+
+5. Настройте переменные окружения:
+```bash
+# Windows
+set TELEGRAM_BOT_TOKEN=your_bot_token
+set REDIS_HOST=localhost
+set REDIS_PORT=6379
+set REDIS_SLAVE_HOST=localhost
+set REDIS_SLAVE_PORT=6380
+set SERVER_HOST=0.0.0.0
+set SERVER_PORT=8080
+set WORKERS=4
+
+# Linux/Mac
+export TELEGRAM_BOT_TOKEN=your_bot_token
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export REDIS_SLAVE_HOST=localhost
+export REDIS_SLAVE_PORT=6380
+export SERVER_HOST=0.0.0.0
+export SERVER_PORT=8080
+export WORKERS=4
+```
+
+## Запуск
+
+### 1. Запуск Redis (Master-Slave)
+
+#### Через Docker:
+```bash
+# Запуск Redis Master
+docker run --name redis-master -p 6379:6379 -d redis
+
+# Запуск Redis Slave
+docker run --name redis-slave -p 6380:6379 -d redis redis-server --slaveof redis-master 6379
+```
+
+#### Через Redis CLI:
+```bash
+# На slave сервере
+redis-cli -p 6380
+> SLAVEOF localhost 6379
+```
+
+### 2. Запуск FastAPI сервера
+
+```bash
+python server.py
+```
+
+### 3. Запуск через Ngrok (для тестирования)
+
+1. Установите Ngrok:
+```bash
+# Через npm
+npm install -g ngrok
+
+# Или скачайте с https://ngrok.com/download
+```
+
+2. Запустите Ngrok:
+```bash
+ngrok http 8080
+```
+
+3. Получите URL (например, https://xxxx-xx-xx-xxx-xx.ngrok.io)
+
+4. Обновите URL в настройках Telegram бота:
+   - Откройте @BotFather
+   - Выберите вашего бота
+   - Выберите "Edit Bot" -> "Edit Web App"
+   - Установите URL: https://xxxx-xx-xx-xxx-xx.ngrok.io/pages/gameplay/index.html
+
+### 4. Проверка работы
+
+1. Проверьте Redis:
+```bash
+# Проверка master
+redis-cli -p 6379
+> INFO replication
+
+# Проверка slave
+redis-cli -p 6380
+> INFO replication
+```
+
+2. Проверьте сервер:
+```bash
+# Откройте в браузере
+http://localhost:8080/pages/gameplay/index.html
+```
+
+3. Проверьте Ngrok:
+```bash
+# Откройте в браузере
+https://xxxx-xx-xx-xxx-xx.ngrok.io/pages/gameplay/index.html
 ```
 
 ## Структура проекта
 
-### Frontend
-- `pages/gameplay/` - основные компоненты игры
-  - `components/` - UI компоненты
-  - `store/` - управление состоянием
-  - `types/` - TypeScript типы
+```
+seka-card-game/
+├── game/                  # Игровая логика
+│   ├── engine.py         # Основной движок игры
+│   └── models.py         # Модели данных
+├── pages/                # Frontend
+│   ├── gameplay/        # Игровой интерфейс
+│   └── components/      # React компоненты
+├── static/              # Статические файлы
+├── config.py            # Конфигурация
+├── requirements.txt     # Python зависимости
+├── server.py           # FastAPI сервер
+└── README.md           # Документация
+```
 
-### Backend
-- `main.py` - основной файл сервера
-- `game.py` - игровая логика
-- `websocket.py` - WebSocket обработчики
+## Масштабирование
 
-## API
-
-### WebSocket события
-
-#### Клиент -> Сервер
-- `init` - инициализация игрока
-- `game_action` - игровое действие (ставка, пас, чек)
-- `exit_game` - выход из игры
-
-#### Сервер -> Клиент
-- `game_state` - обновление состояния игры
-- `player_joined` - новый игрок присоединился
-- `player_left` - игрок покинул игру
-- `error` - ошибка
+Проект готов к большим нагрузкам благодаря:
+- Redis master-slave для отказоустойчивости
+- Асинхронной обработке запросов
+- WebSocket для real-time коммуникации
+- Контейнеризации через Docker
 
 ## Безопасность
-- Валидация всех действий на сервере
-- Проверка подлинности данных Telegram
-- Защита от читеров
-- Rate limiting для WebSocket соединений
 
-## Оптимизация
-- Кэширование данных на клиенте
-- Оптимизация WebSocket сообщений
-- Предзагрузка ресурсов
-- Минимизация перерисовок
+- Проверка подлинности данных от Telegram
+- Защита WebSocket соединений
+- Безопасное хранение состояний в Redis
+- CORS настройки
 
 ## Лицензия
+
 MIT
 
-## Контакты
+## Автор
 
-- Авторы: Жутяев Иван, Ломовской Артём
-- Email: ivan.zhutyaev@mail.ru
-- Проект: [https://github.com/IvanZhutyaev/seka-card-game](https://github.com/IvanZhutyaev/seka-card-game)
+Ваше имя
 

@@ -59,7 +59,7 @@ class GameState:
     
     def add_player(self, player_id: str) -> bool:
         """Добавление игрока в игру"""
-        if len(self.players) >= 2:
+        if len(self.players) >= 6:  # Изменено с 2 на 6
             return False
         self.players[player_id] = []
         if len(self.players) == 1:
@@ -68,7 +68,7 @@ class GameState:
     
     def deal_cards(self):
         """Раздача карт игрокам"""
-        if len(self.players) != 2:
+        if len(self.players) != 6:  # Изменено с 2 на 6
             return False
         
         # Раздаем по 3 карты каждому игроку
@@ -89,10 +89,14 @@ class GameState:
         self.bank += amount
         self.current_bet = amount
         
-        # Передаем ход другому игроку
-        other_player = next(pid for pid in self.players if pid != player_id)
-        if other_player not in self.folded_players:
-            self.current_turn = other_player
+        # Находим следующего активного игрока
+        active_players = [pid for pid in self.players if pid not in self.folded_players]
+        if not active_players:
+            return True
+            
+        current_index = active_players.index(player_id)
+        next_index = (current_index + 1) % len(active_players)
+        self.current_turn = active_players[next_index]
         
         return True
     
@@ -107,6 +111,13 @@ class GameState:
         active_players = [pid for pid in self.players if pid not in self.folded_players]
         if len(active_players) == 1:
             self.current_turn = active_players[0]
+            return True
+            
+        # Если текущий ход был у сбросившего карты, передаем ход следующему
+        if self.current_turn == player_id:
+            current_index = active_players.index(player_id)
+            next_index = (current_index + 1) % len(active_players)
+            self.current_turn = active_players[next_index]
         
         return True
     
@@ -166,4 +177,23 @@ class GameState:
             "current_bet": self.current_bet,
             "current_turn": self.current_turn,
             "folded_players": list(self.folded_players)
-        } 
+        }
+
+    def from_dict(self, data: dict):
+        """Восстановление состояния игры из словаря"""
+        self.players = {}
+        for pid, cards_data in data["players"].items():
+            self.players[pid] = [
+                Card(
+                    rank=Rank(card["rank"]),
+                    suit=Suit(card["suit"]),
+                    is_joker=card.get("is_joker", False)
+                )
+                for card in cards_data
+            ]
+        
+        self.bank = data["bank"]
+        self.current_bet = data["current_bet"]
+        self.current_turn = data["current_turn"]
+        self.folded_players = set(data["folded_players"])
+        self.deck = []  # Колода не сохраняется, так как она не нужна после раздачи 

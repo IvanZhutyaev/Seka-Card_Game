@@ -65,11 +65,11 @@ class MatchMaker:
             valid_players.append(player["id"])
             
             # Если набралось достаточно игроков
-            if len(valid_players) >= 2:
+            if len(valid_players) >= 6:
                 # Удаляем игроков из очереди
-                for p in players_data[:2]:
+                for p in players_data[:6]:
                     await self.redis.zrem(self.queue_key, p)
-                return valid_players[:2]
+                return valid_players[:6]
         
         return None
     

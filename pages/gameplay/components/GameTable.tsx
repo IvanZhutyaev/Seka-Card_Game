@@ -92,13 +92,36 @@ const GameTable: React.FC = () => {
                 <div className="table-logo">СЕКА</div>
                 <div className="bank">Банк: {gameState.bank}</div>
                 
-                {/* Рендерим игроков */}
-                {Object.entries(gameState.players).map(([playerId, player]) => (
-                    <div key={playerId} className="player-container">
-                        {player.user && <Avatar user={player.user} size="medium" />}
-                        <PlayerHand playerId={playerId} />
+                {/* Рендерим игроков в правильном порядке */}
+                <div className="players-grid">
+                    {/* Верхний ряд (3 игрока) */}
+                    <div className="top-players">
+                        {Object.entries(gameState.players).slice(0, 3).map(([playerId, player]) => (
+                            <div key={playerId} className="player-container">
+                                {player.user && <Avatar user={player.user} size="medium" />}
+                                <PlayerHand playerId={playerId} />
+                            </div>
+                        ))}
                     </div>
-                ))}
+                    
+                    {/* Центральная область с банком */}
+                    <div className="table-center">
+                        <div className="bank-info">
+                            <span>Банк: {gameState.bank}</span>
+                            <span>Текущая ставка: {gameState.currentBet}</span>
+                        </div>
+                    </div>
+                    
+                    {/* Нижний ряд (3 игрока) */}
+                    <div className="bottom-players">
+                        {Object.entries(gameState.players).slice(3, 6).map(([playerId, player]) => (
+                            <div key={playerId} className="player-container">
+                                {player.user && <Avatar user={player.user} size="medium" />}
+                                <PlayerHand playerId={playerId} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
                 
                 {/* Панель управления */}
                 <div className="controls-panel">

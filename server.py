@@ -3,12 +3,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from game.engine import GameState
-from typing import Dict, Set
+from typing import Dict, Set, Optional
 import hashlib
 import hmac
 import json
 import os
 from datetime import datetime
+import redis
+import time
+from config import REDIS_CONFIG
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -34,11 +37,56 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "your_bot_token_here")
 MIN_BET = 100
 MAX_BET = 2000
 
-# Хранилище активных игр и соединений
-active_games: Dict[str, GameState] = {}
-active_connections: Dict[str, WebSocket] = {}
-waiting_players: Set[str] = set()
-player_balances: Dict[str, int] = {}
+# Инициализация Redis
+redis_master = redis.Redis(**REDIS_CONFIG['master'])
+redis_slave = redis.Redis(**REDIS_CONFIG['slave'])
+
+class GameStateManager:
+    def __init__(self, redis_master, redis_slave):
+        self.redis_master = redis_master
+        self.redis_slave = redis_slave
+        self.games_key = "active_games"
+        self.players_key = "player_balances"
+        self.waiting_key = "waiting_players"
+    
+    async def save_game(self, game_id: str, game_state: GameState):
+        """Сохранение состояния игры в Redis master"""
+        game_data = game_state.to_dict()
+        await self.redis_master.hset(self.games_key, game_id, json.dumps(game_data))
+    
+    async def get_game(self, game_id: str) -> Optional[GameState]:
+        """Получение состояния игры из Redis slave"""
+        game_data = await self.redis_slave.hget(self.games_key, game_id)
+        if game_data:
+            data = json.loads(game_data)
+            game = GameState()
+            game.from_dict(data)
+            return game
+        return None
+    
+    async def save_player_balance(self, player_id: str, balance: int):
+        """Сохранение баланса игрока в Redis master"""
+        await self.redis_master.hset(self.players_key, player_id, str(balance))
+    
+    async def get_player_balance(self, player_id: str) -> int:
+        """Получение баланса игрока из Redis slave"""
+        balance = await self.redis_slave.hget(self.players_key, player_id)
+        return int(balance) if balance else 1000  # Начальный баланс
+    
+    async def add_waiting_player(self, player_id: str):
+        """Добавление игрока в очередь ожидания в Redis master"""
+        await self.redis_master.sadd(self.waiting_key, player_id)
+    
+    async def remove_waiting_player(self, player_id: str):
+        """Удаление игрока из очереди ожидания в Redis master"""
+        await self.redis_master.srem(self.waiting_key, player_id)
+    
+    async def get_waiting_players(self) -> Set[str]:
+        """Получение списка ожидающих игроков из Redis slave"""
+        return set(await self.redis_slave.smembers(self.waiting_key))
+
+# Инициализация менеджера состояний
+game_manager = GameStateManager(redis_master, redis_slave)
 
 def verify_telegram_data(init_data: str, hash: str) -> bool:
     """Проверка подлинности данных от Telegram"""
@@ -115,7 +163,8 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
     
     if message_type == "find_game":
         # Проверяем баланс игрока
-        if player_balances[player_id] < MIN_BET:
+        balance = await game_manager.get_player_balance(player_id)
+        if balance < MIN_BET:
             await manager.send_personal_message({
                 "type": "error",
                 "message": "Недостаточно средств для игры"
@@ -123,30 +172,31 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
             return
             
         # Добавляем игрока в очередь
-        waiting_players.add(player_id)
+        await game_manager.add_waiting_player(player_id)
         
         # Если есть достаточно игроков, создаем игру
-        if len(waiting_players) >= 2:
-            game_id = f"game_{len(active_games)}"
+        waiting_players = await game_manager.get_waiting_players()
+        if len(waiting_players) >= 6:
+            game_id = f"game_{int(time.time())}"
             game = GameState()
             
             # Добавляем игроков в игру
-            for pid in list(waiting_players)[:2]:
+            for pid in list(waiting_players)[:6]:
                 game.add_player(pid)
-                waiting_players.remove(pid)
+                await game_manager.remove_waiting_player(pid)
             
             # Раздаем карты
             game.deal_cards()
             
             # Сохраняем игру
-            active_games[game_id] = game
+            await game_manager.save_game(game_id, game)
             
             # Уведомляем игроков
             for pid in game.players:
                 await manager.send_personal_message({
                     "type": "game_state",
                     "state": game.to_dict(),
-                    "balance": player_balances[pid]
+                    "balance": await game_manager.get_player_balance(pid)
                 }, pid)
     
     elif message_type == "game_action":
