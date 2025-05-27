@@ -342,25 +342,154 @@
             return `[Неизвестный тип: ${typeof error}]`;
         }
 
-        // Ждем загрузки всех скриптов
+        async function validateInitData(initData) {
+            try {
+                console.log('Raw initData:', initData);
+                
+                // Проверяем формат данных
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(initData);
+                    console.log('InitData parsed as JSON:', parsedData);
+                } catch (e) {
+                    console.log('InitData is not JSON, treating as query string');
+                    parsedData = Object.fromEntries(new URLSearchParams(initData));
+                    console.log('InitData parsed as query string:', parsedData);
+                }
+
+                const response = await fetch('/api/validate-init-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Telegram-Web-App-Init-Data': initData
+                    },
+                    body: JSON.stringify({ initData })
+                });
+                
+                const result = await response.json();
+                console.log('Server validation response:', result);
+                
+                if (!result.valid) {
+                    console.error('Validation failed:', result.message || result.error);
+                }
+                
+                return result.valid;
+            } catch (error) {
+                console.error('Error validating initData:', error);
+                return false;
+            }
+        }
+
+        async function updateBalance() {
+            try {
+                // Проверяем инициализацию WebApp
+                if (!window.Telegram?.WebApp) {
+                    throw new Error('WebApp не инициализирован');
+                }
+
+                // Ждем инициализации WebApp и получаем initData
+                window.Telegram.WebApp.ready();
+                await new Promise(resolve => setTimeout(resolve, 100)); // Даем время на инициализацию
+                
+                const initData = window.Telegram.WebApp.initData;
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+
+                console.log('WebApp state:', {
+                    initData: initData,
+                    user: user,
+                    webAppReady: window.Telegram.WebApp.isReady,
+                    webAppExpanded: window.Telegram.WebApp.isExpanded,
+                    platform: window.Telegram.WebApp.platform,
+                    version: window.Telegram.WebApp.version,
+                    colorScheme: window.Telegram.WebApp.colorScheme,
+                    themeParams: window.Telegram.WebApp.themeParams,
+                    headerColor: window.Telegram.WebApp.headerColor,
+                    backgroundColor: window.Telegram.WebApp.backgroundColor
+                });
+
+                if (!initData) {
+                    throw new Error('Отсутствуют данные инициализации WebApp');
+                }
+
+                if (!user?.id) {
+                    throw new Error('Не удалось получить данные пользователя');
+                }
+
+                // Проверяем валидность initData
+                const isValid = await validateInitData(initData);
+                if (!isValid) {
+                    throw new Error('Невалидные данные инициализации WebApp');
+                }
+
+                // Формируем URL с параметрами
+                const url = new URL('/api/wallet/balance', window.location.origin);
+                url.searchParams.set('telegram_id', user.id);
+
+                // Отправляем запрос
+                console.log('Sending balance request with headers:', {
+                    'Telegram-Web-App-Init-Data': initData
+                });
+
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Telegram-Web-App-Init-Data': initData
+                    }
+                });
+
+                const responseData = await response.json();
+                console.log('Balance response:', responseData);
+
+                if (!response.ok) {
+                    const error = new Error(responseData.detail?.error || responseData.detail || 'Ошибка сервера');
+                    error.response = responseData;
+                    throw error;
+                }
+
+                if (typeof responseData.balance === 'undefined') {
+                    throw new Error('Некорректный ответ сервера');
+                }
+
+                // Форматируем и отображаем баланс
+                const balanceElement = document.querySelector('.balance');
+                if (balanceElement) {
+                    const formattedBalance = Number(responseData.balance).toFixed(2);
+                    balanceElement.innerHTML = `${formattedBalance} ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span>`;
+                }
+            } catch (error) {
+                console.error('Ошибка при обновлении баланса:', error);
+                console.error('Детали ответа:', error.response);
+                window.Telegram.WebApp.showAlert(`Ошибка при получении баланса: ${error.message}`);
+            }
+        }
+
+        // Вызываем функцию при загрузке страницы
         window.addEventListener('load', async function() {
             try {
                 // Проверяем доступность Telegram WebApp
                 if (!window.Telegram?.WebApp) {
-                    TelegramUtils.showAlert('Ошибка: WebApp не инициализирован');
-                    return;
+                    throw new Error('WebApp не инициализирован');
                 }
 
                 // Инициализируем Telegram WebApp
                 window.Telegram.WebApp.ready();
                 window.Telegram.WebApp.expand();
+                
+                await new Promise(resolve => setTimeout(resolve, 100)); // Даем время на инициализацию
 
                 // Получаем данные пользователя из WebApp
                 const webAppUser = window.Telegram.WebApp.initDataUnsafe?.user;
                 if (!webAppUser || !webAppUser.id) {
-                    TelegramUtils.showAlert('Ошибка: нет данных пользователя');
-                    return;
+                    throw new Error('Нет данных пользователя');
                 }
+
+                console.log('WebApp initialization complete:', {
+                    user: webAppUser,
+                    initData: window.Telegram.WebApp.initData,
+                    platform: window.Telegram.WebApp.platform,
+                    version: window.Telegram.WebApp.version
+                });
 
                 // Настраиваем аватар
                 const avatarContainer = document.getElementById('avatar-container');
@@ -375,56 +504,11 @@
                     defaultAvatar.textContent = webAppUser.first_name.charAt(0);
                 }
 
-                // Получаем баланс
-                const balanceElement = document.querySelector('.balance');
-                if (balanceElement) {
-                    try {
-                        // Получаем все данные из WebApp
-                        const webAppData = {
-                            query_id: window.Telegram.WebApp.initData || '',
-                            user: webAppUser,
-                            auth_date: window.Telegram.WebApp.initDataUnsafe?.auth_date,
-                            hash: window.Telegram.WebApp.initDataUnsafe?.hash
-                        };
-
-                        // Формируем URL с параметрами
-                        const url = new URL('/api/wallet/balance', window.location.origin);
-                        url.searchParams.set('telegram_id', webAppUser.id);
-                        url.searchParams.set('init_data', window.Telegram.WebApp.initData);
-
-                        // Отправляем запрос с данными в headers
-                        const response = await fetch(url.toString(), {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-Telegram-Init-Data': window.Telegram.WebApp.initData,
-                                'X-Telegram-Auth': JSON.stringify(webAppData)
-                            }
-                        });
-
-                        // Получаем и обрабатываем ответ
-                        const data = await response.json();
-
-                        // Проверяем статус ответа
-                        if (!response.ok) {
-                            throw new Error(data.detail || 'Ошибка сервера');
-                        }
-
-                        // Проверяем данные баланса
-                        if (typeof data.balance === 'undefined') {
-                            throw new Error('Нет данных о балансе в ответе');
-                        }
-
-                        // Обновляем отображение баланса
-                        balanceElement.innerHTML = `${Number(data.balance).toFixed(2)} ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span>`;
-                    } catch (error) {
-                        balanceElement.innerHTML = `0.00 ₽ <span class="plus-btn" onclick="openSection('deposit')">+</span>`;
-                        TelegramUtils.showAlert('Ошибка при получении баланса');
-                    }
-                }
+                // Обновляем баланс
+                await updateBalance();
             } catch (error) {
-                const errorMessage = getErrorMessage(error);
-                TelegramUtils.showAlert(`Ошибка инициализации: ${errorMessage}`);
+                console.error('Ошибка инициализации:', error);
+                window.Telegram.WebApp.showAlert(`Ошибка инициализации: ${error.message}`);
             }
         });
 

@@ -97,11 +97,20 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # Redis конфигурация
+# Вместо текущего REDIS_CONFIG добавьте:
 REDIS_CONFIG = {
-    'host': os.getenv('REDIS_HOST', 'localhost'),
-    'port': int(os.getenv('REDIS_PORT', 6379)),
-    'db': 0,
-    'decode_responses': True
+    'master': {
+        'host': os.getenv('REDIS_HOST', 'localhost'),
+        'port': int(os.getenv('REDIS_PORT', 6379)),
+        'db': 0,
+        'decode_responses': True
+    },
+    'slave': {
+        'host': os.getenv('REDIS_SLAVE_HOST', os.getenv('REDIS_HOST', 'localhost')),
+        'port': int(os.getenv('REDIS_SLAVE_PORT', os.getenv('REDIS_PORT', 6379))),
+        'db': 0,
+        'decode_responses': True
+    }
 }
 
 # Настройки игры

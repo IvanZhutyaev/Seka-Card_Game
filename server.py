@@ -112,26 +112,32 @@ def verify_telegram_data(init_data: str, hash: str) -> bool:
     return hmac_obj.hexdigest() == hash
 
 class ConnectionManager:
+    def __init__(self):
+        self.active_connections = {}  # player_id -> websocket
+        self.player_games = {}  # player_id -> game_id
+    
     async def connect(self, websocket: WebSocket, player_id: str):
         await websocket.accept()
-        active_connections[player_id] = websocket
-        
-        # Инициализация баланса для нового игрока
-        if player_id not in player_balances:
-            player_balances[player_id] = 1000  # Начальный баланс
-        
+        self.active_connections[player_id] = websocket
+        logger.info(f"Player {player_id} connected")
+    
     async def disconnect(self, player_id: str):
-        if player_id in active_connections:
-            del active_connections[player_id]
-        if player_id in waiting_players:
-            waiting_players.remove(player_id)
-            
+        if player_id in self.active_connections:
+            del self.active_connections[player_id]
+        if player_id in self.player_games:
+            del self.player_games[player_id]
+        logger.info(f"Player {player_id} disconnected")
+    
     async def send_personal_message(self, message: dict, player_id: str):
-        if player_id in active_connections:
-            await active_connections[player_id].send_json(message)
-            
+        if player_id in self.active_connections:
+            try:
+                await self.active_connections[player_id].send_json(message)
+                logger.debug(f"Sent message to player {player_id}: {message}")
+            except Exception as e:
+                logger.error(f"Error sending message to player {player_id}: {e}")
+    
     async def broadcast_to_game(self, message: dict, game_id: str):
-        game = active_games.get(game_id)
+        game = await game_manager.get_game(game_id)
         if game:
             for player_id in game.players:
                 await self.send_personal_message(message, player_id)
@@ -160,112 +166,120 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 
 async def handle_websocket_message(websocket: WebSocket, player_id: str, data: dict):
     message_type = data.get("type")
+    logger.info(f"Received message from player {player_id}: {data}")
     
     if message_type == "find_game":
         # Проверяем баланс игрока
         balance = await game_manager.get_player_balance(player_id)
+        logger.info(f"Player {player_id} balance: {balance}")
+        
         if balance < MIN_BET:
+            logger.warning(f"Player {player_id} has insufficient funds: {balance} < {MIN_BET}")
             await manager.send_personal_message({
                 "type": "error",
                 "message": "Недостаточно средств для игры"
             }, player_id)
             return
-            
+        
         # Добавляем игрока в очередь
         await game_manager.add_waiting_player(player_id)
+        logger.info(f"Added player {player_id} to waiting queue")
         
         # Если есть достаточно игроков, создаем игру
         waiting_players = await game_manager.get_waiting_players()
+        logger.info(f"Current waiting players: {waiting_players}")
+        
         if len(waiting_players) >= 6:
             game_id = f"game_{int(time.time())}"
             game = GameState()
+            logger.info(f"Creating new game {game_id}")
             
             # Добавляем игроков в игру
             for pid in list(waiting_players)[:6]:
                 game.add_player(pid)
                 await game_manager.remove_waiting_player(pid)
+                manager.player_games[pid] = game_id
             
             # Раздаем карты
             game.deal_cards()
+            logger.info(f"Cards dealt in game {game_id}. Game state: {game.to_dict()}")
             
             # Сохраняем игру
             await game_manager.save_game(game_id, game)
+            logger.info(f"Game {game_id} saved with players: {list(game.players.keys())}")
             
             # Уведомляем игроков
             for pid in game.players:
+                balance = await game_manager.get_player_balance(pid)
+                logger.info(f"Sending game state to player {pid}. Balance: {balance}")
                 await manager.send_personal_message({
                     "type": "game_state",
+                    "game_id": game_id,
                     "state": game.to_dict(),
-                    "balance": await game_manager.get_player_balance(pid)
+                    "balance": balance
                 }, pid)
     
     elif message_type == "game_action":
         game_id = data.get("game_id")
         action = data.get("action")
+        logger.info(f"Processing game action from player {player_id} in game {game_id}: {action}")
         
-        if not game_id or not action:
-            await manager.send_personal_message({
-                "type": "error",
-                "message": "Invalid game action"
-            }, player_id)
-            return
-            
-        game = active_games.get(game_id)
+        # Получаем состояние игры
+        game = await game_manager.get_game(game_id)
         if not game:
+            logger.error(f"Game {game_id} not found")
             await manager.send_personal_message({
                 "type": "error",
-                "message": "Game not found"
+                "message": "Игра не найдена"
             }, player_id)
             return
-            
+        
+        logger.info(f"Current game state for {game_id}: {game.to_dict()}")
+        
         if action == "bet":
             amount = data.get("amount", 0)
+            logger.info(f"Player {player_id} attempting to bet {amount} in game {game_id}")
             
             # Проверяем баланс
-            if amount > player_balances[player_id]:
+            player_balance = await game_manager.get_player_balance(player_id)
+            logger.info(f"Player {player_id} current balance: {player_balance}")
+            
+            if amount > player_balance:
+                logger.warning(f"Player {player_id} has insufficient funds for bet: {amount} > {player_balance}")
                 await manager.send_personal_message({
                     "type": "error",
                     "message": "Недостаточно средств"
                 }, player_id)
                 return
-                
+            
             if game.place_bet(player_id, amount):
                 # Списываем ставку
-                player_balances[player_id] -= amount
+                await game_manager.save_player_balance(player_id, player_balance - amount)
+                logger.info(f"Bet placed successfully. New balance: {player_balance - amount}")
                 
-                await manager.broadcast_to_game({
-                    "type": "game_state",
-                    "state": game.to_dict(),
-                    "balance": player_balances[player_id]
-                }, game_id)
+                # Сохраняем обновленное состояние игры
+                await game_manager.save_game(game_id, game)
+                logger.info(f"Updated game state saved: {game.to_dict()}")
+                
+                # Отправляем обновленное состояние всем игрокам
+                for pid in game.players:
+                    balance = await game_manager.get_player_balance(pid)
+                    logger.info(f"Sending updated state to player {pid}. Balance: {balance}")
+                    await manager.send_personal_message({
+                        "type": "game_state",
+                        "game_id": game_id,
+                        "state": game.to_dict(),
+                        "balance": balance
+                    }, pid)
             else:
+                logger.warning(f"Failed to place bet for player {player_id} in game {game_id}")
                 await manager.send_personal_message({
                     "type": "error",
-                    "message": "Invalid bet amount"
+                    "message": "Не удалось сделать ставку"
                 }, player_id)
-                
-        elif action == "fold":
-            game.fold(player_id)
-            await manager.broadcast_to_game({
-                "type": "game_state",
-                "state": game.to_dict()
-            }, game_id)
-            
-            # Проверяем, остался ли один игрок
-            active_players = [pid for pid in game.players if pid not in game.folded_players]
-            if len(active_players) == 1:
-                winner = active_players[0]
-                # Начисляем выигрыш
-                player_balances[winner] += game.bank
-                
-                await manager.broadcast_to_game({
-                    "type": "game_over",
-                    "winner": winner,
-                    "state": game.to_dict(),
-                    "balance": player_balances[winner]
-                }, game_id)
-                del active_games[game_id]
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # Получаем порт из переменной окружения или используем 8000 по умолчанию
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

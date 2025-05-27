@@ -10,7 +10,7 @@ class WalletManager:
     def __init__(self, db: Session):
         self.db = db
 
-    async def get_balance(self, telegram_id: int) -> Optional[int]:
+    def get_balance(self, telegram_id: int) -> Optional[int]:
         """Получить баланс пользователя"""
         try:
             player = self.db.query(Player).filter(Player.telegram_id == telegram_id).first()
@@ -19,7 +19,7 @@ class WalletManager:
             logger.error(f"Error getting balance for user {telegram_id}: {e}")
             return None
 
-    async def update_balance(self, telegram_id: int, amount: int, action: str, game_id: Optional[str] = None) -> Tuple[bool, str]:
+    def update_balance(self, telegram_id: int, amount: int, action: str, game_id: Optional[str] = None) -> Tuple[bool, str]:
         """
         Обновить баланс пользователя
         
@@ -60,7 +60,7 @@ class WalletManager:
             logger.error(f"Error updating balance for user {telegram_id}: {e}")
             return False, "Ошибка при обновлении баланса"
 
-    async def get_transaction_history(self, telegram_id: int, limit: int = 10) -> list:
+    def get_transaction_history(self, telegram_id: int, limit: int = 10) -> list:
         """Получить историю транзакций пользователя"""
         try:
             player = self.db.query(Player).filter(Player.telegram_id == telegram_id).first()

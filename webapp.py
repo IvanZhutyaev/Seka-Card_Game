@@ -14,9 +14,17 @@ from db import get_db
 from wallet import WalletManager
 from models import Player
 from urllib.parse import parse_qs, unquote
+import logging
 
 app = FastAPI()
 security = HTTPBearer()
+
+# Настройка логирования
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Добавляем CORS middleware
 app.add_middleware(
@@ -40,71 +48,114 @@ ALLOWED_PAGES = {
     "game": "pages/gameplay/index.html"
 }
 
-def verify_telegram_data(init_data: str, bot_token: str) -> bool:
-    """Проверка подлинности данных от Telegram WebApp"""
+def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
+    """Проверка подлинности данных от Telegram WebApp согласно официальной документации"""
     try:
-        # Декодируем URL-encoded данные
-        decoded_data = unquote(init_data)
+        logger.info("Starting Telegram WebApp data verification")
+        logger.debug(f"Received init_data: {init_data}")
+        logger.debug(f"Bot token (first 5 chars): {bot_token[:5]}...")
+
+        # Проверяем наличие данных
+        if not init_data:
+            logger.error("Init data is empty")
+            return False, "Init data is empty"
+
+        # Разбираем строку init_data на параметры
+        try:
+            # Пробуем разобрать как JSON
+            try:
+                json_data = json.loads(init_data)
+                if isinstance(json_data, dict):
+                    params = json_data
+                    logger.debug("Successfully parsed init_data as JSON")
+                else:
+                    raise ValueError("JSON data is not a dictionary")
+            except json.JSONDecodeError:
+                # Если не JSON, разбираем как query string
+                params = {}
+                logger.debug("Parsing init_data as query string")
+                for param in init_data.split('&'):
+                    if '=' not in param:
+                        continue
+                    key, value = param.split('=', 1)
+                    params[key] = unquote(value)
+
+            logger.debug(f"Parsed parameters: {params}")
+        except Exception as e:
+            logger.error(f"Failed to parse parameters: {str(e)}")
+            return False, f"Failed to parse parameters: {str(e)}"
+
+        # Получаем hash
+        received_hash = params.pop('hash', None)
+        logger.debug(f"Received hash: {received_hash}")
         
-        # Разбираем строку init_data
-        # Используем parse_qs для корректной обработки параметров
-        data_dict = {}
-        parsed = parse_qs(decoded_data)
-        for key, values in parsed.items():
-            # Берем первое значение, так как parse_qs всегда возвращает список
-            data_dict[key] = values[0]
+        if not received_hash:
+            logger.error("No hash found in init_data")
+            return False, "No hash found in init_data"
+
+        # Сортируем оставшиеся параметры
+        data_check_arr = []
+        logger.debug("Sorting parameters...")
+        for key in sorted(params.keys()):
+            data_check_arr.append(f"{key}={params[key]}")
+            logger.debug(f"Added sorted parameter: {key}={params[key]}")
         
-        if 'hash' not in data_dict:
-            print("No hash found in init_data")
-            return False
-            
-        # Извлекаем hash
-        hash_value = data_dict.pop('hash')
-        
-        # Формируем строку для проверки
-        data_check_string = '\n'.join(
-            f"{k}={v}" for k, v in sorted(data_dict.items())
-        )
-        
-        print(f"Data check string: {data_check_string}")
-        
-        # Создаем секретный ключ на основе bot_token
+        # Создаем check_string
+        data_check_string = '\n'.join(data_check_arr)
+        logger.debug(f"Created check_string: {data_check_string}")
+
+        # Создаем секретный ключ
+        logger.debug("Creating secret key...")
         secret_key = hmac.new(
-            key=b'WebAppData',
-            msg=bot_token.encode(),
-            digestmod=hashlib.sha256
+            "WebAppData".encode(),
+            bot_token.encode(),
+            hashlib.sha256
         ).digest()
-        
-        # Вычисляем hash
+        logger.debug("Secret key created successfully")
+
+        # Вычисляем хеш
+        logger.debug("Calculating hash...")
         calculated_hash = hmac.new(
-            key=secret_key,
-            msg=data_check_string.encode(),
-            digestmod=hashlib.sha256
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
         ).hexdigest()
-        
-        print(f"Calculated hash: {calculated_hash}")
-        print(f"Received hash: {hash_value}")
-        
-        # Сравниваем полученный hash с переданным
-        return calculated_hash == hash_value
+        logger.debug(f"Calculated hash: {calculated_hash}")
+
+        if calculated_hash != received_hash:
+            logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
+            logger.error(f"Data used for hash calculation: {data_check_string}")
+            return False, f"Hash mismatch: received {received_hash}, calculated {calculated_hash}"
+
+        logger.info("Verification successful")
+        return True, "Verification successful"
     except Exception as e:
-        print(f"Error verifying Telegram data: {e}")
-        import traceback
-        print(traceback.format_exc())
-        return False
+        logger.exception(f"Verification error: {str(e)}")
+        return False, f"Verification error: {str(e)}"
 
 async def verify_telegram_request(request: Request) -> bool:
     """Проверка запроса от Telegram"""
     try:
-        # Получаем initData из заголовка
-        init_data = request.headers.get('X-Telegram-Init-Data')
+        # Проверяем все возможные варианты заголовка
+        init_data = (
+            request.headers.get('Telegram-Web-App-Init-Data') or 
+            request.headers.get('X-Telegram-Init-Data') or
+            request.headers.get('X-Telegram-Web-App-Init-Data')
+        )
+        
+        logger.debug(f"Headers in verify_telegram_request: {dict(request.headers)}")
+        logger.debug(f"Init data found: {init_data}")
+        
         if not init_data:
+            logger.error("No init data found in any of the expected headers")
             return False
 
         # Проверяем подпись
-        return verify_telegram_data(init_data, settings.BOT_TOKEN)
+        is_valid, message = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        logger.debug(f"Verification result: valid={is_valid}, message={message}")
+        return is_valid
     except Exception as e:
-        print(f"Error verifying Telegram request: {e}")
+        logger.exception(f"Error verifying Telegram request: {e}")
         return False
 
 @app.middleware("http")
@@ -164,24 +215,42 @@ async def get_page(page_name: str):
 # API для проверки initData
 @app.post("/api/validate-init-data")
 async def validate_init_data(request: Request):
+    """Валидация данных инициализации Telegram WebApp"""
     try:
         data = await request.json()
         init_data = data.get('initData')
+        
+        logger.debug(f"Validating init_data: {init_data}")
+        logger.debug(f"Request headers: {dict(request.headers)}")
+        
         if not init_data:
             return JSONResponse(
                 status_code=400,
-                content={"valid": False, "error": "No initData provided"}
+                content={
+                    "valid": False, 
+                    "error": "No initData provided",
+                    "received_data": data
+                }
             )
 
-        is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        is_valid, verify_message = verify_telegram_data(init_data, settings.BOT_TOKEN)
         return JSONResponse(
             status_code=200,
-            content={"valid": is_valid}
+            content={
+                "valid": is_valid, 
+                "message": verify_message,
+                "init_data": init_data
+            }
         )
     except Exception as e:
+        logger.exception("Error in validate_init_data")
         return JSONResponse(
             status_code=500,
-            content={"valid": False, "error": str(e)}
+            content={
+                "valid": False, 
+                "error": str(e),
+                "traceback": str(e.__traceback__)
+            }
         )
 
 # Монтируем статические файлы
@@ -212,21 +281,74 @@ async def server_error_handler(request: Request, exc: Exception):
 @app.get("/api/wallet/balance")
 async def get_wallet_balance(
     telegram_id: int,
-    init_data: str,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Получить баланс кошелька пользователя"""
-    # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        logger.info(f"Getting wallet balance for telegram_id: {telegram_id}")
+        logger.debug(f"All headers: {dict(request.headers)}")
+        
+        # Проверяем все возможные варианты заголовка
+        init_data = (
+            request.headers.get('Telegram-Web-App-Init-Data') or 
+            request.headers.get('X-Telegram-Init-Data') or
+            request.headers.get('X-Telegram-Web-App-Init-Data')
+        )
+        
+        if not init_data:
+            logger.error("Missing Telegram WebApp data in headers")
+            raise HTTPException(
+                status_code=401, 
+                detail={
+                    "error": "Missing Telegram WebApp data",
+                    "headers": dict(request.headers)
+                }
+            )
 
-    wallet = WalletManager(db)
-    balance = await wallet.get_balance(telegram_id)
-    
-    if balance is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {"balance": balance}
+        # Проверяем подлинность данных
+        logger.info("Verifying Telegram WebApp data...")
+        is_valid, verify_message = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        
+        if not is_valid:
+            logger.error(f"Invalid Telegram WebApp data: {verify_message}")
+            raise HTTPException(
+                status_code=401, 
+                detail={
+                    "error": "Invalid Telegram WebApp data",
+                    "details": verify_message,
+                    "init_data": init_data
+                }
+            )
+
+        # Получаем баланс
+        logger.info("Getting balance from WalletManager...")
+        wallet = WalletManager(db)
+        balance = wallet.get_balance(telegram_id)
+        
+        if balance is None:
+            logger.error(f"User not found: {telegram_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail={
+                    "error": "User not found",
+                    "telegram_id": telegram_id
+                }
+            )
+        
+        logger.info(f"Successfully retrieved balance: {balance}")
+        return {"balance": balance}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Unexpected error in get_wallet_balance")
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Internal server error",
+                "message": str(e)
+            }
+        )
 
 @app.get("/api/wallet/transactions")
 async def get_wallet_transactions(
@@ -237,7 +359,7 @@ async def get_wallet_transactions(
 ):
     """Получить историю транзакций пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)
@@ -256,7 +378,7 @@ async def update_wallet_balance(
 ):
     """Обновить баланс кошелька пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)
@@ -270,4 +392,4 @@ async def update_wallet_balance(
 if __name__ == "__main__":
     import uvicorn
     print("Starting FastAPI application...")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=3000)
