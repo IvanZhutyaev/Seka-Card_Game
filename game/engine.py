@@ -66,8 +66,8 @@ class GameState:
         random.shuffle(self.deck)
         logger.info(f"Deck initialized with {len(self.deck)} cards")
     
-    def add_player(self, player_id: str) -> bool:
-        """Добавление игрока в игру"""
+    def add_player(self, player_id: str, user_info: dict = None) -> bool:
+        """Добавление игрока в игру с данными Telegram"""
         logger.info(f"Attempting to add player {player_id}")
         if len(self.players) >= 6:
             logger.warning(f"Cannot add player {player_id}: game is full")
@@ -75,7 +75,8 @@ class GameState:
         self.players[player_id] = {
             'cards': [],
             'bet': 0,
-            'total_bet': 0  # Общая сумма ставок игрока в текущей игре
+            'total_bet': 0,  # Общая сумма ставок игрока в текущей игре
+            'user_info': user_info or {}
         }
         if len(self.players) == 1:
             self.current_turn = player_id
@@ -212,12 +213,10 @@ class GameState:
         state = {
             "players": {
                 pid: {
-                    "cards": [{"rank": card.rank.value, "suit": card.suit.value, "is_joker": card.is_joker} 
-                            for card in player['cards']],
-                    "bet": player['bet'],
-                    "total_bet": player['total_bet']
-                }
-                for pid, player in self.players.items()
+                    **{k: v for k, v in pdata.items() if k != 'cards'},
+                    'cards': [str(card) for card in pdata['cards']],
+                    'user_info': pdata.get('user_info', {})
+                } for pid, pdata in self.players.items()
             },
             "bank": self.bank,
             "current_bet": self.current_bet,
@@ -243,7 +242,8 @@ class GameState:
                     for card in player_data["cards"]
                 ],
                 "bet": player_data["bet"],
-                "total_bet": player_data.get("total_bet", 0)
+                "total_bet": player_data.get("total_bet", 0),
+                "user_info": player_data.get("user_info", {})
             }
         
         self.bank = data["bank"]

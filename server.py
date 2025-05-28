@@ -164,6 +164,8 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
         await manager.disconnect(player_id)
         logger.info(f"Player {player_id} disconnected")
 
+waiting_user_info = {}
+
 async def handle_websocket_message(websocket: WebSocket, player_id: str, data: dict):
     message_type = data.get("type")
     logger.info(f"Received message from player {player_id}: {data}")
@@ -181,24 +183,39 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
             }, player_id)
             return
         
+        # Сохраняем user_info если есть
+        user_info = data.get('user')
+        if user_info:
+            waiting_user_info[player_id] = user_info
+        
         # Добавляем игрока в очередь
         await game_manager.add_waiting_player(player_id)
         logger.info(f"Added player {player_id} to waiting queue")
         
-        # Если есть достаточно игроков, создаем игру
+        # Получаем всех ожидающих игроков
         waiting_players = await game_manager.get_waiting_players()
         logger.info(f"Current waiting players: {waiting_players}")
         
+        # Рассылаем всем ожидающим игрокам состояние лобби
+        for pid in waiting_players:
+            await manager.send_personal_message({
+                "type": "lobby_state",
+                "players_in_lobby": len(waiting_players)
+            }, pid)
+        
+        # Если есть достаточно игроков, создаем игру
         if len(waiting_players) >= 6:
             game_id = f"game_{int(time.time())}"
             game = GameState()
             logger.info(f"Creating new game {game_id}")
-            
-            # Добавляем игроков в игру
+            # Добавляем игроков в игру с user_info
             for pid in list(waiting_players)[:6]:
-                game.add_player(pid)
+                user_info = waiting_user_info.get(pid, {})
+                game.add_player(pid, user_info)
                 await game_manager.remove_waiting_player(pid)
                 manager.player_games[pid] = game_id
+                if pid in waiting_user_info:
+                    del waiting_user_info[pid]
             
             # Раздаем карты
             game.deal_cards()
