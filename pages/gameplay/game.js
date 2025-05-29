@@ -158,32 +158,32 @@ class Game {
         this.log('Connecting to WebSocket: ' + wsUrl);
         
         const connectWS = () => {
-            this.ws = new WebSocket(wsUrl);
+        this.ws = new WebSocket(wsUrl);
             this.updateStatusIndicator('connecting');
-            this.ws.onopen = () => {
-                this.log('WebSocket connected', 'success');
+        this.ws.onopen = () => {
+            this.log('WebSocket connected', 'success');
                 this.updateStatusIndicator('online');
                 this.reconnectDelay = 1000;
-                this.findNewGame();
-            };
-            this.ws.onmessage = (event) => {
-                this.log('Received message: ' + event.data);
-                const data = JSON.parse(event.data);
-                this.handleMessage(data);
-            };
-            this.ws.onclose = () => {
-                this.log('WebSocket disconnected', 'warning');
+            this.findNewGame();
+        };
+        this.ws.onmessage = (event) => {
+            this.log('Received message: ' + event.data);
+            const data = JSON.parse(event.data);
+            this.handleMessage(data);
+        };
+        this.ws.onclose = () => {
+            this.log('WebSocket disconnected', 'warning');
                 this.updateStatusIndicator('offline');
-                this.showError('Соединение потеряно');
+            this.showError('Соединение потеряно');
                 setTimeout(() => {
                     this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
                     connectWS();
                 }, this.reconnectDelay);
-            };
-            this.ws.onerror = (error) => {
-                this.log('WebSocket error: ' + error, 'error');
+        };
+        this.ws.onerror = (error) => {
+            this.log('WebSocket error: ' + error, 'error');
                 this.updateStatusIndicator('offline');
-                this.showError('Ошибка соединения');
+            this.showError('Ошибка соединения');
             };
         };
         connectWS();
