@@ -157,30 +157,20 @@ class GameState:
         
         return True
     
-    def calculate_score(self, cards: List[Card]) -> int:
-        """Подсчет очков для комбинации карт"""
-        if not cards:
-            return 0
-            
-        # Сортируем карты по старшинству
-        sorted_cards = sorted(cards, key=lambda x: list(Rank).index(x.rank))
-        
-        # Проверяем на наличие комбинаций
-        # 1. Три карты одной масти
-        if all(card.suit == sorted_cards[0].suit for card in sorted_cards):
-            return 30 + sum(list(Rank).index(card.rank) for card in sorted_cards)
-        
-        # 2. Три карты по порядку
-        ranks = [list(Rank).index(card.rank) for card in sorted_cards]
-        if ranks[1] == ranks[0] + 1 and ranks[2] == ranks[1] + 1:
-            return 20 + sum(ranks)
-        
-        # 3. Две карты одной масти
-        if sorted_cards[0].suit == sorted_cards[1].suit:
-            return 10 + sum(list(Rank).index(card.rank) for card in sorted_cards)
-        
-        # 4. Старшая карта
-        return max(list(Rank).index(card.rank) for card in sorted_cards)
+    def calculate_score(self, cards):
+        """Подсчёт очков: 10, J, Q, K — по 10 очков, A и 9♣ (джокер) — по 11 очков"""
+        score = 0
+        for card in cards:
+            if card.rank in [Rank.ACE]:
+                score += 11
+            elif card.rank in [Rank.NINE]:  # Джокер
+                if card.suit == Suit.CLUBS:
+                    score += 11
+                else:
+                    score += 10
+            else:
+                score += 10
+        return score
     
     def get_winner(self) -> Optional[str]:
         """Определение победителя"""
