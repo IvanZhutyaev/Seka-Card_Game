@@ -13,7 +13,6 @@ class Suit(Enum):
     SPADES = "♠"
 
 class Rank(Enum):
-    FOUR = "4"
     NINE = "9"  # Джокер (только трефовая)
     TEN = "10"
     JACK = "J"
@@ -50,19 +49,13 @@ class GameState:
         """Инициализация колоды из 21 карты"""
         logger.info("Initializing deck")
         self.deck = []
-        
-        # Добавляем карты по правилам:
-        # 4-короля, 4-дамы, 4-десятки, 4-валета, 4-туза и один 9треф (джокер)
+        # Только 10, J, Q, K, A (по 4 каждой масти) и одна 9♣ (джокер)
         for suit in Suit:
-            # Добавляем по 4 карты каждого достоинства
-            for rank in [Rank.FOUR, Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]:
+            for rank in [Rank.TEN, Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]:
                 for _ in range(4):
                     self.deck.append(Card(rank, suit))
-            
-            # Добавляем джокер (9 треф)
             if suit == Suit.CLUBS:
                 self.deck.append(Card(Rank.NINE, suit, is_joker=True))
-        
         random.shuffle(self.deck)
         logger.info(f"Deck initialized with {len(self.deck)} cards")
     
