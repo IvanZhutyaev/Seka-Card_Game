@@ -40,8 +40,9 @@ class GameState:
         self.current_turn: Optional[str] = None
         self.folded_players: set = set()
         self.deck: List[Card] = []
-        self.status: str = 'waiting'  # waiting, playing, showdown, finished
+        self.status: str = 'waiting'  # waiting, playing, showdown, svara, finished
         self.round: str = 'dealing'  # dealing, bidding, showdown
+        self.svara_players: set = set()  # участники свары
         self._init_deck()
         logger.info("Game state initialized")
     
@@ -201,6 +202,42 @@ class GameState:
             
         return max(scores.items(), key=lambda x: x[1])[0]
     
+    def start_svara(self, svara_players):
+        """Запуск раунда свары только для указанных игроков"""
+        self.svara_players = set(svara_players)
+        self.folded_players = set(pid for pid in self.players if pid not in self.svara_players)
+        self.status = 'svara'
+        self.round = 'dealing'
+        self._init_deck()
+        for pid in self.players:
+            self.players[pid]['cards'] = []
+            self.players[pid]['bet'] = 0
+            self.players[pid]['total_bet'] = 0
+        self.deal_cards()
+        # Первый ход — первому из svara_players
+        self.current_turn = list(self.svara_players)[0]
+        self.current_bet = 0
+        logger.info(f"Svara started for players: {self.svara_players}")
+
+    def showdown_or_svara(self):
+        """Проводит вскрытие и определяет победителя или запускает свару"""
+        scores = {
+            pid: self.calculate_score(self.players[pid]['cards'])
+            for pid in self.players if pid not in self.folded_players
+        }
+        if not scores:
+            self.status = 'finished'
+            return None
+        max_score = max(scores.values())
+        winners = [pid for pid, score in scores.items() if score == max_score]
+        if len(winners) == 1:
+            self.status = 'finished'
+            return winners[0]
+        else:
+            # Запускаем свару между winners
+            self.start_svara(winners)
+            return None
+
     def to_dict(self) -> dict:
         """Преобразование состояния игры в словарь для передачи клиенту"""
         state = {
@@ -216,7 +253,8 @@ class GameState:
             "current_turn": self.current_turn,
             "folded_players": list(self.folded_players),
             "status": self.status,
-            "round": self.round
+            "round": self.round,
+            "svara_players": list(self.svara_players) if hasattr(self, 'svara_players') else []
         }
         logger.info(f"Game state converted to dict: {state}")
         return state
@@ -245,4 +283,5 @@ class GameState:
         self.folded_players = set(data["folded_players"])
         self.status = data.get("status", "waiting")
         self.round = data.get("round", "dealing")
+        self.svara_players = set(data.get("svara_players", []))
         self.deck = []  # Колода не сохраняется, так как она не нужна после раздачи 

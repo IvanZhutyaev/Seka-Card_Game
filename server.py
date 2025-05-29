@@ -294,6 +294,26 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 await game_manager.save_player_balance(player_id, player_balance - amount)
                 logger.info(f"Bet placed successfully. New balance: {player_balance - amount}")
                 
+                # Проверяем, нужно ли переходить к вскрытию
+                if game.round == 'showdown':
+                    winner = game.showdown_or_svara()
+                    if winner:
+                        # Есть победитель, игра завершена
+                        await game_manager.save_player_balance(winner, player_balance + game.bank)
+                        await manager.broadcast_to_game({
+                            "type": "game_over",
+                            "winner": winner,
+                            "state": game.to_dict(),
+                            "balance": await game_manager.get_player_balance(winner)
+                        }, game_id)
+                    else:
+                        # Запущена свара
+                        await manager.broadcast_to_game({
+                            "type": "svara_started",
+                            "state": game.to_dict(),
+                            "svara_players": list(game.svara_players)
+                        }, game_id)
+                
                 # Сохраняем обновленное состояние игры
                 await game_manager.save_game(game_id, game)
                 logger.info(f"Updated game state saved: {game.to_dict()}")

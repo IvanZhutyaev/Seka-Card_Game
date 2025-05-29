@@ -19,6 +19,7 @@ class Game {
         this.turnTimerStart = 0;
         this.turnTimerDuration = 15000; // 15 секунд на ход
         this.lastTurnPlayer = null;
+        this.svaraOverlay = null;
         
         this.setupLogger();
         this.createLobbyOverlay();
@@ -55,6 +56,7 @@ class Game {
         this.reconnectDelay = 1000; // начальная задержка для reconnect
         this.maxReconnectDelay = 30000;
         this.lastActionTime = 0; // для throttling
+        this.createSvaraOverlay();
     }
     
     setupLogger() {
@@ -219,6 +221,11 @@ class Game {
                 this.log('Received error: ' + data.message, 'error');
                 this.showError(data.message);
                 break;
+            case 'svara_started':
+                this.log('Svara started. Players: ' + data.svara_players.join(', '));
+                this.showSvaraOverlay(data.svara_players);
+                this.updateGameState(data.state);
+                break;
         }
     }
     
@@ -238,13 +245,22 @@ class Game {
             this.renderBottomPanel();
         }
         
-        // Обновляем состояние кнопок
+        // Обновляем состояние кнопок с учетом свары
         this.isMyTurn = state.current_turn === this.playerId;
         const isBiddingRound = state.round === 'bidding';
-        document.getElementById('fold-btn').disabled = !this.isMyTurn || !isBiddingRound;
-        document.getElementById('bet-btn').disabled = !this.isMyTurn || !isBiddingRound;
-        document.getElementById('bet-amount').disabled = !this.isMyTurn || !isBiddingRound;
-        if (this.isMyTurn && isBiddingRound) {
+        const isInSvara = state.status === 'svara' && state.svara_players.includes(this.playerId);
+        
+        // Блокируем кнопки если:
+        // 1. Не ход игрока
+        // 2. Не раунд торгов
+        // 3. Свара и игрок не участвует
+        const shouldDisableButtons = !this.isMyTurn || !isBiddingRound || (state.status === 'svara' && !isInSvara);
+        
+        document.getElementById('fold-btn').disabled = shouldDisableButtons;
+        document.getElementById('bet-btn').disabled = shouldDisableButtons;
+        document.getElementById('bet-amount').disabled = shouldDisableButtons;
+        
+        if (this.isMyTurn && isBiddingRound && (state.status !== 'svara' || isInSvara)) {
             document.getElementById('bet-amount').min = state.current_bet || 100;
         }
         
@@ -468,6 +484,12 @@ class Game {
                     cardsDiv.appendChild(cardDiv);
                 });
                 seat.appendChild(cardsDiv);
+                
+                // Добавляем выделение для участников свары
+                if (state.status === 'svara' && state.svara_players.includes(pid)) {
+                    seat.style.border = '2px solid #ffd700';
+                    seat.style.boxShadow = '0 0 10px #ffd700';
+                }
             } else {
                 // Пустое место — заглушка
                 const empty = document.createElement('div');
@@ -508,6 +530,8 @@ class Game {
                 this.findNewGame();
             }
         }, 5000);
+        
+        this.hideSvaraOverlay(); // Скрываем оверлей свары при завершении игры
     }
     
     showAllCards(state) {
@@ -1050,6 +1074,64 @@ class Game {
         } else {
             indicator.style.background = '#F44336';
         }
+    }
+
+    createSvaraOverlay() {
+        this.svaraOverlay = document.createElement('div');
+        this.svaraOverlay.id = 'svara-overlay';
+        this.svaraOverlay.style.display = 'none';
+        this.svaraOverlay.style.position = 'fixed';
+        this.svaraOverlay.style.top = '0';
+        this.svaraOverlay.style.left = '0';
+        this.svaraOverlay.style.width = '100%';
+        this.svaraOverlay.style.height = '100%';
+        this.svaraOverlay.style.background = 'rgba(0,0,0,0.8)';
+        this.svaraOverlay.style.zIndex = '1000';
+        this.svaraOverlay.style.color = '#fff';
+        this.svaraOverlay.style.textAlign = 'center';
+        this.svaraOverlay.style.padding = '20px';
+        this.svaraOverlay.style.boxSizing = 'border-box';
+        
+        const content = document.createElement('div');
+        content.style.position = 'absolute';
+        content.style.top = '50%';
+        content.style.left = '50%';
+        content.style.transform = 'translate(-50%, -50%)';
+        content.style.background = '#1a1a1a';
+        content.style.padding = '20px';
+        content.style.borderRadius = '10px';
+        content.style.border = '2px solid #ffd700';
+        
+        const title = document.createElement('h2');
+        title.textContent = 'Свара!';
+        title.style.color = '#ffd700';
+        title.style.marginBottom = '20px';
+        
+        const message = document.createElement('p');
+        message.id = 'svara-message';
+        message.style.marginBottom = '20px';
+        
+        content.appendChild(title);
+        content.appendChild(message);
+        this.svaraOverlay.appendChild(content);
+        document.body.appendChild(this.svaraOverlay);
+    }
+
+    showSvaraOverlay(svaraPlayers) {
+        const isInSvara = svaraPlayers.includes(this.playerId);
+        const message = document.getElementById('svara-message');
+        if (isInSvara) {
+            message.textContent = 'Вы участвуете в сваре! Сделайте ставку.';
+            message.style.color = '#4CAF50';
+        } else {
+            message.textContent = 'Вы не участвуете в сваре. Ожидайте результата.';
+            message.style.color = '#f44336';
+        }
+        this.svaraOverlay.style.display = 'block';
+    }
+
+    hideSvaraOverlay() {
+        this.svaraOverlay.style.display = 'none';
     }
 }
 
