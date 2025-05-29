@@ -21,7 +21,8 @@ class Game {
         this.lastTurnPlayer = null;
         
         this.setupLogger();
-        
+        this.createLobbyOverlay();
+        this.showLobbyOverlay(1);
         // Инициализация Telegram WebApp
         if (window.Telegram?.WebApp) {
             this.log('Telegram WebApp found, initializing...');
@@ -43,7 +44,17 @@ class Game {
         
         this.initWebSocket();
         this.initEventListeners();
-        this.createLobbyOverlay();
+        // 2. Закрытие WebSocket при уходе
+        window.onbeforeunload = () => {
+            if (this.ws) this.ws.close();
+        };
+        // 3. Проверка размера экрана
+        if (window.innerWidth < 340 || window.innerHeight < 500) {
+            alert('Внимание! Ваш экран слишком маленький для комфортной игры.');
+        }
+        this.reconnectDelay = 1000; // начальная задержка для reconnect
+        this.maxReconnectDelay = 30000;
+        this.lastActionTime = 0; // для throttling
     }
     
     setupLogger() {
@@ -124,6 +135,8 @@ class Game {
     initWebSocket() {
         if (!this.playerId) {
             this.log('Player ID not initialized', 'error');
+            this.showError('Ошибка: не удалось получить ID игрока.');
+            this.showLobbyOverlay(1);
             return;
         }
 
@@ -133,6 +146,8 @@ class Game {
         
         if (!initData || !hash) {
             this.log('Missing initialization data', 'error');
+            this.showError('Ошибка: отсутствуют данные инициализации. Попробуйте перезапустить WebApp.');
+            this.showLobbyOverlay(1);
             return;
         }
         
@@ -140,28 +155,36 @@ class Game {
         const wsUrl = `${wsProtocol}//${window.location.host}/ws/${this.playerId}?initData=${initData}&hash=${hash}`;
         this.log('Connecting to WebSocket: ' + wsUrl);
         
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-            this.log('WebSocket connected', 'success');
-            this.findNewGame();
+        const connectWS = () => {
+            this.ws = new WebSocket(wsUrl);
+            this.updateStatusIndicator('connecting');
+            this.ws.onopen = () => {
+                this.log('WebSocket connected', 'success');
+                this.updateStatusIndicator('online');
+                this.reconnectDelay = 1000;
+                this.findNewGame();
+            };
+            this.ws.onmessage = (event) => {
+                this.log('Received message: ' + event.data);
+                const data = JSON.parse(event.data);
+                this.handleMessage(data);
+            };
+            this.ws.onclose = () => {
+                this.log('WebSocket disconnected', 'warning');
+                this.updateStatusIndicator('offline');
+                this.showError('Соединение потеряно');
+                setTimeout(() => {
+                    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+                    connectWS();
+                }, this.reconnectDelay);
+            };
+            this.ws.onerror = (error) => {
+                this.log('WebSocket error: ' + error, 'error');
+                this.updateStatusIndicator('offline');
+                this.showError('Ошибка соединения');
+            };
         };
-        
-        this.ws.onmessage = (event) => {
-            this.log('Received message: ' + event.data);
-            const data = JSON.parse(event.data);
-            this.handleMessage(data);
-        };
-        
-        this.ws.onclose = () => {
-            this.log('WebSocket disconnected', 'warning');
-            this.showError('Соединение потеряно');
-        };
-        
-        this.ws.onerror = (error) => {
-            this.log('WebSocket error: ' + error, 'error');
-            this.showError('Ошибка соединения');
-        };
+        connectWS();
     }
     
     initEventListeners() {
@@ -502,6 +525,12 @@ class Game {
     }
     
     placeBet(amount) {
+        const now = Date.now();
+        if (now - this.lastActionTime < 1500) {
+            this.showError('Слишком часто! Подождите немного.');
+            return;
+        }
+        this.lastActionTime = now;
         this.log('Attempting to place bet...');
         this.log('Game state:', this.gameState);
         this.log('Player ID:', this.playerId);
@@ -536,6 +565,12 @@ class Game {
     }
     
     fold() {
+        const now = Date.now();
+        if (now - this.lastActionTime < 1500) {
+            this.showError('Слишком часто! Подождите немного.');
+            return;
+        }
+        this.lastActionTime = now;
         if (!this.isMyTurn) return;
         
         this.ws.send(JSON.stringify({
@@ -627,6 +662,27 @@ class Game {
         counter.style.marginTop = '10px';
         counter.textContent = 'Игроков в лобби: 1/6';
         overlay.appendChild(counter);
+        // Кнопка отмены
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Отмена';
+        cancelBtn.style.marginTop = '30px';
+        cancelBtn.style.padding = '10px 30px';
+        cancelBtn.style.background = '#f44336';
+        cancelBtn.style.color = 'white';
+        cancelBtn.style.border = 'none';
+        cancelBtn.style.borderRadius = '8px';
+        cancelBtn.style.fontSize = '20px';
+        cancelBtn.onclick = () => {
+            if (this.ws) this.ws.close();
+            window.location.href = '/main_menu';
+        };
+        overlay.appendChild(cancelBtn);
+        // Таймаут ожидания
+        this.lobbyTimeout = setTimeout(() => {
+            this.showError('Время ожидания истекло. Попробуйте снова.');
+            if (this.ws) this.ws.close();
+            window.location.href = '/main_menu';
+        }, 60000);
         document.body.appendChild(overlay);
         this.lobbyOverlay = overlay;
     }
@@ -635,10 +691,18 @@ class Game {
         if (!this.lobbyOverlay) this.createLobbyOverlay();
         this.lobbyOverlay.style.display = 'flex';
         document.getElementById('lobby-counter').textContent = `Игроков в лобби: ${playersCount}/6`;
+        // Сброс таймаута при повторном показе
+        if (this.lobbyTimeout) clearTimeout(this.lobbyTimeout);
+        this.lobbyTimeout = setTimeout(() => {
+            this.showError('Время ожидания истекло. Попробуйте снова.');
+            if (this.ws) this.ws.close();
+            window.location.href = '/main_menu';
+        }, 60000);
     }
 
     hideLobbyOverlay() {
         if (this.lobbyOverlay) this.lobbyOverlay.style.display = 'none';
+        if (this.lobbyTimeout) clearTimeout(this.lobbyTimeout);
     }
 
     renderTopPanel() {
@@ -693,6 +757,19 @@ class Game {
             const user = player?.user_info || {};
             const name = user.first_name || user.username || pid;
             queueDiv.textContent = `Очередь: игрок ${name}`;
+        }
+        // Добавить индикатор статуса
+        let indicator = document.getElementById('ws-status-indicator');
+        if (!indicator) {
+            indicator = document.createElement('span');
+            indicator.id = 'ws-status-indicator';
+            indicator.style.marginLeft = '10px';
+            indicator.style.width = '12px';
+            indicator.style.height = '12px';
+            indicator.style.borderRadius = '50%';
+            indicator.style.display = 'inline-block';
+            indicator.style.verticalAlign = 'middle';
+            document.body.appendChild(indicator);
         }
     }
 
@@ -951,6 +1028,29 @@ class Game {
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
     }
+
+    // Индикатор статуса соединения
+    updateStatusIndicator(status) {
+        let indicator = document.getElementById('ws-status-indicator');
+        if (!indicator) {
+            indicator = document.createElement('span');
+            indicator.id = 'ws-status-indicator';
+            indicator.style.marginLeft = '10px';
+            indicator.style.width = '12px';
+            indicator.style.height = '12px';
+            indicator.style.borderRadius = '50%';
+            indicator.style.display = 'inline-block';
+            indicator.style.verticalAlign = 'middle';
+            document.body.appendChild(indicator);
+        }
+        if (status === 'online') {
+            indicator.style.background = '#4CAF50';
+        } else if (status === 'connecting') {
+            indicator.style.background = '#FFD600';
+        } else {
+            indicator.style.background = '#F44336';
+        }
+    }
 }
 
 // Инициализация игры при загрузке страницы
@@ -1011,4 +1111,10 @@ style6.innerHTML = `
 #seka-bet-modal { animation: fadeIn 0.2s; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 `;
-document.head.appendChild(style6); 
+document.head.appendChild(style6);
+
+// 1. Глобальный обработчик ошибок
+window.onerror = function(message, source, lineno, colno, error) {
+    alert('Произошла критическая ошибка: ' + message);
+    return false;
+}; 

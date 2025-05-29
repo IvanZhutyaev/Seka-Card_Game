@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from game.engine import GameState
@@ -12,6 +12,7 @@ from datetime import datetime
 import redis
 import time
 from config import REDIS_CONFIG
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -40,6 +41,10 @@ MAX_BET = 2000
 # Инициализация Redis
 redis_master = redis.Redis(**REDIS_CONFIG['master'])
 redis_slave = redis.Redis(**REDIS_CONFIG['slave'])
+
+# Throttling: хранить время последнего действия игрока
+player_last_action = {}
+THROTTLE_INTERVAL = 1.5  # секунды
 
 class GameStateManager:
     def __init__(self, redis_master, redis_slave):
@@ -146,19 +151,34 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
-    # Проверка подлинности данных от Telegram
     init_data = websocket.query_params.get("initData", "")
     hash = websocket.query_params.get("hash", "")
-    
     if not verify_telegram_data(init_data, hash):
         await websocket.close(code=4001)
         return
-    
+    # Восстановление сессии: если есть незавершённая игра, отправить её состояние
+    active_game_id = manager.player_games.get(player_id)
+    if active_game_id:
+        game = await game_manager.get_game(active_game_id)
+        if game:
+            await websocket.accept()
+            await websocket.send_json({
+                "type": "game_state",
+                "game_id": active_game_id,
+                "state": game.to_dict(),
+            })
     await manager.connect(websocket, player_id)
-    
     try:
         while True:
             data = await websocket.receive_json()
+            now = time.time()
+            if player_id in player_last_action and now - player_last_action[player_id] < THROTTLE_INTERVAL:
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Слишком часто! Подождите немного."
+                }, player_id)
+                continue
+            player_last_action[player_id] = now
             await handle_websocket_message(websocket, player_id, data)
     except WebSocketDisconnect:
         await manager.disconnect(player_id)

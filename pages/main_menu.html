@@ -301,7 +301,7 @@
     </div>
 
     <div class="button-container">
-        <button class="image-button" onclick="openPage('game')"></button>
+        <button class="image-button" onclick="startGameWithValidation()"></button>
         <div class="button-label">Сека</div>
     </div>
 
@@ -562,6 +562,56 @@
                 TelegramUtils.openLink(path);
             }
         });
+
+        async function startGameWithValidation() {
+            try {
+                if (!window.Telegram?.WebApp) {
+                    window.Telegram?.WebApp?.showAlert('WebApp не инициализирован');
+                    return;
+                }
+                window.Telegram.WebApp.ready();
+                await new Promise(resolve => setTimeout(resolve, 100));
+                const initData = window.Telegram.WebApp.initData;
+                const user = window.Telegram.WebApp.initDataUnsafe?.user;
+                if (!initData) {
+                    window.Telegram.WebApp.showAlert('Нет данных инициализации WebApp');
+                    return;
+                }
+                if (!user?.id) {
+                    window.Telegram.WebApp.showAlert('Нет данных пользователя');
+                    return;
+                }
+                // Проверяем валидность initData
+                const isValid = await validateInitData(initData);
+                if (!isValid) {
+                    window.Telegram.WebApp.showAlert('Ошибка авторизации в Telegram. Попробуйте перезапустить WebApp.');
+                    return;
+                }
+                // Проверяем баланс
+                const url = new URL('/api/wallet/balance', window.location.origin);
+                url.searchParams.set('telegram_id', user.id);
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Telegram-Web-App-Init-Data': initData
+                    }
+                });
+                const responseData = await response.json();
+                if (!response.ok || typeof responseData.balance === 'undefined') {
+                    window.Telegram.WebApp.showAlert('Ошибка при получении баланса');
+                    return;
+                }
+                if (Number(responseData.balance) < 100) {
+                    window.Telegram.WebApp.showAlert('Недостаточно средств для игры. Пополните баланс!');
+                    return;
+                }
+                // Всё ок — переходим на игру
+                openPage('game');
+            } catch (error) {
+                window.Telegram.WebApp.showAlert('Ошибка при запуске игры: ' + (error.message || error));
+            }
+        }
     </script>
 </body>
 </html>
