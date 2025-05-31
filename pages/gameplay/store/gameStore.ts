@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { GameState, GameAction, Player, TelegramUser } from '../types/game';
+import { GameState, GameAction, Player, TelegramUser, WebSocketMessage } from '../types/game';
+
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 5000;
+const ACTION_COOLDOWN = 1000; // 1 секунда между действиями
 
 interface GameStore {
     gameState: GameState;
@@ -11,39 +15,60 @@ interface GameStore {
     initTelegramUser: () => TelegramUser | null;
     makeAction: (action: GameAction) => void;
     exitGame: () => void;
+    cancelMatchmaking: () => void;
+    handleError: (error: string) => void;
 }
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
-export const useGameState = create<GameStore>((set, get) => ({
-    gameState: {
-        status: 'waiting',
-        bank: 0,
-        current_turn: null,
-        players: {},
-        matchmaking: {
-            playersCount: 0,
-            requiredPlayers: 6,
-            minBet: 100,
-            maxBet: 2000,
-            waitingPlayers: []
-        }
+const initialGameState: GameState = {
+    status: 'waiting',
+    bank: 0,
+    current_turn: null,
+    players: {},
+    matchmaking: {
+        playersCount: 0,
+        requiredPlayers: 6,
+        minBet: 100,
+        maxBet: 2000,
+        waitingPlayers: [],
+        isSearching: false
     },
+    reconnectAttempts: 0,
+    lastActionTime: 0
+};
+
+export const useGameState = create<GameStore>((set, get) => ({
+    gameState: initialGameState,
     telegramUser: null,
     isConnected: false,
     ws: null,
 
     connect: () => {
-        const { telegramUser } = get();
+        const { telegramUser, gameState } = get();
         if (!telegramUser?.id) {
             console.error('Cannot connect: no user ID');
             return;
         }
 
-        console.log('Attempting to connect to WebSocket...', { userId: telegramUser.id });
+        // Если превышено количество попыток переподключения
+        if (gameState.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            set(state => ({
+                gameState: {
+                    ...state.gameState,
+                    status: 'error',
+                    error: 'Не удалось подключиться к серверу. Пожалуйста, обновите страницу.'
+                }
+            }));
+            return;
+        }
+
+        console.log('Attempting to connect to WebSocket...', { 
+            userId: telegramUser.id,
+            attempt: gameState.reconnectAttempts + 1
+        });
+
         const wsUrl = `${WS_URL}/${telegramUser.id}`;
-        console.log('WebSocket URL:', wsUrl);
-        
         const ws = new WebSocket(wsUrl);
         
         ws.onopen = () => {
@@ -55,13 +80,20 @@ export const useGameState = create<GameStore>((set, get) => ({
                 console.log('Sending initData...');
                 ws.send(JSON.stringify({
                     type: 'init',
-                    initData: window.Telegram.WebApp.initData
+                    initData: window.Telegram.WebApp.initData,
+                    timestamp: Date.now()
                 }));
-                // Добавляем отправку find_game после init
-                setTimeout(() => {
-                    console.log('Sending find_game...');
-                    ws.send(JSON.stringify({ type: 'find_game' }));
-                }, 1000);
+
+                // Если был в процессе поиска игры, возобновляем поиск
+                if (get().gameState.matchmaking.isSearching) {
+                    setTimeout(() => {
+                        console.log('Resuming game search...');
+                        ws.send(JSON.stringify({ 
+                            type: 'find_game',
+                            timestamp: Date.now()
+                        }));
+                    }, 1000);
+                }
             } else {
                 console.error('No Telegram WebApp init data available');
                 ws.close();
@@ -69,61 +101,80 @@ export const useGameState = create<GameStore>((set, get) => ({
         };
 
         ws.onmessage = (event) => {
-            console.log('Received WebSocket message:', event.data);
-            const data = JSON.parse(event.data);
-            
-            switch (data.type) {
-                case 'init_success':
-                    console.log('Init successful');
-                    break;
-                case 'matchmaking_update':
-                    console.log('Matchmaking update:', data);
-                    set(state => ({
-                        gameState: {
-                            ...state.gameState,
-                            matchmaking: {
-                                playersCount: data.players_count,
-                                requiredPlayers: data.required_players,
-                                minBet: data.min_bet,
-                                maxBet: data.max_bet,
-                                waitingPlayers: data.waiting_players || []
-                            }
-                        }
-                    }));
-                    break;
-                case 'game_state':
-                    console.log('Updating game state:', data.state);
-                    set({ gameState: data.state });
-                    break;
-                case 'error':
-                    console.error('Game error:', data.message);
-                    break;
-                case 'player_joined':
-                    console.log('Player joined:', data.player);
-                    set(state => ({
-                        gameState: {
-                            ...state.gameState,
-                            players: {
-                                ...state.gameState.players,
-                                [data.player.id]: data.player
-                            }
-                        }
-                    }));
-                    break;
-                case 'player_left':
-                    console.log('Player left:', data.playerId);
-                    set(state => {
-                        const { [data.playerId]: _, ...remainingPlayers } = state.gameState.players;
-                        return {
+            try {
+                console.log('Received WebSocket message:', event.data);
+                const data: WebSocketMessage = JSON.parse(event.data);
+                
+                // Проверяем timestamp сообщения
+                if (Date.now() - data.timestamp > 30000) { // 30 секунд
+                    console.warn('Received outdated message');
+                    return;
+                }
+
+                switch (data.type) {
+                    case 'init_success':
+                        console.log('Init successful');
+                        break;
+                    case 'matchmaking_update':
+                        console.log('Matchmaking update:', data);
+                        set(state => ({
                             gameState: {
                                 ...state.gameState,
-                                players: remainingPlayers
+                                matchmaking: {
+                                    playersCount: data.data.players_count,
+                                    requiredPlayers: data.data.required_players,
+                                    minBet: data.data.min_bet,
+                                    maxBet: data.data.max_bet,
+                                    waitingPlayers: data.data.waiting_players || [],
+                                    isSearching: true
+                                }
                             }
-                        };
-                    });
-                    break;
-                default:
-                    console.log('Unknown message type:', data.type);
+                        }));
+                        break;
+                    case 'game_state':
+                        console.log('Updating game state:', data.data);
+                        set({ gameState: { ...data.data, reconnectAttempts: 0 } });
+                        break;
+                    case 'error':
+                        console.error('Game error:', data.data.message);
+                        set(state => ({
+                            gameState: {
+                                ...state.gameState,
+                                status: 'error',
+                                error: data.data.message
+                            }
+                        }));
+                        break;
+                    case 'player_joined':
+                        console.log('Player joined:', data.data.player);
+                        set(state => ({
+                            gameState: {
+                                ...state.gameState,
+                                players: {
+                                    ...state.gameState.players,
+                                    [data.data.player.id]: data.data.player
+                                }
+                            }
+                        }));
+                        break;
+                    case 'player_left':
+                        console.log('Player left:', data.data.playerId);
+                        set(state => {
+                            const { [data.data.playerId]: _, ...remainingPlayers } = state.gameState.players;
+                            return {
+                                gameState: {
+                                    ...state.gameState,
+                                    players: remainingPlayers
+                                }
+                            };
+                        });
+                        break;
+                    default:
+                        console.log('Unknown message type:', data.type);
+                }
+            } catch (error) {
+                console.error('Error processing WebSocket message:', error);
+                get().handleError('Ошибка обработки сообщения от сервера');
             }
         };
 
@@ -133,16 +184,26 @@ export const useGameState = create<GameStore>((set, get) => ({
                 reason: event.reason,
                 wasClean: event.wasClean
             });
-            set({ isConnected: false });
-            // Пробуем переподключиться через 5 секунд
+            
+            set(state => ({
+                isConnected: false,
+                gameState: {
+                    ...state.gameState,
+                    status: 'reconnecting',
+                    reconnectAttempts: state.gameState.reconnectAttempts + 1
+                }
+            }));
+
+            // Пробуем переподключиться
             setTimeout(() => {
                 console.log('Attempting to reconnect...');
                 get().connect();
-            }, 5000);
+            }, RECONNECT_DELAY);
         };
 
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
+            get().handleError('Ошибка соединения с сервером');
         };
     },
 
@@ -164,29 +225,102 @@ export const useGameState = create<GameStore>((set, get) => ({
     },
 
     makeAction: (action: GameAction) => {
-        const { ws, isConnected } = get();
+        const { ws, isConnected, gameState } = get();
+        
+        // Проверяем cooldown
+        if (Date.now() - gameState.lastActionTime < ACTION_COOLDOWN) {
+            console.warn('Action cooldown');
+            return;
+        }
+
+        // Валидация действия
+        if (!validateAction(action)) {
+            return;
+        }
+
         if (ws && isConnected) {
-            ws.send(JSON.stringify(action));
+            const actionWithTimestamp = {
+                ...action,
+                timestamp: Date.now()
+            };
+            ws.send(JSON.stringify(actionWithTimestamp));
+            set(state => ({
+                gameState: {
+                    ...state.gameState,
+                    lastActionTime: Date.now()
+                }
+            }));
         } else {
             console.error('WebSocket not connected');
+            get().handleError('Нет соединения с сервером');
         }
     },
 
     exitGame: () => {
         const { ws } = get();
         if (ws) {
-            ws.send(JSON.stringify({ type: 'exit_game' }));
+            ws.send(JSON.stringify({ 
+                type: 'exit_game',
+                timestamp: Date.now()
+            }));
             ws.close();
         }
         set({ 
-            gameState: {
-                status: 'waiting',
-                bank: 0,
-                current_turn: null,
-                players: {}
-            },
+            gameState: initialGameState,
             isConnected: false,
             ws: null
         });
+    },
+
+    cancelMatchmaking: () => {
+        const { ws, isConnected } = get();
+        if (ws && isConnected) {
+            ws.send(JSON.stringify({ 
+                type: 'cancel_matchmaking',
+                timestamp: Date.now()
+            }));
+            set(state => ({
+                gameState: {
+                    ...state.gameState,
+                    matchmaking: {
+                        ...state.gameState.matchmaking,
+                        isSearching: false
+                    }
+                }
+            }));
+        }
+    },
+
+    handleError: (error: string) => {
+        console.error('Game error:', error);
+        set(state => ({
+            gameState: {
+                ...state.gameState,
+                status: 'error',
+                error
+            }
+        }));
     }
-})); 
+}));
+
+// Валидация действий
+function validateAction(action: GameAction): boolean {
+    const { gameState, telegramUser } = useGameState.getState();
+    
+    // Проверяем, что это ход игрока
+    if (gameState.current_turn !== telegramUser?.id.toString()) {
+        console.error('Not your turn');
+        return false;
+    }
+    
+    // Проверяем валидность ставки
+    if (action.action === 'bet' && action.amount) {
+        if (action.amount < gameState.matchmaking.minBet || 
+            action.amount > gameState.matchmaking.maxBet) {
+            console.error('Invalid bet amount');
+            return false;
+        }
+    }
+    
+    return true;
+} 

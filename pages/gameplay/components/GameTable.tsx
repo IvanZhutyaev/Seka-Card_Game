@@ -13,7 +13,9 @@ const GameTable: React.FC = () => {
         exitGame,
         telegramUser,
         isConnected,
-        makeAction
+        makeAction,
+        cancelMatchmaking,
+        handleError
     } = useGameState();
     
     const [selectedChip, setSelectedChip] = useState<number>(100);
@@ -35,6 +37,7 @@ const GameTable: React.FC = () => {
             console.info('Telegram user initialized', user);
         } else {
             console.error('Failed to initialize Telegram user');
+            handleError('Не удалось инициализировать пользователя');
         }
         
         // Подключаемся к WebSocket
@@ -48,7 +51,7 @@ const GameTable: React.FC = () => {
                 window.Telegram.WebApp.close();
             }
         };
-    }, [connect, initTelegramUser]);
+    }, [connect, initTelegramUser, handleError]);
     
     // Логируем изменения состояния подключения
     useEffect(() => {
@@ -65,6 +68,20 @@ const GameTable: React.FC = () => {
         });
     }, [gameState]);
 
+    // Обработка ошибок
+    useEffect(() => {
+        if (gameState.status === 'error' && gameState.error) {
+            console.error('Game error:', gameState.error);
+        }
+    }, [gameState.status, gameState.error]);
+
+    // Обработка переподключения
+    useEffect(() => {
+        if (gameState.status === 'reconnecting') {
+            console.log('Attempting to reconnect...', gameState.reconnectAttempts);
+        }
+    }, [gameState.status, gameState.reconnectAttempts]);
+
     const handleSoundToggle = () => {
         setIsSoundEnabled(!isSoundEnabled);
         // TODO: Добавить звуковые эффекты
@@ -78,21 +95,24 @@ const GameTable: React.FC = () => {
         makeAction({
             type: 'game_action',
             action: 'bet',
-            amount: selectedChip
+            amount: selectedChip,
+            timestamp: Date.now()
         });
     };
 
     const handleFold = () => {
         makeAction({
             type: 'game_action',
-            action: 'fold'
+            action: 'fold',
+            timestamp: Date.now()
         });
     };
 
     const handleCheck = () => {
         makeAction({
             type: 'game_action',
-            action: 'check'
+            action: 'check',
+            timestamp: Date.now()
         });
     };
     
@@ -102,8 +122,35 @@ const GameTable: React.FC = () => {
     };
 
     if (!telegramUser) {
-        console.warn('No Telegram user available');
-        return <div>Loading user data...</div>;
+        return (
+            <div className="game-loading">
+                <div className="loader" />
+                <p>Загрузка данных пользователя...</p>
+            </div>
+        );
+    }
+
+    if (gameState.status === 'error') {
+        return (
+            <div className="error-container">
+                <div className="error-message">
+                    <h2>Произошла ошибка</h2>
+                    <p>{gameState.error}</p>
+                    <button onClick={() => window.location.reload()}>
+                        Обновить страницу
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState.status === 'reconnecting') {
+        return (
+            <div className="game-loading">
+                <div className="loader" />
+                <p>Переподключение к серверу... ({gameState.reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS})</p>
+            </div>
+        );
     }
 
     return (
@@ -125,6 +172,14 @@ const GameTable: React.FC = () => {
                             <div className="matchmaking-bets">
                                 Ставки: {gameState.matchmaking.minBet} - {gameState.matchmaking.maxBet}
                             </div>
+                            {gameState.matchmaking.isSearching && (
+                                <button 
+                                    className="cancel-search-button"
+                                    onClick={cancelMatchmaking}
+                                >
+                                    Отменить поиск
+                                </button>
+                            )}
                         </div>
                      ) : 'Игра идет'}
                 </div>

@@ -1,6 +1,6 @@
 import type { TelegramWebAppUser } from './telegram';
 
-export type GameStatus = 'waiting' | 'matchmaking' | 'betting' | 'playing' | 'finished';
+export type GameStatus = 'waiting' | 'matchmaking' | 'betting' | 'playing' | 'finished' | 'error' | 'reconnecting';
 
 export interface MatchmakingState {
     playersCount: number;
@@ -8,6 +8,7 @@ export interface MatchmakingState {
     minBet: number;
     maxBet: number;
     waitingPlayers: string[];
+    isSearching: boolean;
 }
 
 export interface Player {
@@ -16,6 +17,8 @@ export interface Player {
     total_bet: number;
     status: 'waiting' | 'ready' | 'playing' | 'folded';
     user_info?: TelegramWebAppUser;
+    lastAction?: string;
+    lastActionTime?: number;
 }
 
 export interface GameState {
@@ -27,12 +30,22 @@ export interface GameState {
     round?: string;
     minBet?: number;
     maxBet?: number;
+    error?: string;
+    reconnectAttempts: number;
+    lastActionTime: number;
 }
 
 export interface GameAction {
     type: 'game_action';
     action: 'bet' | 'fold' | 'check';
     amount?: number;
+    timestamp: number;
+}
+
+export interface WebSocketMessage {
+    type: string;
+    data?: any;
+    timestamp: number;
 }
 
 export type { TelegramWebAppUser as TelegramUser }; 

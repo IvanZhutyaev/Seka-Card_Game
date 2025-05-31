@@ -17,8 +17,12 @@
 }
 
 .game-loading {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
     color: white;
 }
 
@@ -29,6 +33,7 @@
     border-top: 5px solid #3498db;
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    margin-bottom: 20px;
 }
 
 @keyframes spin {
@@ -173,4 +178,62 @@
 .matchmaking-bets {
     font-size: 0.9em;
     color: #ccc;
+}
+
+.error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.error-message {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+}
+
+.error-message h2 {
+    color: #e74c3c;
+    margin-bottom: 15px;
+}
+
+.error-message p {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.error-message button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s;
+}
+
+.error-message button:hover {
+    background: #2980b9;
+}
+
+.cancel-search-button {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+.cancel-search-button:hover {
+    background: #c0392b;
 } 
