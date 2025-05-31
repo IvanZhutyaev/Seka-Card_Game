@@ -1,6 +1,6 @@
 from typing import List, Optional
 import os
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, validator
 from dotenv import load_dotenv
 import logging
 
@@ -21,7 +21,7 @@ class Settings(BaseModel):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     ADMIN_IDS: List[int] = []
 
-    @field_validator('ADMIN_IDS', mode='before')
+    @validator('ADMIN_IDS', pre=True)
     def parse_admin_ids(cls, v):
         if v is None:
             return []
