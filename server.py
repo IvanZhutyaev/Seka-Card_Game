@@ -15,6 +15,7 @@ import time
 from config import REDIS_CONFIG
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import sys
+import asyncio
 
 # Настройка логирования
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
@@ -312,38 +313,135 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Добавляем функцию мониторинга состояния игры
+async def monitor_game_state():
+    """Мониторинг состояния игры и очереди"""
+    while True:
+        try:
+            waiting_players = await game_manager.get_waiting_players()
+            active_games = await game_manager.redis_slave.hgetall(game_manager.games_key)
+            logger.info(f"Monitoring: {len(waiting_players)} waiting players, {len(active_games)} active games")
+            
+            # Проверяем состояние очереди
+            for player_id in waiting_players:
+                try:
+                    active_game = await game_manager.get_player_active_game(player_id)
+                    if active_game:
+                        logger.warning(f"Player {player_id} is in queue but has active game {active_game}")
+                        await game_manager.remove_waiting_player(player_id)
+                except Exception as e:
+                    logger.error(f"Error checking player {player_id} status: {e}")
+            
+            # Очищаем неактивные игры
+            await game_manager.cleanup_inactive_games()
+            
+        except Exception as e:
+            logger.error(f"Monitoring error: {e}")
+        await asyncio.sleep(5)
+
+# Запускаем мониторинг при старте приложения
+@app.on_event("startup")
+async def startup_event():
+    """Запуск приложения и инициализация компонентов"""
+    try:
+        # Проверяем подключение к Redis
+        await game_manager.redis_master.ping()
+        await game_manager.redis_slave.ping()
+        logger.info("Successfully connected to Redis")
+        
+        # Запускаем мониторинг
+        asyncio.create_task(monitor_game_state())
+        logger.info("Game state monitoring started")
+        
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        raise
+
+# Улучшаем обработку WebSocket соединений
 @app.websocket("/ws/{game_id}")
 async def websocket_endpoint(websocket: WebSocket, game_id: str):
     try:
         logger.info(f"New WebSocket connection attempt for game {game_id}")
+        
+        # Проверяем валидность game_id
+        if not game_id or game_id == "undefined":
+            logger.error("Invalid game_id received")
+            await websocket.close(code=4000)
+            return
+            
         await websocket.accept()
-        logger.debug("WebSocket connection accepted")
-
+        logger.info("WebSocket connection accepted")
+        
         # Ожидаем initData от клиента
-        init_data = await websocket.receive_json()
-        logger.debug(f"Received init data: {init_data}")
-
+        try:
+            init_data = await websocket.receive_json()
+            logger.debug(f"Received init data: {init_data}")
+        except Exception as e:
+            logger.error(f"Error receiving init data: {e}")
+            await websocket.close(code=4000)
+            return
+            
         if not init_data.get('initData'):
             logger.error("No initData provided in WebSocket message")
             await websocket.close(code=4000)
             return
-
+            
         # Валидация initData
         try:
-            validate_init_data(init_data['initData'])
-            logger.info("InitData validated successfully")
+            if not verify_telegram_data(init_data['initData']):
+                logger.error("Invalid initData")
+                await websocket.close(code=4001)
+                return
         except Exception as e:
-            logger.error(f"InitData validation failed: {str(e)}")
+            logger.error(f"Error validating initData: {e}")
             await websocket.close(code=4001)
             return
-
-        # ... rest of the WebSocket handler code ...
-
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for game {game_id}")
+            
+        # Получаем player_id из initData
+        try:
+            params = dict(param.split('=') for param in init_data['initData'].split('&'))
+            user_data = json.loads(params.get('user', '{}'))
+            player_id = str(user_data.get('id'))
+            
+            if not player_id:
+                logger.error("No player_id in initData")
+                await websocket.close(code=4002)
+                return
+                
+        except Exception as e:
+            logger.error(f"Error parsing player_id: {e}")
+            await websocket.close(code=4002)
+            return
+            
+        # Подключаем игрока
+        await manager.connect(websocket, player_id)
+        logger.info(f"Player {player_id} connected to game {game_id}")
+        
+        try:
+            while True:
+                try:
+                    data = await websocket.receive_json()
+                    logger.debug(f"Received message from player {player_id}: {data}")
+                    await handle_websocket_message(websocket, player_id, data)
+                except WebSocketDisconnect:
+                    logger.info(f"Player {player_id} disconnected")
+                    break
+                except Exception as e:
+                    logger.error(f"Error handling message from player {player_id}: {e}")
+                    await manager.send_personal_message({
+                        "type": "error",
+                        "message": "Произошла ошибка при обработке сообщения"
+                    }, player_id)
+        finally:
+            await manager.disconnect(player_id)
+            logger.info(f"Player {player_id} disconnected from game {game_id}")
+            
     except Exception as e:
-        logger.error(f"WebSocket error: {str(e)}", exc_info=True)
-        await websocket.close(code=1011)
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.close(code=1011)
+        except:
+            pass
 
 waiting_user_info = {}
 
@@ -362,6 +460,16 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 await manager.send_personal_message({
                     "type": "error",
                     "message": "Недостаточно средств для игры"
+                }, player_id)
+                return
+            
+            # Проверяем, не находится ли игрок уже в игре
+            active_game = await game_manager.get_player_active_game(player_id)
+            if active_game:
+                logger.warning(f"Player {player_id} is already in game {active_game}")
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Вы уже находитесь в игре"
                 }, player_id)
                 return
             
@@ -387,7 +495,15 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 logger.info(f"Saved user info for player {player_id}: {user_info}")
             
             # Добавляем игрока в очередь
-            await game_manager.add_waiting_player(player_id)
+            success = await game_manager.add_waiting_player(player_id)
+            if not success:
+                logger.error(f"Failed to add player {player_id} to waiting queue")
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Не удалось добавить в очередь"
+                }, player_id)
+                return
+                
             logger.info(f"Added player {player_id} to waiting queue")
             
             # Получаем обновленный список ожидающих игроков
@@ -400,7 +516,8 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 "players_count": len(waiting_players),
                 "required_players": 6,
                 "min_bet": MIN_BET,
-                "max_bet": MAX_BET
+                "max_bet": MAX_BET,
+                "waiting_players": list(waiting_players)  # Добавляем список игроков
             }
             logger.debug(f"Sending matchmaking update to all players: {update_message}")
             
