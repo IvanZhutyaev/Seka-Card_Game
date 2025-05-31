@@ -8,6 +8,12 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Our utility scripts -->
     <script src="/static/js/telegram-utils.js"></script>
+    <script>
+        // Проверяем загрузку TelegramUtils
+        if (!window.TelegramUtils) {
+            console.error('TelegramUtils not loaded!');
+        }
+    </script>
     <script src="/static/js/telegram-init.js"></script>
     <script src="/static/js/navigation.js"></script>
     <script src="/static/js/common.js"></script>
@@ -513,8 +519,20 @@
         });
 
         function openPage(page) {
-            TelegramUtils.openLink(page);
-            document.getElementById('dropdownMenu').classList.remove('show');
+            try {
+                if (!window.Telegram?.WebApp) {
+                    throw new Error('WebApp не инициализирован');
+                }
+                // Формируем URL
+                const url = `/${page}`;
+                // Используем window.location.href для внутренней навигации
+                window.location.href = url;
+                document.getElementById('dropdownMenu').classList.remove('show');
+            } catch (error) {
+                if (window.Telegram?.WebApp) {
+                    window.Telegram.WebApp.showAlert('Ошибка при переходе на страницу');
+                }
+            }
         }
 
         function toggleDropdown() {
@@ -556,10 +574,11 @@
         window.addEventListener('popstate', function(event) {
             // Получаем текущий путь из URL
             const path = window.location.pathname.substring(1) || 'main_menu';
+            const url = `/${path}`;
 
-            // Загружаем соответствующую страницу
+            // Используем window.location.href для внутренней навигации
             if (path !== window.location.pathname.substring(1)) {
-                TelegramUtils.openLink(path);
+                window.location.href = url;
             }
         });
 

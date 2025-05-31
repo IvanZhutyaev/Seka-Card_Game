@@ -3,6 +3,7 @@ import { useGameState } from '../store/gameStore';
 import PlayerHand from './PlayerHand';
 import Avatar from './Avatar';
 import './GameTable.css';
+import GameControls from './GameControls';
 
 const GameTable: React.FC = () => {
     const { 
@@ -19,6 +20,9 @@ const GameTable: React.FC = () => {
     const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
     
     useEffect(() => {
+        // Логируем инициализацию компонента
+        console.info('GameTable component mounted');
+
         // Инициализируем Telegram WebApp
         if (window.Telegram?.WebApp) {
             window.Telegram.WebApp.ready();
@@ -28,20 +32,39 @@ const GameTable: React.FC = () => {
         // Инициализируем данные Telegram пользователя
         const user = initTelegramUser();
         if (user) {
-            console.log('Telegram user initialized:', user);
+            console.info('Telegram user initialized', user);
+        } else {
+            console.error('Failed to initialize Telegram user');
         }
         
         // Подключаемся к WebSocket
+        console.info('Attempting to connect to WebSocket');
         connect();
         
         // Очистка при размонтировании
         return () => {
+            console.info('GameTable component unmounting');
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.close();
             }
         };
     }, [connect, initTelegramUser]);
     
+    // Логируем изменения состояния подключения
+    useEffect(() => {
+        console.info('WebSocket connection state changed:', { isConnected });
+    }, [isConnected]);
+
+    // Логируем изменения состояния игры
+    useEffect(() => {
+        console.info('Game state updated:', {
+            status: gameState.status,
+            playersCount: Object.keys(gameState.players).length,
+            currentTurn: gameState.current_turn,
+            bank: gameState.bank
+        });
+    }, [gameState]);
+
     const handleSoundToggle = () => {
         setIsSoundEnabled(!isSoundEnabled);
         // TODO: Добавить звуковые эффекты
@@ -73,6 +96,16 @@ const GameTable: React.FC = () => {
         });
     };
     
+    // Логируем ошибки рендеринга
+    const handleError = (error: Error) => {
+        console.error('Render error in GameTable:', error);
+    };
+
+    if (!telegramUser) {
+        console.warn('No Telegram user available');
+        return <div>Loading user data...</div>;
+    }
+
     return (
         <div className="table-container">
             <div className="header">
@@ -169,6 +202,7 @@ const GameTable: React.FC = () => {
                     </div>
                 </div>
             </div>
+            <GameControls />
         </div>
     );
 };

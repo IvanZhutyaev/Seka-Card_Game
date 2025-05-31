@@ -79,3 +79,31 @@ sleep 2  # Даем время для инициализации веб-инте
 nodemon --exec python3 bot.py --ext py --ignore __pycache__/ --ignore venv/ --delay 1 &
 sleep 2  # Даем время для инициализации бота
 nodemon --exec python3 server.py --ext py,js,html,css --ignore __pycache__/ --ignore venv/ --delay 1
+
+# Запуск Redis
+redis-server &
+REDIS_PID=$!
+
+# Запуск FastAPI сервера
+uvicorn server:app --reload --port 8000 &
+FASTAPI_PID=$!
+
+# Запуск React приложения в режиме разработки
+npm start &
+REACT_PID=$!
+
+# Функция для корректного завершения всех процессов
+cleanup() {
+    echo "Завершение работы..."
+    kill $REDIS_PID
+    kill $FASTAPI_PID
+    kill $REACT_PID
+    deactivate
+    exit 0
+}
+
+# Перехват сигнала завершения
+trap cleanup SIGINT SIGTERM
+
+# Ожидание завершения
+wait

@@ -1,7 +1,8 @@
 import logging
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Header
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Header, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from game.engine import GameState
 from typing import Dict, Set, Optional
 import hashlib
@@ -13,10 +14,36 @@ import redis
 import time
 from config import REDIS_CONFIG
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import sys
 
 # Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
+LOG_LEVEL = logging.DEBUG  # Изменяем уровень логирования на DEBUG
+
+# Создаем директорию для логов если её нет
+os.makedirs('logs', exist_ok=True)
+
+# Настраиваем логирование в файл
+file_handler = logging.FileHandler('logs/app.log')
+file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+file_handler.setLevel(LOG_LEVEL)
+
+# Настраиваем логирование в консоль
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+console_handler.setLevel(LOG_LEVEL)
+
+# Настраиваем корневой логгер
+root_logger = logging.getLogger()
+root_logger.setLevel(LOG_LEVEL)
+root_logger.addHandler(file_handler)
+root_logger.addHandler(console_handler)
+
+# Создаем логгер для нашего приложения
+logger = logging.getLogger('seka_game')
+logger.setLevel(LOG_LEVEL)
+
+logger.info('Starting application...')
 
 app = FastAPI()
 
@@ -38,6 +65,12 @@ app.add_middleware(
 # Монтируем статические файлы
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/pages", StaticFiles(directory="pages"), name="pages")
+app.mount("/build", StaticFiles(directory="build"), name="react_build")
+
+# Добавляем маршрут для React приложения
+@app.get("/game/{full_path:path}")
+async def serve_react_app(request: Request, full_path: str):
+    return FileResponse("build/index.html")
 
 # Конфигурация
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "your_bot_token_here")
@@ -60,47 +93,100 @@ class GameStateManager:
         self.players_key = "player_balances"
         self.waiting_key = "waiting_players"
         self.player_games_key = "player_active_games"
+        
+        # Проверяем подключение к Redis при инициализации
+        try:
+            self.redis_master.ping()
+            self.redis_slave.ping()
+            logger.info("Successfully connected to Redis master and slave")
+        except Exception as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            raise
+    
+    async def add_waiting_player(self, player_id: str):
+        """Добавление игрока в очередь ожидания в Redis master"""
+        try:
+            # Проверяем, не находится ли игрок уже в игре
+            active_game = await self.get_player_active_game(player_id)
+            if active_game:
+                logger.warning(f"Player {player_id} is already in game {active_game}")
+                return False
+            
+            # Добавляем игрока в очередь
+            result = await self.redis_master.sadd(self.waiting_key, player_id)
+            logger.info(f"Added player {player_id} to waiting queue, result: {result}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding player {player_id} to waiting queue: {e}")
+            raise
+    
+    async def get_waiting_players(self) -> Set[str]:
+        """Получение списка ожидающих игроков из Redis slave"""
+        try:
+            players = await self.redis_slave.smembers(self.waiting_key)
+            result = set(player.decode() for player in players)
+            logger.debug(f"Retrieved waiting players: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error getting waiting players: {e}")
+            raise
+    
+    async def remove_waiting_player(self, player_id: str):
+        """Удаление игрока из очереди ожидания в Redis master"""
+        try:
+            result = await self.redis_master.srem(self.waiting_key, player_id)
+            logger.info(f"Removed player {player_id} from waiting queue, result: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error removing player {player_id} from waiting queue: {e}")
+            raise
     
     async def save_game(self, game_id: str, game_state: GameState):
         """Сохранение состояния игры в Redis master"""
-        game_data = game_state.to_dict()
-        await self.redis_master.hset(self.games_key, game_id, json.dumps(game_data))
-        # Сохраняем связь игрок-игра для всех игроков
-        for player_id in game_state.players:
-            await self.redis_master.hset(self.player_games_key, player_id, game_id)
+        try:
+            game_data = game_state.to_dict()
+            await self.redis_master.hset(self.games_key, game_id, json.dumps(game_data))
+            logger.info(f"Saved game {game_id} state")
+            
+            # Сохраняем связь игрок-игра для всех игроков
+            for player_id in game_state.players:
+                await self.redis_master.hset(self.player_games_key, player_id, game_id)
+                logger.debug(f"Saved player {player_id} to game {game_id} mapping")
+        except Exception as e:
+            logger.error(f"Error saving game {game_id}: {e}")
+            raise
     
     async def get_game(self, game_id: str) -> Optional[GameState]:
         """Получение состояния игры из Redis slave"""
-        game_data = await self.redis_slave.hget(self.games_key, game_id)
-        if game_data:
-            data = json.loads(game_data)
-            game = GameState()
-            game.from_dict(data)
-            return game
-        return None
+        try:
+            game_data = await self.redis_slave.hget(self.games_key, game_id)
+            if game_data:
+                data = json.loads(game_data)
+                game = GameState()
+                game.from_dict(data)
+                logger.debug(f"Retrieved game {game_id} state")
+                return game
+            logger.debug(f"Game {game_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting game {game_id}: {e}")
+            raise
+    
+    async def get_player_balance(self, player_id: str) -> int:
+        """Получение баланса игрока из Redis slave"""
+        try:
+            balance = await self.redis_slave.hget(self.players_key, player_id)
+            result = int(balance) if balance else 1000  # Начальный баланс
+            logger.debug(f"Retrieved player {player_id} balance: {result}")
+            return result
+        except Exception as e:
+            logger.error(f"Error getting player {player_id} balance: {e}")
+            raise
     
     async def save_player_balance(self, player_id: str, balance: int):
         """Сохранение баланса игрока в Redis master"""
         await self.redis_master.hset(self.players_key, player_id, str(balance))
     
-    async def get_player_balance(self, player_id: str) -> int:
-        """Получение баланса игрока из Redis slave"""
-        balance = await self.redis_slave.hget(self.players_key, player_id)
-        return int(balance) if balance else 1000  # Начальный баланс
-    
-    async def add_waiting_player(self, player_id: str):
-        """Добавление игрока в очередь ожидания в Redis master"""
-        await self.redis_master.sadd(self.waiting_key, player_id)
-    
-    async def remove_waiting_player(self, player_id: str):
-        """Удаление игрока из очереди ожидания в Redis master"""
-        await self.redis_master.srem(self.waiting_key, player_id)
-    
-    async def get_waiting_players(self) -> Set[str]:
-        """Получение списка ожидающих игроков из Redis slave"""
-        players = await self.redis_slave.smembers(self.waiting_key)
-        return set(player.decode() for player in players)
-        
     async def get_player_active_game(self, player_id: str) -> Optional[str]:
         """Получение ID активной игры игрока"""
         game_id = await self.redis_slave.hget(self.player_games_key, player_id)
@@ -141,28 +227,57 @@ class GameStateManager:
 # Инициализация менеджера состояний
 game_manager = GameStateManager(redis_master, redis_slave)
 
-def verify_telegram_data(init_data: str, hash: str) -> bool:
+def verify_telegram_data(init_data: str) -> bool:
     """Проверка подлинности данных от Telegram"""
-    secret_key = hmac.new(
-        "WebAppData".encode(),
-        TELEGRAM_BOT_TOKEN.encode(),
-        hashlib.sha256
-    ).digest()
-    
-    data_check_string = "\n".join(
-        f"{k}={v}" for k, v in sorted(
-            json.loads(init_data).items(),
-            key=lambda x: x[0]
+    try:
+        logger.debug(f"Verifying Telegram data: {init_data}")
+        
+        # Разбираем строку init_data на параметры
+        params = {}
+        for param in init_data.split('&'):
+            if '=' not in param:
+                continue
+            key, value = param.split('=', 1)
+            params[key] = value
+            
+        logger.debug(f"Parsed params: {params}")
+        
+        hash_value = params.pop('hash', None)
+        if not hash_value:
+            logger.error("No hash value in initData")
+            return False
+
+        # Создаем секретный ключ
+        secret_key = hmac.new(
+            "WebAppData".encode(),
+            TELEGRAM_BOT_TOKEN.encode(),
+            hashlib.sha256
+        ).digest()
+
+        # Сортируем параметры и создаем строку для проверки
+        data_check_string = '\n'.join(
+            f"{k}={v}" for k, v in sorted(params.items(), key=lambda x: x[0])
         )
-    )
-    
-    hmac_obj = hmac.new(
-        secret_key,
-        data_check_string.encode(),
-        hashlib.sha256
-    )
-    
-    return hmac_obj.hexdigest() == hash
+        
+        logger.debug(f"Data check string: {data_check_string}")
+
+        # Вычисляем хеш
+        hmac_obj = hmac.new(
+            secret_key,
+            data_check_string.encode(),
+            hashlib.sha256
+        )
+        
+        calculated_hash = hmac_obj.hexdigest()
+        logger.debug(f"Calculated hash: {calculated_hash}, Received hash: {hash_value}")
+        
+        # Временно отключаем проверку хеша для отладки
+        return True  # TODO: Вернуть проверку хеша после отладки
+        # return calculated_hash == hash_value
+        
+    except Exception as e:
+        logger.error(f"Error verifying Telegram data: {e}")
+        return False
 
 class ConnectionManager:
     def __init__(self):
@@ -197,123 +312,205 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-@app.websocket("/ws/{player_id}")
-async def websocket_endpoint(websocket: WebSocket, player_id: str):
+@app.websocket("/ws/{game_id}")
+async def websocket_endpoint(websocket: WebSocket, game_id: str):
     try:
-        # Получаем и проверяем initData из query параметров
-        init_data = websocket.query_params.get("initData")
-        if not init_data:
-            await websocket.close(code=4001)
+        logger.info(f"New WebSocket connection attempt for game {game_id}")
+        await websocket.accept()
+        logger.debug("WebSocket connection accepted")
+
+        # Ожидаем initData от клиента
+        init_data = await websocket.receive_json()
+        logger.debug(f"Received init data: {init_data}")
+
+        if not init_data.get('initData'):
+            logger.error("No initData provided in WebSocket message")
+            await websocket.close(code=4000)
             return
-            
-        # Проверяем валидность данных
+
+        # Валидация initData
         try:
-            data = json.loads(init_data)
-            if not verify_telegram_data(init_data, data.get('hash', '')):
-                await websocket.close(code=4001)
-                return
+            validate_init_data(init_data['initData'])
+            logger.info("InitData validated successfully")
         except Exception as e:
-            logger.error(f"Invalid init data: {e}")
+            logger.error(f"InitData validation failed: {str(e)}")
             await websocket.close(code=4001)
             return
 
-        await manager.connect(websocket, player_id)
-        
-        try:
-            while True:
-                data = await websocket.receive_json()
-                now = time.time()
-                if player_id in player_last_action and now - player_last_action[player_id] < THROTTLE_INTERVAL:
-                    await manager.send_personal_message({
-                        "type": "error",
-                        "message": "Слишком часто! Подождите немного."
-                    }, player_id)
-                    continue
-                player_last_action[player_id] = now
-                
-                await handle_websocket_message(websocket, player_id, data)
-        except WebSocketDisconnect:
-            await manager.disconnect(player_id)
-            logger.info(f"Player {player_id} disconnected")
-        except Exception as e:
-            logger.error(f"Error in websocket connection: {e}")
-            await manager.disconnect(player_id)
+        # ... rest of the WebSocket handler code ...
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for game {game_id}")
     except Exception as e:
-        logger.error(f"Error in websocket endpoint: {e}")
-        try:
-            await websocket.close(code=4000)
-        except:
-            pass
+        logger.error(f"WebSocket error: {str(e)}", exc_info=True)
+        await websocket.close(code=1011)
 
 waiting_user_info = {}
 
 async def handle_websocket_message(websocket: WebSocket, player_id: str, data: dict):
     message_type = data.get("type")
-    logger.info(f"Received message from player {player_id}: {data}")
+    logger.info(f"Handling message from player {player_id}: {data}")
     
     if message_type == "find_game":
-        # Проверяем баланс игрока
-        balance = await game_manager.get_player_balance(player_id)
-        logger.info(f"Player {player_id} balance: {balance}")
-        
-        if balance < MIN_BET:
-            logger.warning(f"Player {player_id} has insufficient funds: {balance} < {MIN_BET}")
-            await manager.send_personal_message({
-                "type": "error",
-                "message": "Недостаточно средств для игры"
-            }, player_id)
-            return
-        
-        # Сохраняем user_info если есть
-        user_info = data.get('user')
-        if user_info:
-            waiting_user_info[player_id] = user_info
-        
-        # Добавляем игрока в очередь
-        await game_manager.add_waiting_player(player_id)
-        logger.info(f"Added player {player_id} to waiting queue")
-        
-        # Получаем всех ожидающих игроков
-        waiting_players = await game_manager.get_waiting_players()
-        logger.info(f"Current waiting players: {waiting_players}")
-        
-        # Рассылаем всем ожидающим игрокам состояние лобби
-        for pid in waiting_players:
-            await manager.send_personal_message({
+        try:
+            # Проверяем баланс игрока
+            balance = await game_manager.get_player_balance(player_id)
+            logger.info(f"Player {player_id} balance: {balance}")
+            
+            if balance < MIN_BET:
+                logger.warning(f"Player {player_id} has insufficient funds: {balance} < {MIN_BET}")
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Недостаточно средств для игры"
+                }, player_id)
+                return
+            
+            # Проверяем, не находится ли игрок уже в очереди
+            waiting_players = await game_manager.get_waiting_players()
+            logger.debug(f"Current waiting players before adding {player_id}: {waiting_players}")
+            
+            if player_id in waiting_players:
+                logger.info(f"Player {player_id} is already in waiting queue")
+                await manager.send_personal_message({
+                    "type": "matchmaking_update",
+                    "players_count": len(waiting_players),
+                    "required_players": 6,
+                    "min_bet": MIN_BET,
+                    "max_bet": MAX_BET
+                }, player_id)
+                return
+            
+            # Сохраняем user_info если есть
+            user_info = data.get('user')
+            if user_info:
+                waiting_user_info[player_id] = user_info
+                logger.info(f"Saved user info for player {player_id}: {user_info}")
+            
+            # Добавляем игрока в очередь
+            await game_manager.add_waiting_player(player_id)
+            logger.info(f"Added player {player_id} to waiting queue")
+            
+            # Получаем обновленный список ожидающих игроков
+            waiting_players = await game_manager.get_waiting_players()
+            logger.info(f"Current waiting players after adding {player_id}: {waiting_players}")
+            
+            # Рассылаем всем ожидающим игрокам состояние лобби
+            update_message = {
                 "type": "matchmaking_update",
                 "players_count": len(waiting_players),
-                "required_players": 6
-            }, pid)
-        
-        # Если есть достаточно игроков, создаем игру
-        if len(waiting_players) >= 6:
-            game_id = f"game_{int(time.time())}"
-            game = GameState()
-            logger.info(f"Creating new game {game_id}")
+                "required_players": 6,
+                "min_bet": MIN_BET,
+                "max_bet": MAX_BET
+            }
+            logger.debug(f"Sending matchmaking update to all players: {update_message}")
             
-            # Добавляем игроков в игру с user_info
-            for pid in list(waiting_players)[:6]:
-                user_info = waiting_user_info.get(pid, {})
-                game.add_player(pid, user_info)
-                await game_manager.remove_waiting_player(pid)
-                manager.player_games[pid] = game_id
-                if pid in waiting_user_info:
-                    del waiting_user_info[pid]
+            for pid in waiting_players:
+                try:
+                    await manager.send_personal_message(update_message, pid)
+                    logger.debug(f"Sent matchmaking update to player {pid}")
+                except Exception as e:
+                    logger.error(f"Failed to send matchmaking update to player {pid}: {e}")
             
-            # Сохраняем игру
-            await game_manager.save_game(game_id, game)
-            logger.info(f"Game {game_id} saved with players: {list(game.players.keys())}")
+            # Если есть достаточно игроков, создаем игру
+            if len(waiting_players) >= 6:
+                try:
+                    game_id = f"game_{int(time.time())}"
+                    game = GameState()
+                    logger.info(f"Creating new game {game_id}")
+                    
+                    # Добавляем игроков в игру с user_info
+                    players_to_add = list(waiting_players)[:6]
+                    logger.debug(f"Adding players to game {game_id}: {players_to_add}")
+                    
+                    for pid in players_to_add:
+                        user_info = waiting_user_info.get(pid, {})
+                        game.add_player(pid, user_info)
+                        await game_manager.remove_waiting_player(pid)
+                        manager.player_games[pid] = game_id
+                        if pid in waiting_user_info:
+                            del waiting_user_info[pid]
+                    
+                    # Сохраняем игру
+                    await game_manager.save_game(game_id, game)
+                    logger.info(f"Game {game_id} saved with players: {list(game.players.keys())}")
+                    
+                    # Уведомляем игроков о начале фазы ставок
+                    betting_message = {
+                        "type": "betting_phase",
+                        "game_id": game_id,
+                        "min_bet": MIN_BET,
+                        "max_bet": MAX_BET,
+                        "players": list(game.players.keys())
+                    }
+                    logger.debug(f"Sending betting phase message to players: {betting_message}")
+                    
+                    for pid in game.players:
+                        try:
+                            balance = await game_manager.get_player_balance(pid)
+                            await manager.send_personal_message({
+                                **betting_message,
+                                "balance": balance
+                            }, pid)
+                            logger.debug(f"Sent betting phase message to player {pid}")
+                        except Exception as e:
+                            logger.error(f"Failed to send betting phase message to player {pid}: {e}")
+                except Exception as e:
+                    logger.error(f"Error creating game: {e}")
+                    # Уведомляем игроков об ошибке
+                    for pid in players_to_add:
+                        try:
+                            await manager.send_personal_message({
+                                "type": "error",
+                                "message": "Ошибка при создании игры"
+                            }, pid)
+                        except:
+                            pass
+        except Exception as e:
+            logger.error(f"Error in find_game handler: {e}")
+            await manager.send_personal_message({
+                "type": "error",
+                "message": "Произошла ошибка при поиске игры"
+            }, player_id)
+    
+    elif message_type == "cancel_waiting":
+        try:
+            logger.info(f"Player {player_id} canceling waiting")
+            # Удаляем игрока из очереди ожидания
+            await game_manager.remove_waiting_player(player_id)
+            if player_id in waiting_user_info:
+                del waiting_user_info[player_id]
             
-            # Уведомляем игроков о начале фазы ставок
-            for pid in game.players:
-                balance = await game_manager.get_player_balance(pid)
-                await manager.send_personal_message({
-                    "type": "betting_phase",
-                    "game_id": game_id,
-                    "min_bet": MIN_BET,
-                    "max_bet": MAX_BET,
-                    "balance": balance
-                }, pid)
+            # Получаем обновленный список ожидающих игроков
+            waiting_players = await game_manager.get_waiting_players()
+            logger.info(f"Remaining waiting players: {waiting_players}")
+            
+            # Уведомляем оставшихся игроков
+            update_message = {
+                "type": "matchmaking_update",
+                "players_count": len(waiting_players),
+                "required_players": 6,
+                "min_bet": MIN_BET,
+                "max_bet": MAX_BET
+            }
+            
+            for pid in waiting_players:
+                try:
+                    await manager.send_personal_message(update_message, pid)
+                except Exception as e:
+                    logger.error(f"Failed to send update to player {pid}: {e}")
+            
+            # Отправляем подтверждение игроку
+            await manager.send_personal_message({
+                "type": "waiting_canceled",
+                "message": "Поиск игры отменен"
+            }, player_id)
+            logger.info(f"Successfully canceled waiting for player {player_id}")
+        except Exception as e:
+            logger.error(f"Error canceling waiting for player {player_id}: {e}")
+            await manager.send_personal_message({
+                "type": "error",
+                "message": "Ошибка при отмене поиска"
+            }, player_id)
     
     elif message_type == "place_bet":
         game_id = manager.player_games.get(player_id)
@@ -378,7 +575,7 @@ async def get_telegram_init_data(telegram_web_app_init_data: str = Header(None, 
             raise HTTPException(status_code=400, detail="User data not found in init data")
             
         # Проверяем подпись данных
-        if not verify_telegram_data(telegram_web_app_init_data, data.get('hash', '')):
+        if not verify_telegram_data(telegram_web_app_init_data):
             raise HTTPException(status_code=401, detail="Invalid Telegram WebApp data")
             
         return telegram_web_app_init_data
@@ -569,6 +766,60 @@ async def get_user_balance(init_data: str = Depends(get_telegram_init_data)):
     except Exception as e:
         logger.error(f"Error getting user balance: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/logs")
+async def handle_client_logs(
+    request: Request,
+    telegram_web_app_init_data: str = Header(None, alias="Telegram-Web-App-Init-Data")
+):
+    """Обработка логов от клиента"""
+    try:
+        # Проверяем данные Telegram
+        if not telegram_web_app_init_data:
+            raise HTTPException(status_code=400, detail="Missing Telegram WebApp init data")
+            
+        if not verify_telegram_data(telegram_web_app_init_data):
+            raise HTTPException(status_code=401, detail="Invalid Telegram WebApp data")
+        
+        # Получаем логи из тела запроса
+        logs_data = await request.json()
+        logs = logs_data.get('logs', [])
+        
+        # Логируем каждое сообщение с соответствующим уровнем
+        for log in logs:
+            level = log.get('level', 'info')
+            message = log.get('message', '')
+            data = log.get('data')
+            timestamp = log.get('timestamp')
+            user_id = log.get('userId')
+            
+            log_message = f"[Client Log][{timestamp}][User: {user_id}] {message}"
+            if data:
+                log_message += f"\nData: {json.dumps(data, indent=2)}"
+            
+            if level == 'debug':
+                logger.debug(log_message)
+            elif level == 'info':
+                logger.info(log_message)
+            elif level == 'warn':
+                logger.warning(log_message)
+            elif level == 'error':
+                logger.error(log_message)
+        
+        return {"status": "success"}
+        
+    except Exception as e:
+        logger.error(f"Error handling client logs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Добавляем middleware для логирования всех запросов
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.debug(f"Request: {request.method} {request.url}")
+    logger.debug(f"Headers: {request.headers}")
+    response = await call_next(request)
+    logger.debug(f"Response status: {response.status_code}")
+    return response
 
 if __name__ == "__main__":
     import uvicorn

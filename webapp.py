@@ -35,6 +35,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Монтируем статические файлы
+app.mount("/static", StaticFiles(directory="pages/static"), name="static")
+app.mount("/build", StaticFiles(directory="build"), name="react_build")
+app.mount("/build/static", StaticFiles(directory="build/static"), name="react_static")
+
 # Разрешаем доступ только к указанным страницам
 ALLOWED_PAGES = {
     "rules": "pages/rules.html",
@@ -45,7 +50,7 @@ ALLOWED_PAGES = {
     "bonus": "pages/bonuses.html",
     "invite": "pages/invite.html",
     "history": "pages/history.html",
-    "game": "pages/gameplay/index.html"
+    "game": "build/index.html"  # React приложение
 }
 
 def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
@@ -164,17 +169,38 @@ async def verify_telegram_middleware(request: Request, call_next):
     # Пропускаем проверку для всех статических файлов и ресурсов
     if any([
         request.url.path.startswith("/static/"),
-        request.url.path.startswith("/gameplay/"),  # Разрешаем все файлы из gameplay
+        request.url.path.startswith("/build/"),
+        request.url.path.startswith("/gameplay/"),
         request.url.path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".tsx", ".json", ".woff", ".woff2", ".ttf")),
         "static" in request.url.path,
         "public" in request.url.path,
-        "assets" in request.url.path
+        "assets" in request.url.path,
+        "build" in request.url.path
     ]):
         return await call_next(request)
 
     # Пропускаем проверку для первоначального GET запроса к страницам
     if request.method == "GET" and (request.url.path == "/" or request.url.path in [f"/{page}" for page in ALLOWED_PAGES.keys()]):
         return await call_next(request)
+
+    # Особая обработка для WebSocket подключений
+    if request.url.path.startswith("/ws/"):
+        # Получаем initData из query параметров для WebSocket
+        try:
+            init_data = request.query_params.get('initData')
+            if init_data and await verify_telegram_request(Request(scope={"type": "http", "headers": [(b"Telegram-Web-App-Init-Data", init_data.encode())]})):
+                return await call_next(request)
+            else:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Invalid WebSocket connection data"}
+                )
+        except Exception as e:
+            logger.error(f"WebSocket verification error: {e}")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "WebSocket verification failed"}
+            )
 
     # Проверяем запрос только для API endpoints и POST запросов
     if request.url.path.startswith("/api/") or request.method == "POST":
@@ -203,23 +229,49 @@ async def get_page(page_name: str):
     if page_name not in ALLOWED_PAGES:
         print(f"Forbidden access to page: {page_name}")
         raise HTTPException(status_code=403, detail="Forbidden")
-
+    
     file_path = ALLOWED_PAGES[page_name]
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
         raise HTTPException(status_code=404, detail="File not found")
-
+    
     print(f"Serving file: {file_path}")
     return FileResponse(file_path)
+
+# Добавляем обработку всех путей для React приложения
+@app.get("/game/{full_path:path}")
+async def serve_game_app(full_path: str):
+    """Обработчик для всех путей внутри /game"""
+    return FileResponse("build/index.html")
 
 # API для проверки initData
 @app.post("/api/validate-init-data")
 async def validate_init_data(request: Request):
     """Валидация данных инициализации Telegram WebApp"""
     try:
-        data = await request.json()
+        # Пробуем получить данные разными способами
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            # Если не JSON, пробуем получить form data
+            form = await request.form()
+            data = dict(form)
+            if not data:
+                # Если и form data нет, проверяем headers
+                init_data = request.headers.get('Telegram-Web-App-Init-Data')
+                if init_data:
+                    data = {"initData": init_data}
+                else:
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "valid": False,
+                            "error": "No data provided",
+                            "detail": "Request must contain initData either in body, form, or header"
+                        }
+                    )
+
         init_data = data.get('initData')
-        
         logger.debug(f"Validating init_data: {init_data}")
         logger.debug(f"Request headers: {dict(request.headers)}")
         
@@ -252,14 +304,6 @@ async def validate_init_data(request: Request):
                 "traceback": str(e.__traceback__)
             }
         )
-
-# Монтируем статические файлы
-app.mount("/static", StaticFiles(directory="pages/static"), name="static")
-app.mount("/gameplay", StaticFiles(directory="pages/gameplay"), name="gameplay")  # Монтируем всю директорию gameplay
-app.mount("/gameplay/static", StaticFiles(directory="pages/gameplay/static"), name="gameplay_static")
-app.mount("/gameplay/public", StaticFiles(directory="pages/gameplay/public"), name="gameplay_public")
-app.mount("/gameplay/components", StaticFiles(directory="pages/gameplay/components"), name="gameplay_components")
-app.mount("/gameplay/store", StaticFiles(directory="pages/gameplay/store"), name="gameplay_store")
 
 # Добавляем обработчик ошибок
 @app.exception_handler(404)

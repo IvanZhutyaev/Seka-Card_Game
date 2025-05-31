@@ -6,6 +6,144 @@
     <title>СЕКА - Карточная игра</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
+        // Инициализация логгера
+        const Logger = {
+            logs: [],
+            maxLogs: 100,
+
+            log: function(level, message, data = null) {
+                const logEntry = {
+                    level,
+                    message,
+                    data,
+                    timestamp: new Date().toISOString(),
+                    userId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id
+                };
+                
+                // Добавляем в массив логов
+                this.logs.push(logEntry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+
+                // Выводим в консоль
+                console[level](message, data || '');
+
+                // Отправляем на сервер, если накопилось достаточно логов или это ошибка
+                if (this.logs.length >= 10 || level === 'error') {
+                    this.sendLogsToServer();
+                }
+            },
+
+            debug: function(message, data) {
+                this.log('debug', message, data);
+            },
+
+            info: function(message, data) {
+                this.log('info', message, data);
+            },
+
+            warn: function(message, data) {
+                this.log('warn', message, data);
+            },
+
+            error: function(message, data) {
+                this.log('error', message, data);
+            },
+
+            sendLogsToServer: async function() {
+                if (this.logs.length === 0) return;
+
+                try {
+                    const response = await fetch('/api/logs', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Telegram-Web-App-Init-Data': window.Telegram?.WebApp?.initData || ''
+                        },
+                        body: JSON.stringify({
+                            logs: this.logs
+                        })
+                    });
+
+                    if (response.ok) {
+                        // Очищаем отправленные логи
+                        this.logs = [];
+                    }
+                } catch (error) {
+                    console.error('Failed to send logs to server:', error);
+                }
+            }
+        };
+
+        // Перехватываем все console методы
+        const originalConsole = {
+            log: console.log,
+            debug: console.debug,
+            info: console.info,
+            warn: console.warn,
+            error: console.error
+        };
+
+        console.log = function() {
+            Logger.info(Array.from(arguments).join(' '));
+            originalConsole.log.apply(console, arguments);
+        };
+        console.debug = function() {
+            Logger.debug(Array.from(arguments).join(' '));
+            originalConsole.debug.apply(console, arguments);
+        };
+        console.info = function() {
+            Logger.info(Array.from(arguments).join(' '));
+            originalConsole.info.apply(console, arguments);
+        };
+        console.warn = function() {
+            Logger.warn(Array.from(arguments).join(' '));
+            originalConsole.warn.apply(console, arguments);
+        };
+        console.error = function() {
+            Logger.error(Array.from(arguments).join(' '));
+            originalConsole.error.apply(console, arguments);
+        };
+
+        // Перехватываем глобальные ошибки
+        window.onerror = function(message, source, lineno, colno, error) {
+            Logger.error('Global error', {
+                message,
+                source,
+                lineno,
+                colno,
+                error: error?.stack || error?.message
+            });
+        };
+
+        // Перехватываем необработанные промисы
+        window.onunhandledrejection = function(event) {
+            Logger.error('Unhandled promise rejection', {
+                reason: event.reason?.stack || event.reason?.message || event.reason
+            });
+        };
+
+        // Логируем инициализацию Telegram WebApp
+        document.addEventListener('DOMContentLoaded', function() {
+            Logger.info('DOM loaded');
+            
+            if (window.Telegram?.WebApp) {
+                Logger.info('Telegram WebApp initialized', {
+                    version: window.Telegram.WebApp.version,
+                    platform: window.Telegram.WebApp.platform,
+                    initDataUnsafe: window.Telegram.WebApp.initDataUnsafe
+                });
+            } else {
+                Logger.error('Telegram WebApp not initialized');
+            }
+        });
+
+        // Отправляем накопленные логи перед закрытием страницы
+        window.addEventListener('beforeunload', function() {
+            Logger.sendLogsToServer();
+        });
+
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
     </script>
@@ -34,6 +172,10 @@
 </head>
 <body>
     <div id="root"></div>
+    <script>
+        // Логируем состояние загрузки приложения
+        Logger.info('Application starting');
+    </script>
     <script type="module" src="/src/main.tsx"></script>
 </body>
 </html> 
