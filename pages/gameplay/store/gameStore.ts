@@ -20,7 +20,14 @@ export const useGameState = create<GameStore>((set, get) => ({
         status: 'waiting',
         bank: 0,
         current_turn: null,
-        players: {}
+        players: {},
+        matchmaking: {
+            playersCount: 0,
+            requiredPlayers: 6,
+            minBet: 100,
+            maxBet: 2000,
+            waitingPlayers: []
+        }
     },
     telegramUser: null,
     isConnected: false,
@@ -68,6 +75,21 @@ export const useGameState = create<GameStore>((set, get) => ({
             switch (data.type) {
                 case 'init_success':
                     console.log('Init successful');
+                    break;
+                case 'matchmaking_update':
+                    console.log('Matchmaking update:', data);
+                    set(state => ({
+                        gameState: {
+                            ...state.gameState,
+                            matchmaking: {
+                                playersCount: data.players_count,
+                                requiredPlayers: data.required_players,
+                                minBet: data.min_bet,
+                                maxBet: data.max_bet,
+                                waitingPlayers: data.waiting_players || []
+                            }
+                        }
+                    }));
                     break;
                 case 'game_state':
                     console.log('Updating game state:', data.state);

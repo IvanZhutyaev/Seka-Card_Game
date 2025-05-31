@@ -148,4 +148,29 @@
     padding: 20px;
     border-radius: 10px;
     z-index: 100;
+}
+
+.player-queue-info {
+    color: white;
+    font-size: 1.2em;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
+    min-width: 200px;
+    text-align: center;
+}
+
+.matchmaking-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.matchmaking-status {
+    font-weight: bold;
+}
+
+.matchmaking-bets {
+    font-size: 0.9em;
+    color: #ccc;
 } 

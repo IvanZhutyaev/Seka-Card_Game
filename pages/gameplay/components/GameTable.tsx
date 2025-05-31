@@ -117,7 +117,16 @@ const GameTable: React.FC = () => {
                 <button className="exit-button" onClick={exitGame} />
                 <div className="player-queue-info">
                     {!isConnected ? 'Подключение...' : 
-                     gameState.status === 'waiting' ? 'Поиск игры...' : 'Игра идет'}
+                     gameState.status === 'waiting' ? (
+                        <div className="matchmaking-info">
+                            <div className="matchmaking-status">
+                                Поиск игры... ({gameState.matchmaking.playersCount}/{gameState.matchmaking.requiredPlayers})
+                            </div>
+                            <div className="matchmaking-bets">
+                                Ставки: {gameState.matchmaking.minBet} - {gameState.matchmaking.maxBet}
+                            </div>
+                        </div>
+                     ) : 'Игра идет'}
                 </div>
             </div>
             

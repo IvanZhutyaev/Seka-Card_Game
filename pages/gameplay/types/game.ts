@@ -2,6 +2,14 @@ import type { TelegramWebAppUser } from './telegram';
 
 export type GameStatus = 'waiting' | 'matchmaking' | 'betting' | 'playing' | 'finished';
 
+export interface MatchmakingState {
+    playersCount: number;
+    requiredPlayers: number;
+    minBet: number;
+    maxBet: number;
+    waitingPlayers: string[];
+}
+
 export interface Player {
     cards: string[];
     bet: number;
@@ -15,6 +23,7 @@ export interface GameState {
     bank: number;
     current_turn: string | null;
     players: Record<string, Player>;
+    matchmaking: MatchmakingState;
     round?: string;
     minBet?: number;
     maxBet?: number;
