@@ -9,8 +9,7 @@ class TelegramUtils {
                 throw new Error('No WebApp init data');
             }
 
-            const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
-            const response = await fetch(`${baseUrl}/api/validate-init-data`, {
+            const response = await fetch(`${window.location.origin}/api/validate-init-data`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -44,8 +43,7 @@ class TelegramUtils {
             }
 
             // Формируем URL с параметрами
-            const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
-            const url = new URL(`/pages/${page}.html`, baseUrl);
+            const url = new URL(`/${page}`, window.location.origin);
             Object.entries(params).forEach(([key, value]) => {
                 url.searchParams.append(key, value);
             });
@@ -65,7 +63,36 @@ class TelegramUtils {
         if (!loadingEl) {
             const overlay = document.createElement('div');
             overlay.id = 'loading-overlay';
-            overlay.innerHTML = '<div class="loader"></div>';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'center';
+            overlay.style.alignItems = 'center';
+            overlay.style.zIndex = '9999';
+            
+            const loader = document.createElement('div');
+            loader.className = 'loader';
+            loader.style.border = '4px solid #f3f3f3';
+            loader.style.borderTop = '4px solid #3498db';
+            loader.style.borderRadius = '50%';
+            loader.style.width = '40px';
+            loader.style.height = '40px';
+            loader.style.animation = 'spin 1s linear infinite';
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            
+            document.head.appendChild(style);
+            overlay.appendChild(loader);
             document.body.appendChild(overlay);
         }
         document.getElementById('loading-overlay').style.display = 'flex';
