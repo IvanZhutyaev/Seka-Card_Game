@@ -50,6 +50,11 @@ export const useGameState = create<GameStore>((set, get) => ({
                     type: 'init',
                     initData: window.Telegram.WebApp.initData
                 }));
+                // Добавляем отправку find_game после init
+                setTimeout(() => {
+                    console.log('Sending find_game...');
+                    ws.send(JSON.stringify({ type: 'find_game' }));
+                }, 1000);
             } else {
                 console.error('No Telegram WebApp init data available');
                 ws.close();
@@ -61,6 +66,9 @@ export const useGameState = create<GameStore>((set, get) => ({
             const data = JSON.parse(event.data);
             
             switch (data.type) {
+                case 'init_success':
+                    console.log('Init successful');
+                    break;
                 case 'game_state':
                     console.log('Updating game state:', data.state);
                     set({ gameState: data.state });

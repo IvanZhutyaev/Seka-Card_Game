@@ -107,6 +107,11 @@ class GameStateManager:
     async def add_waiting_player(self, player_id: str):
         """Добавление игрока в очередь ожидания в Redis master"""
         try:
+            # Проверяем подключение к Redis
+            if not await self.redis_master.ping():
+                logger.error("Redis master is not available")
+                return False
+                
             # Проверяем, не находится ли игрок уже в игре
             active_game = await self.get_player_active_game(player_id)
             if active_game:
@@ -115,11 +120,15 @@ class GameStateManager:
             
             # Добавляем игрока в очередь
             result = await self.redis_master.sadd(self.waiting_key, player_id)
+            if result is None:
+                logger.error("Failed to add player to waiting queue")
+                return False
+                
             logger.info(f"Added player {player_id} to waiting queue, result: {result}")
             return True
         except Exception as e:
             logger.error(f"Error adding player {player_id} to waiting queue: {e}")
-            raise
+            return False
     
     async def get_waiting_players(self) -> Set[str]:
         """Получение списка ожидающих игроков из Redis slave"""
@@ -272,9 +281,8 @@ def verify_telegram_data(init_data: str) -> bool:
         calculated_hash = hmac_obj.hexdigest()
         logger.debug(f"Calculated hash: {calculated_hash}, Received hash: {hash_value}")
         
-        # Временно отключаем проверку хеша для отладки
-        return True  # TODO: Вернуть проверку хеша после отладки
-        # return calculated_hash == hash_value
+        # Включаем проверку хеша
+        return calculated_hash == hash_value
         
     except Exception as e:
         logger.error(f"Error verifying Telegram data: {e}")
@@ -339,6 +347,20 @@ async def monitor_game_state():
             logger.error(f"Monitoring error: {e}")
         await asyncio.sleep(5)
 
+async def cleanup_waiting_queue():
+    """Очистка очереди ожидания от неактивных игроков"""
+    while True:
+        try:
+            waiting_players = await game_manager.get_waiting_players()
+            for player_id in waiting_players:
+                # Проверяем, активен ли WebSocket
+                if player_id not in manager.active_connections:
+                    await game_manager.remove_waiting_player(player_id)
+                    logger.info(f"Removed inactive player {player_id} from waiting queue")
+        except Exception as e:
+            logger.error(f"Error in cleanup_waiting_queue: {e}")
+        await asyncio.sleep(30)  # Проверяем каждые 30 секунд
+
 # Запускаем мониторинг при старте приложения
 @app.on_event("startup")
 async def startup_event():
@@ -352,6 +374,10 @@ async def startup_event():
         # Запускаем мониторинг
         asyncio.create_task(monitor_game_state())
         logger.info("Game state monitoring started")
+        
+        # Запускаем очистку очереди
+        asyncio.create_task(cleanup_waiting_queue())
+        logger.info("Waiting queue cleanup started")
         
     except Exception as e:
         logger.error(f"Startup error: {e}")
@@ -449,7 +475,28 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
     message_type = data.get("type")
     logger.info(f"Handling message from player {player_id}: {data}")
     
-    if message_type == "find_game":
+    if message_type == "init":
+        try:
+            init_data = data.get("initData")
+            if not init_data:
+                logger.error("No initData in init message")
+                return
+                
+            if not verify_telegram_data(init_data):
+                logger.error("Invalid initData")
+                await websocket.close(code=4001)
+                return
+                
+            logger.info(f"Player {player_id} initialized successfully")
+            await manager.send_personal_message({
+                "type": "init_success"
+            }, player_id)
+        except Exception as e:
+            logger.error(f"Error handling init message: {e}")
+            await websocket.close(code=4000)
+            return
+    
+    elif message_type == "find_game":
         try:
             # Проверяем баланс игрока
             balance = await game_manager.get_player_balance(player_id)
