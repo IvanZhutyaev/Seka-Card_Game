@@ -2,66 +2,110 @@
  * Утилиты для работы с Telegram WebApp
  */
 
-const TelegramUtils = {
-    webApp: null,
-    isInitialized: false,
-    previousPage: null,
-
-    init() {
+class TelegramUtils {
+    static async validateSession() {
         try {
-            // Если уже инициализировано, возвращаем true
-            if (this.isInitialized) {
-                return true;
+            if (!window.Telegram?.WebApp?.initData) {
+                throw new Error('No WebApp init data');
             }
 
-            // Проверяем доступность Telegram WebApp
-            if (window.Telegram && window.Telegram.WebApp) {
-                this.webApp = window.Telegram.WebApp;
-                
-                // Инициализируем WebApp
-                this.webApp.ready();
-                this.webApp.expand();
+            const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
+            const response = await fetch(`${baseUrl}/api/validate-init-data`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Telegram-Web-App-Init-Data': window.Telegram.WebApp.initData
+                },
+                credentials: 'include',
+                body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+            });
 
-                // Настраиваем тему
-                document.documentElement.className = this.webApp.colorScheme;
-
-                // Включаем кнопку "назад" если это не главное меню
-                const currentPath = window.location.pathname;
-                if (currentPath !== '/' && currentPath !== '/main_menu') {
-                    this.webApp.BackButton.show();
-                } else {
-                    this.webApp.BackButton.hide();
-                }
-
-                // Обработчик кнопки "назад"
-                this.webApp.BackButton.onClick(() => {
-                    this.openLink('main_menu');
-                });
-
-                // Скрываем MainButton если она есть
-                if (this.webApp.MainButton) {
-                    this.webApp.MainButton.hide();
-                }
-                
-                this.isInitialized = true;
-                console.log('Telegram WebApp initialized successfully');
-                return true;
-            } else {
-                // Если открыто не в Telegram, инициализируем базовый режим
-                console.log('Running in standalone mode (not in Telegram WebApp)');
-                this.isInitialized = true;
-                return true;
+            if (!response.ok) {
+                throw new Error('Session validation failed');
             }
+
+            const result = await response.json();
+            return result.valid;
         } catch (error) {
-            console.error('Error initializing Telegram WebApp:', error);
+            console.error('Session validation error:', error);
             return false;
         }
-    },
+    }
 
-    getUser() {
+    static async openLink(page, params = {}) {
         try {
-            if (this.webApp && this.webApp.initDataUnsafe && this.webApp.initDataUnsafe.user) {
-                return this.webApp.initDataUnsafe.user;
+            // Показываем индикатор загрузки
+            this.showLoading();
+
+            // Проверяем валидность сессии
+            const isValid = await this.validateSession();
+            if (!isValid) {
+                throw new Error('Invalid session');
+            }
+
+            // Формируем URL с параметрами
+            const baseUrl = `${window.location.protocol}//${window.location.hostname}:3000`;
+            const url = new URL(`/pages/${page}.html`, baseUrl);
+            Object.entries(params).forEach(([key, value]) => {
+                url.searchParams.append(key, value);
+            });
+
+            // Переходим на новую страницу
+            window.location.href = url.toString();
+        } catch (error) {
+            console.error('Navigation error:', error);
+            this.showAlert(`Ошибка навигации: ${error.message}`);
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    static showLoading() {
+        const loadingEl = document.getElementById('loading-overlay');
+        if (!loadingEl) {
+            const overlay = document.createElement('div');
+            overlay.id = 'loading-overlay';
+            overlay.innerHTML = '<div class="loader"></div>';
+            document.body.appendChild(overlay);
+        }
+        document.getElementById('loading-overlay').style.display = 'flex';
+    }
+
+    static hideLoading() {
+        const loadingEl = document.getElementById('loading-overlay');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+        }
+    }
+
+    static showAlert(message) {
+        if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert(message);
+        } else {
+            alert(message);
+        }
+    }
+
+    static showConfirm(message) {
+        return new Promise((resolve) => {
+            if (window.Telegram?.WebApp?.showConfirm) {
+                window.Telegram.WebApp.showConfirm(message, resolve);
+            } else {
+                resolve(confirm(message));
+            }
+        });
+    }
+
+    static hapticFeedback(style) {
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+            window.Telegram.WebApp.HapticFeedback.impactOccurred(style);
+        }
+    }
+
+    static getUser() {
+        try {
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                return window.Telegram.WebApp.initDataUnsafe.user;
             }
             // Возвращаем базовый объект пользователя для локальной разработки
             return {
@@ -74,126 +118,36 @@ const TelegramUtils = {
             console.error('Error getting user:', error);
             return null;
         }
-    },
+    }
 
-    showAlert(message) {
+    static notificationOccurred(type = 'success') {
         try {
-            if (this.webApp) {
-                this.webApp.showAlert(message);
-            } else {
-                alert(message);
-            }
-        } catch (error) {
-            console.error('Error showing alert:', error);
-            alert(message);
-        }
-    },
-
-    showConfirm(message, callback) {
-        try {
-            if (this.webApp) {
-                this.webApp.showConfirm(message, callback);
-            } else {
-                const result = confirm(message);
-                if (callback) callback(result);
-            }
-        } catch (error) {
-            console.error('Error showing confirm:', error);
-            const result = confirm(message);
-            if (callback) callback(result);
-        }
-    },
-
-    hapticFeedback(style) {
-        try {
-            if (this.webApp && this.webApp.HapticFeedback) {
-                if (this.webApp.isInitialized) {
-                    this.webApp.HapticFeedback.impactOccurred(style);
-                }
-            }
-        } catch (error) {
-            console.error('Error in haptic feedback:', error);
-        }
-    },
-
-    notificationOccurred(type = 'success') {
-        try {
-            if (this.webApp && this.webApp.HapticFeedback) {
-                if (this.webApp.isInitialized) {
-                    this.webApp.HapticFeedback.notificationOccurred(type);
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                if (window.Telegram.WebApp.isInitialized) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred(type);
                 }
             }
         } catch (error) {
             console.error('Error in notificationOccurred:', error);
         }
-    },
+    }
 
-    selectionChanged() {
+    static selectionChanged() {
         try {
-            if (this.webApp && this.webApp.HapticFeedback) {
-                if (this.webApp.isInitialized) {
-                    this.webApp.HapticFeedback.selectionChanged();
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+                if (window.Telegram.WebApp.isInitialized) {
+                    window.Telegram.WebApp.HapticFeedback.selectionChanged();
                 }
             }
         } catch (error) {
             console.error('Error in selectionChanged:', error);
         }
-    },
+    }
 
-    openLink(page) {
+    static closeWebApp() {
         try {
-            // Сохраняем текущую страницу перед переходом
-            const currentPath = window.location.pathname.substring(1) || 'main_menu';
-            this.previousPage = currentPath;
-
-            // Получаем текущий initData
-            const initData = this.webApp ? this.webApp.initData : '';
-            
-            // Добавляем initData в заголовки для нового запроса
-            const headers = new Headers();
-            if (initData) {
-                headers.append('X-Telegram-Init-Data', initData);
-            }
-
-            // Загружаем новую страницу с сохранением контекста WebApp
-            fetch(`/${page}`, { headers })
-                .then(response => response.text())
-                .then(html => {
-                    // Заменяем содержимое страницы
-                    document.open();
-                    document.write(html);
-                    document.close();
-                    
-                    // Реинициализируем Telegram WebApp на новой странице
-                    this.init();
-                    
-                    // Обновляем URL без перезагрузки страницы
-                    window.history.pushState({}, '', `/${page}`);
-
-                    // Управляем видимостью кнопки "назад"
-                    if (this.webApp) {
-                        if (page === 'main_menu') {
-                            this.webApp.BackButton.hide();
-                        } else {
-                            this.webApp.BackButton.show();
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading page:', error);
-                    this.showAlert('Ошибка при загрузке страницы');
-                });
-        } catch (error) {
-            console.error('Error in openLink:', error);
-            // Fallback к обычной навигации
-            window.location.href = `/${page}`;
-        }
-    },
-
-    closeWebApp() {
-        try {
-            if (this.webApp) {
-                this.webApp.close();
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.close();
             } else {
                 window.close();
             }
@@ -202,4 +156,4 @@ const TelegramUtils = {
             window.close();
         }
     }
-}; 
+} 

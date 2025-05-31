@@ -8,24 +8,152 @@ body {
     font-family: Arial, sans-serif;
     background-color: #0a1a3a;
     color: white;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    position: relative;
 }
 
 #app {
-    height: 100%;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 #game-table {
     flex: 1;
     display: flex;
     flex-direction: column;
+    align-items: center;
     padding: 20px;
     position: relative;
-    padding-bottom: 240px;
+    min-height: calc(100vh - 120px); /* Учитываем высоту нижней панели */
 }
+
+#seka-table {
+    position: relative;
+    width: 340px;
+    height: 420px;
+    margin: 40px auto 0;
+    background: radial-gradient(ellipse at center, #2e8b57 80%, #145c2c 100%);
+    border-radius: 40px;
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.6);
+    display: block;
+    z-index: 10;
+}
+
+#seka-logo {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    color: #ffd700;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+#bank {
+    position: absolute;
+    top: 110px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+#current-bet {
+    position: absolute;
+    top: 140px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.seka-seat {
+    position: absolute;
+    width: 90px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    z-index: 20;
+}
+
+/* Позиции мест игроков */
+.seka-seat:nth-child(1) { top: 30px; left: -60px; }
+.seka-seat:nth-child(2) { top: 120px; left: -80px; }
+.seka-seat:nth-child(3) { top: 260px; left: -60px; }
+.seka-seat:nth-child(4) { top: 260px; left: 320px; }
+.seka-seat:nth-child(5) { top: 120px; left: 340px; }
+.seka-seat:nth-child(6) { top: 30px; left: 320px; }
+
+/* Стили для карт */
+.card {
+    width: 28px;
+    height: 40px;
+    border-radius: 5px;
+    background: #fff;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    margin-top: 2px;
+}
+
+.card.back {
+    background: linear-gradient(135deg, #345, #789);
+    color: transparent;
+}
+
+/* Нижняя панель управления */
+#seka-bottom-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 120px;
+    background: rgba(10, 26, 58, 0.98);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 10px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Кнопки действий */
+.seka-btn {
+    padding: 10px 22px;
+    font-size: 17px;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin: 0 5px;
+}
+
+.seka-btn-call { background: #7b1fa2; color: #fff; }
+.seka-btn-raise { background: #388e3c; color: #fff; }
+.seka-btn-fold { background: #eee; color: #222; }
+
+.seka-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Остальные стили остаются без изменений ... */
 
 #opponent-area {
     flex: 1;
@@ -39,11 +167,6 @@ body {
     margin: 20px 0;
 }
 
-#bank, #current-bet {
-    font-size: 18px;
-    margin: 5px 0;
-}
-
 #player-area {
     flex: 1;
     display: flex;
@@ -55,21 +178,6 @@ body {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
-}
-
-.card {
-    width: 80px;
-    height: 120px;
-    background: white;
-    border-radius: 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    color: black;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    position: relative;
-    transition: transform 0.2s;
 }
 
 .card:hover {
@@ -249,4 +357,149 @@ button:disabled {
 
 .clear-logs-btn:hover {
     opacity: 1;
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.overlay-content {
+    background: #1a2634;
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    max-width: 90%;
+    width: 400px;
+}
+
+.overlay h2 {
+    color: #ffffff;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.players-counter {
+    font-size: 2rem;
+    color: #4285F4;
+    margin: 1rem 0;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #4285F4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 1rem auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.bet-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#bet-slider {
+    width: 100%;
+    height: 20px;
+    -webkit-appearance: none;
+    background: #2a3744;
+    border-radius: 10px;
+    outline: none;
+}
+
+#bet-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 30px;
+    height: 30px;
+    background: #4285F4;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+#bet-input {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1.2rem;
+    text-align: center;
+    background: #2a3744;
+    border: 1px solid #4285F4;
+    border-radius: 6px;
+    color: white;
+}
+
+.bet-buttons {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.bet-buttons button {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 1rem;
+    background: #2a3744;
+    border: 1px solid #4285F4;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.bet-buttons button:hover {
+    background: #3a4754;
+}
+
+#place-bet {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.2rem;
+    background: #4285F4;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#place-bet:hover {
+    background: #3b77db;
+}
+
+#cancel-search {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    background: #ea4335;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 1rem;
+}
+
+#cancel-search:hover {
+    background: #d33426;
+}
+
+.waiting-message {
+    color: #4285F4;
+    font-size: 1.1rem;
+    margin-top: 1rem;
 } 

@@ -34,15 +34,19 @@ class Card:
 class GameState:
     def __init__(self):
         logger.info("Initializing new game state")
-        self.players: Dict[str, Dict] = {}  # Изменяем структуру для хранения информации о ставках
+        self.players: Dict[str, Dict] = {}
         self.bank: int = 0
         self.current_bet: int = 0
         self.current_turn: Optional[str] = None
         self.folded_players: set = set()
         self.deck: List[Card] = []
-        self.status: str = 'waiting'  # waiting, playing, showdown, svara, finished
-        self.round: str = 'dealing'  # dealing, bidding, showdown
-        self.svara_players: set = set()  # участники свары
+        # Обновленные состояния игры
+        self.status: str = 'matchmaking'  # matchmaking, betting, playing, showdown, svara, finished
+        self.round: str = 'waiting'      # waiting, dealing, bidding, showdown
+        self.svara_players: set = set()
+        self.ready_players: set = set()  # Игроки, готовые к игре (сделавшие ставки)
+        self.min_bet: int = 100
+        self.max_bet: int = 2000
         self._init_deck()
         logger.info("Game state initialized")
     
@@ -66,20 +70,74 @@ class GameState:
         if len(self.players) >= 6:
             logger.warning(f"Cannot add player {player_id}: game is full")
             return False
+        
         self.players[player_id] = {
             'cards': [],
             'bet': 0,
-            'total_bet': 0,  # Общая сумма ставок игрока в текущей игре
-            'user_info': user_info or {}
+            'total_bet': 0,
+            'user_info': user_info or {},
+            'status': 'waiting'  # waiting, ready, playing
         }
-        if len(self.players) == 1:
-            self.current_turn = player_id
-            logger.info(f"First player {player_id} added and set as current turn")
+        
         if len(self.players) == 6:
-            self.status = 'playing'
-            self.round = 'bidding'
-            logger.info("Game is full, changing status to playing and round to bidding")
+            self.start_betting_phase()
+            logger.info("Game is full, starting betting phase")
+        
         logger.info(f"Player {player_id} successfully added to the game")
+        return True
+
+    def start_betting_phase(self):
+        """Начало фазы ставок"""
+        self.status = 'betting'
+        self.round = 'waiting'
+        logger.info("Betting phase started")
+
+    def place_initial_bet(self, player_id: str, amount: int) -> bool:
+        """Размещение начальной ставки"""
+        logger.info(f"Player {player_id} attempting to place initial bet of {amount}")
+        
+        if player_id not in self.players:
+            logger.warning(f"Cannot place bet: player {player_id} not in game")
+            return False
+            
+        if amount < self.min_bet or amount > self.max_bet:
+            logger.warning(f"Invalid bet amount: {amount}")
+            return False
+            
+        player = self.players[player_id]
+        player['bet'] = amount
+        player['total_bet'] = amount
+        player['status'] = 'ready'
+        self.ready_players.add(player_id)
+        
+        # Если все игроки сделали ставки, начинаем игру
+        if len(self.ready_players) == len(self.players):
+            self.start_game()
+            
+        logger.info(f"Initial bet placed successfully by player {player_id}")
+        return True
+
+    def start_game(self):
+        """Начало игры после получения всех ставок"""
+        if len(self.ready_players) != len(self.players):
+            logger.warning("Cannot start game: not all players are ready")
+            return False
+            
+        self.status = 'playing'
+        self.round = 'dealing'
+        
+        # Собираем все ставки в банк
+        total_bets = sum(player['bet'] for player in self.players.values())
+        self.bank = total_bets
+        
+        # Раздаем карты
+        self.deal_cards()
+        
+        # Определяем первого игрока
+        player_ids = list(self.players.keys())
+        self.current_turn = random.choice(player_ids)
+        
+        logger.info("Game started successfully")
         return True
     
     def deal_cards(self):
@@ -264,7 +322,8 @@ class GameState:
                 ],
                 "bet": player_data["bet"],
                 "total_bet": player_data.get("total_bet", 0),
-                "user_info": player_data.get("user_info", {})
+                "user_info": player_data.get("user_info", {}),
+                "status": player_data.get("status", "waiting")
             }
         
         self.bank = data["bank"]
@@ -272,6 +331,9 @@ class GameState:
         self.current_turn = data["current_turn"]
         self.folded_players = set(data["folded_players"])
         self.status = data.get("status", "waiting")
-        self.round = data.get("round", "dealing")
+        self.round = data.get("round", "waiting")
         self.svara_players = set(data.get("svara_players", []))
+        self.ready_players = set(pid for pid, pdata in self.players.items() if pdata["status"] == "ready")
+        self.min_bet = data.get("min_bet", 100)
+        self.max_bet = data.get("max_bet", 2000)
         self.deck = []  # Колода не сохраняется, так как она не нужна после раздачи 

@@ -5,25 +5,100 @@ class Game {
         this.playerId = null;
         this.isMyTurn = false;
         this.gameState = {
-            status: 'waiting',
-            round: 'dealing',
+            status: 'matchmaking',
+            round: 'waiting',
             bank: 0,
             current_bet: 0,
             players: {}
         };
+        this.minBet = 100;
+        this.maxBet = 2000;
+        this.matchmakingOverlay = null;
+        this.bettingOverlay = null;
+        this.dealAnimationInProgress = false;
         this.lobbyPlayers = 1;
         this.lobbyOverlay = null;
-        this.dealAnimationInProgress = false;
-        this.dealAnimationState = {};
         this.turnTimer = null;
         this.turnTimerStart = 0;
         this.turnTimerDuration = 15000; // 15 секунд на ход
         this.lastTurnPlayer = null;
         this.svaraOverlay = null;
+        this.isReconnecting = false;
+        
+        // Создаем основной контейнер приложения
+        const appContainer = document.createElement('div');
+        appContainer.id = 'app';
+        document.body.appendChild(appContainer);
+
+        // Создаем игровой стол
+        const gameTable = document.createElement('div');
+        gameTable.id = 'game-table';
+        appContainer.appendChild(gameTable);
+
+        // Создаем контейнер для игрового стола
+        const tableContainer = document.createElement('div');
+        tableContainer.id = 'seka-table';
+        tableContainer.style.position = 'relative';
+        tableContainer.style.width = '340px';
+        tableContainer.style.height = '420px';
+        tableContainer.style.margin = '40px auto 0 auto';
+        tableContainer.style.background = 'radial-gradient(ellipse at center, #2e8b57 80%, #145c2c 100%)';
+        tableContainer.style.borderRadius = '40px';
+        tableContainer.style.boxShadow = '0 0 32px #000a';
+        tableContainer.style.display = 'block';
+        tableContainer.style.zIndex = '10';
+        gameTable.appendChild(tableContainer);
+
+        // Создаем логотип
+        const logo = document.createElement('div');
+        logo.id = 'seka-logo';
+        logo.textContent = 'СЕКА';
+        logo.style.position = 'absolute';
+        logo.style.top = '40px';
+        logo.style.left = '50%';
+        logo.style.transform = 'translateX(-50%)';
+        logo.style.fontSize = '32px';
+        logo.style.fontWeight = 'bold';
+        logo.style.letterSpacing = '6px';
+        logo.style.color = '#ffd700';
+        logo.style.textShadow = '0 2px 8px #000a';
+        tableContainer.appendChild(logo);
+
+        // Создаем банк
+        const bank = document.createElement('div');
+        bank.id = 'bank';
+        bank.innerHTML = '<span>0</span>₽';
+        bank.style.position = 'absolute';
+        bank.style.top = '110px';
+        bank.style.left = '50%';
+        bank.style.transform = 'translateX(-50%)';
+        bank.style.fontSize = '24px';
+        bank.style.color = '#fff';
+        bank.style.textShadow = '0 2px 4px #000a';
+        tableContainer.appendChild(bank);
+
+        // Создаем текущую ставку
+        const currentBet = document.createElement('div');
+        currentBet.id = 'current-bet';
+        currentBet.innerHTML = 'Текущая ставка: <span>0</span>₽';
+        currentBet.style.position = 'absolute';
+        currentBet.style.top = '140px';
+        currentBet.style.left = '50%';
+        currentBet.style.transform = 'translateX(-50%)';
+        currentBet.style.fontSize = '18px';
+        currentBet.style.color = '#fff';
+        currentBet.style.textShadow = '0 2px 4px #000a';
+        tableContainer.appendChild(currentBet);
         
         this.setupLogger();
+        this.createMatchmakingOverlay();
+        this.createBettingOverlay();
         this.createLobbyOverlay();
+        this.createSvaraOverlay();
+        
+        // Показываем экран ожидания сразу
         this.showLobbyOverlay(1);
+        
         // Инициализация Telegram WebApp
         if (window.Telegram?.WebApp) {
             this.log('Telegram WebApp found, initializing...');
@@ -36,27 +111,53 @@ class Game {
             if (webAppUser) {
                 this.playerId = webAppUser.id.toString();
                 this.log('Player ID initialized: ' + this.playerId);
+                // Инициализируем WebSocket только после получения playerId
+                setTimeout(() => this.initWebSocket(), 100); // Небольшая задержка для гарантированного показа лобби
             } else {
                 this.log('Failed to get user data from Telegram WebApp', 'error');
+                this.showError('Ошибка: не удалось получить данные пользователя');
             }
         } else {
             this.log('Telegram WebApp not available', 'error');
+            this.showError('Ошибка: Telegram WebApp недоступен');
+        }
+
+        // Обработчик закрытия окна
+        window.onbeforeunload = () => {
+            if (this.ws) {
+                // Сохраняем текущее состояние игры
+                sessionStorage.setItem('gameState', JSON.stringify({
+                    gameId: this.gameId,
+                    status: this.gameState.status,
+                    playerId: this.playerId
+                }));
+                this.ws.close();
+            }
+        };
+
+        // Проверяем сохраненное состояние при загрузке
+        try {
+            const savedState = sessionStorage.getItem('gameState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                this.isReconnecting = true;
+                this.gameId = state.gameId;
+                this.log('Restoring saved game state:', state);
+            }
+        } catch (e) {
+            this.log('Error restoring game state: ' + e, 'error');
         }
         
-        this.initWebSocket();
-        this.initEventListeners();
-        // 2. Закрытие WebSocket при уходе
-        window.onbeforeunload = () => {
-            if (this.ws) this.ws.close();
-        };
-        // 3. Проверка размера экрана
+        // Проверка размера экрана
         if (window.innerWidth < 340 || window.innerHeight < 500) {
-            alert('Внимание! Ваш экран слишком маленький для комфортной игры.');
+            this.showError('Внимание! Ваш экран слишком маленький для комфортной игры.');
         }
-        this.reconnectDelay = 1000; // начальная задержка для reconnect
+        
+        this.reconnectDelay = 1000;
         this.maxReconnectDelay = 30000;
-        this.lastActionTime = 0; // для throttling
-        this.createSvaraOverlay();
+        this.lastActionTime = 0;
+        
+        this.initEventListeners();
     }
     
     setupLogger() {
@@ -138,7 +239,6 @@ class Game {
         if (!this.playerId) {
             this.log('Player ID not initialized', 'error');
             this.showError('Ошибка: не удалось получить ID игрока.');
-            this.showLobbyOverlay(1);
             return;
         }
 
@@ -148,8 +248,7 @@ class Game {
         
         if (!initData || !hash) {
             this.log('Missing initialization data', 'error');
-            this.showError('Ошибка: отсутствуют данные инициализации. Попробуйте перезапустить WebApp.');
-            this.showLobbyOverlay(1);
+            this.showError('Ошибка: отсутствуют данные инициализации.');
             return;
         }
         
@@ -157,36 +256,52 @@ class Game {
         const wsUrl = `${wsProtocol}//${window.location.host}/ws/${this.playerId}?initData=${initData}&hash=${hash}`;
         this.log('Connecting to WebSocket: ' + wsUrl);
         
-        const connectWS = () => {
         this.ws = new WebSocket(wsUrl);
-            this.updateStatusIndicator('connecting');
+        this.updateStatusIndicator('connecting');
+
         this.ws.onopen = () => {
             this.log('WebSocket connected', 'success');
-                this.updateStatusIndicator('online');
-                this.reconnectDelay = 1000;
-            this.findNewGame();
+            this.updateStatusIndicator('online');
+            this.reconnectDelay = 1000;
+            
+            if (this.isReconnecting && this.gameId) {
+                this.log('Reconnecting to existing game: ' + this.gameId);
+                // Запрос текущего состояния игры
+                this.ws.send(JSON.stringify({
+                    type: 'reconnect',
+                    game_id: this.gameId
+                }));
+            } else {
+                this.findNewGame();
+            }
         };
+
         this.ws.onmessage = (event) => {
-            this.log('Received message: ' + event.data);
-            const data = JSON.parse(event.data);
-            this.handleMessage(data);
+            try {
+                const data = JSON.parse(event.data);
+                this.log('Received message: ' + JSON.stringify(data));
+                this.handleMessage(data);
+            } catch (e) {
+                this.log('Error handling message: ' + e, 'error');
+            }
         };
+
         this.ws.onclose = () => {
             this.log('WebSocket disconnected', 'warning');
-                this.updateStatusIndicator('offline');
+            this.updateStatusIndicator('offline');
             this.showError('Соединение потеряно');
-                setTimeout(() => {
-                    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
-                    connectWS();
-                }, this.reconnectDelay);
+            
+            // Пытаемся переподключиться
+            setTimeout(() => {
+                this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+                this.initWebSocket();
+            }, this.reconnectDelay);
         };
+
         this.ws.onerror = (error) => {
             this.log('WebSocket error: ' + error, 'error');
-                this.updateStatusIndicator('offline');
-            this.showError('Ошибка соединения');
-            };
+            this.updateStatusIndicator('offline');
         };
-        connectWS();
     }
     
     initEventListeners() {
@@ -197,24 +312,25 @@ class Game {
     handleMessage(data) {
         this.log('Handling message: ' + JSON.stringify(data));
         switch (data.type) {
-            case 'lobby_state':
-                this.lobbyPlayers = data.players_in_lobby;
-                this.showLobbyOverlay(this.lobbyPlayers);
-                break;
-            case 'game_state':
-                this.gameState = data.state;
-                this.gameId = data.game_id;
-                this.log('Game state updated. Game ID: ' + this.gameId);
-                this.hideLobbyOverlay();
-                this.updateGameState(data.state);
-                if (data.balance !== undefined) {
-                    this.updateBalance(data.balance);
-                }
+            case 'matchmaking_update':
+                this.updateMatchmakingStatus(data.players_count, data.required_players);
                 break;
                 
-            case 'game_over':
-                this.log('Game over. Winner: ' + data.winner);
-                this.handleGameOver(data);
+            case 'betting_phase':
+                this.gameId = data.game_id;
+                this.minBet = data.min_bet;
+                this.maxBet = data.max_bet;
+                this.showBettingPhase();
+                break;
+                
+            case 'bet_placed':
+                this.updateBettingStatus(data.ready_players, data.total_players);
+                break;
+                
+            case 'game_started':
+                this.gameState = data.state;
+                this.hideBettingOverlay();
+                this.updateGameState(data.state);
                 break;
                 
             case 'error':
@@ -614,7 +730,15 @@ class Game {
             type: 'find_game'
         };
         if (user) message.user = user;
-        this.ws.send(JSON.stringify(message));
+        
+        // Убедимся, что WebSocket подключен
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(message));
+            this.log('Sent find_game request');
+        } else {
+            this.log('WebSocket not ready, retrying in 500ms...', 'warning');
+            setTimeout(() => this.findNewGame(), 500);
+        }
     }
     
     showError(message) {
@@ -1132,6 +1256,117 @@ class Game {
 
     hideSvaraOverlay() {
         this.svaraOverlay.style.display = 'none';
+    }
+
+    createMatchmakingOverlay() {
+        this.matchmakingOverlay = document.createElement('div');
+        this.matchmakingOverlay.className = 'overlay';
+        this.matchmakingOverlay.innerHTML = `
+            <div class="overlay-content">
+                <h2>Поиск игроков</h2>
+                <div class="players-counter">
+                    <span id="current-players">1</span>/<span id="required-players">6</span>
+                </div>
+                <div class="loading-spinner"></div>
+                <button id="cancel-search">Отменить поиск</button>
+            </div>
+        `;
+        document.body.appendChild(this.matchmakingOverlay);
+        
+        document.getElementById('cancel-search').onclick = () => {
+            window.history.back();
+        };
+    }
+
+    createBettingOverlay() {
+        this.bettingOverlay = document.createElement('div');
+        this.bettingOverlay.className = 'overlay';
+        this.bettingOverlay.style.display = 'none';
+        this.bettingOverlay.innerHTML = `
+            <div class="overlay-content">
+                <h2>Сделайте вашу ставку</h2>
+                <div class="bet-controls">
+                    <input type="range" id="bet-slider" min="100" max="2000" step="100" value="100">
+                    <input type="number" id="bet-input" min="100" max="2000" value="100">
+                    <div class="bet-buttons">
+                        <button id="min-bet">Мин. ставка</button>
+                        <button id="max-bet">Макс. ставка</button>
+                    </div>
+                    <button id="place-bet">Сделать ставку</button>
+                </div>
+                <div class="waiting-message" style="display: none">
+                    Ожидание ставок других игроков...
+                    <span id="ready-players">0</span>/<span id="total-players">6</span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(this.bettingOverlay);
+        
+        // Инициализация контролов ставок
+        const slider = document.getElementById('bet-slider');
+        const input = document.getElementById('bet-input');
+        const minBtn = document.getElementById('min-bet');
+        const maxBtn = document.getElementById('max-bet');
+        const placeBtn = document.getElementById('place-bet');
+        
+        // Синхронизация слайдера и инпута
+        slider.oninput = () => input.value = slider.value;
+        input.oninput = () => {
+            let value = parseInt(input.value);
+            if (value < this.minBet) value = this.minBet;
+            if (value > this.maxBet) value = this.maxBet;
+            slider.value = value;
+            input.value = value;
+        };
+        
+        minBtn.onclick = () => {
+            slider.value = this.minBet;
+            input.value = this.minBet;
+        };
+        
+        maxBtn.onclick = () => {
+            slider.value = this.maxBet;
+            input.value = this.maxBet;
+        };
+        
+        placeBtn.onclick = () => {
+            const amount = parseInt(input.value);
+            this.placeBet(amount);
+        };
+    }
+
+    updateMatchmakingStatus(currentPlayers, requiredPlayers) {
+        document.getElementById('current-players').textContent = currentPlayers;
+        document.getElementById('required-players').textContent = requiredPlayers;
+    }
+
+    showBettingPhase() {
+        this.matchmakingOverlay.style.display = 'none';
+        this.bettingOverlay.style.display = 'flex';
+        
+        // Обновляем пределы ставок
+        const slider = document.getElementById('bet-slider');
+        const input = document.getElementById('bet-input');
+        slider.min = this.minBet;
+        slider.max = this.maxBet;
+        input.min = this.minBet;
+        input.max = this.maxBet;
+    }
+
+    updateBettingStatus(readyPlayers, totalPlayers) {
+        const controls = this.bettingOverlay.querySelector('.bet-controls');
+        const waiting = this.bettingOverlay.querySelector('.waiting-message');
+        const readySpan = document.getElementById('ready-players');
+        const totalSpan = document.getElementById('total-players');
+        
+        controls.style.display = 'none';
+        waiting.style.display = 'block';
+        readySpan.textContent = readyPlayers;
+        totalSpan.textContent = totalPlayers;
+    }
+
+    hideBettingOverlay() {
+        this.bettingOverlay.style.display = 'none';
     }
 }
 
