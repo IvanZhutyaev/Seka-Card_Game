@@ -238,52 +238,27 @@ class GameStateManager:
 game_manager = GameStateManager(redis_master, redis_slave)
 
 def verify_telegram_data(init_data: str) -> bool:
-    """Проверка подлинности данных от Telegram"""
+    """Проверка подлинности данных от Telegram (Telegram WebApp) по официальной документации"""
     try:
         logger.debug(f"Verifying Telegram data: {init_data}")
-        
-        # Разбираем строку init_data на параметры
         params = {}
         for param in init_data.split('&'):
             if '=' not in param:
                 continue
             key, value = param.split('=', 1)
             params[key] = value
-            
         logger.debug(f"Parsed params: {params}")
-        
         hash_value = params.pop('hash', None)
         if not hash_value:
             logger.error("No hash value in initData")
             return False
-
-        # Создаем секретный ключ
-        secret_key = hmac.new(
-            "WebAppData".encode(),
-            TELEGRAM_BOT_TOKEN.encode(),
-            hashlib.sha256
-        ).digest()
-
-        # Сортируем параметры и создаем строку для проверки
-        data_check_string = '\n'.join(
-            f"{k}={v}" for k, v in sorted(params.items(), key=lambda x: x[0])
-        )
-        
+        # Новый секретный ключ по документации Telegram
+        secret_key = hashlib.sha256(TELEGRAM_BOT_TOKEN.encode()).digest()
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(params.items(), key=lambda x: x[0]))
         logger.debug(f"Data check string: {data_check_string}")
-
-        # Вычисляем хеш
-        hmac_obj = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
-        )
-        
-        calculated_hash = hmac_obj.hexdigest()
+        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
         logger.debug(f"Calculated hash: {calculated_hash}, Received hash: {hash_value}")
-        
-        # Включаем проверку хеша
         return calculated_hash == hash_value
-        
     except Exception as e:
         logger.error(f"Error verifying Telegram data: {e}")
         return False
@@ -400,8 +375,8 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
 
         # Ожидаем initData от клиента
         try:
-        init_data = await websocket.receive_json()
-        logger.debug(f"Received init data: {init_data}")
+            init_data = await websocket.receive_json()
+            logger.debug(f"Received init data: {init_data}")
         except Exception as e:
             logger.error(f"Error receiving init data: {e}")
             await websocket.close(code=4000)
@@ -449,10 +424,10 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     data = await websocket.receive_json()
                     logger.debug(f"Received message from player {player_id}: {data}")
                     await handle_websocket_message(websocket, player_id, data)
-    except WebSocketDisconnect:
+                except WebSocketDisconnect:
                     logger.info(f"Player {player_id} disconnected")
                     break
-    except Exception as e:
+                except Exception as e:
                     logger.error(f"Error handling message from player {player_id}: {e}")
                     await manager.send_personal_message({
                         "type": "error",
@@ -465,7 +440,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:
-        await websocket.close(code=1011)
+            await websocket.close(code=1011)
         except:
             pass
 

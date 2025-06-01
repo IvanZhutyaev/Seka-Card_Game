@@ -386,8 +386,22 @@
             }
         }
 
+        async function checkSessionOrAlert() {
+            if (!window.Telegram?.WebApp?.initData) {
+                window.Telegram?.WebApp?.showAlert('Нет данных инициализации Telegram. Перезапустите WebApp через Telegram!');
+                return false;
+            }
+            const isValid = await validateInitData(window.Telegram.WebApp.initData);
+            if (!isValid) {
+                window.Telegram?.WebApp?.showAlert('Ошибка авторизации в Telegram. Перезапустите WebApp через Telegram!');
+                return false;
+            }
+            return true;
+        }
+
         async function updateBalance() {
             try {
+                if (!await checkSessionOrAlert()) return;
                 // Проверяем инициализацию WebApp
                 if (!window.Telegram?.WebApp) {
                     throw new Error('WebApp не инициализирован');
@@ -519,20 +533,23 @@
         });
 
         function openPage(page) {
-            try {
-                if (!window.Telegram?.WebApp) {
-                    throw new Error('WebApp не инициализирован');
+            checkSessionOrAlert().then(valid => {
+                if (!valid) return;
+                try {
+                    if (!window.Telegram?.WebApp) {
+                        throw new Error('WebApp не инициализирован');
+                    }
+                    // Формируем URL
+                    const url = `/${page}`;
+                    // Используем window.location.href для внутренней навигации
+                    window.location.href = url;
+                    document.getElementById('dropdownMenu').classList.remove('show');
+                } catch (error) {
+                    if (window.Telegram?.WebApp) {
+                        window.Telegram.WebApp.showAlert('Ошибка при переходе на страницу');
+                    }
                 }
-                // Формируем URL
-                const url = `/${page}`;
-                // Используем window.location.href для внутренней навигации
-                window.location.href = url;
-                document.getElementById('dropdownMenu').classList.remove('show');
-            } catch (error) {
-                if (window.Telegram?.WebApp) {
-                    window.Telegram.WebApp.showAlert('Ошибка при переходе на страницу');
-                }
-            }
+            });
         }
 
         function toggleDropdown() {
@@ -572,18 +589,22 @@
 
         // Обработка навигации браузера
         window.addEventListener('popstate', function(event) {
-            // Получаем текущий путь из URL
-            const path = window.location.pathname.substring(1) || 'main_menu';
-            const url = `/${path}`;
+            checkSessionOrAlert().then(valid => {
+                if (!valid) return;
+                // Получаем текущий путь из URL
+                const path = window.location.pathname.substring(1) || 'main_menu';
+                const url = `/${path}`;
 
-            // Используем window.location.href для внутренней навигации
-            if (path !== window.location.pathname.substring(1)) {
-                window.location.href = url;
-            }
+                // Используем window.location.href для внутренней навигации
+                if (path !== window.location.pathname.substring(1)) {
+                    window.location.href = url;
+                }
+            });
         });
 
         async function startGameWithValidation() {
             try {
+                if (!await checkSessionOrAlert()) return;
                 if (!window.Telegram?.WebApp) {
                     window.Telegram?.WebApp?.showAlert('WebApp не инициализирован');
                     return;
