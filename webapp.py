@@ -60,14 +60,11 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
         logger.debug(f"Received init_data: {init_data}")
         logger.debug(f"Bot token (first 5 chars): {bot_token[:5]}...")
 
-        # Проверяем наличие данных
         if not init_data:
             logger.error("Init data is empty")
             return False, "Init data is empty"
 
-        # Разбираем строку init_data на параметры
         try:
-            # Пробуем разобрать как JSON
             try:
                 json_data = json.loads(init_data)
                 if isinstance(json_data, dict):
@@ -76,7 +73,6 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
                 else:
                     raise ValueError("JSON data is not a dictionary")
             except json.JSONDecodeError:
-                # Если не JSON, разбираем как query string
                 params = {}
                 logger.debug("Parsing init_data as query string")
                 for param in init_data.split('&'):
@@ -84,41 +80,30 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
                         continue
                     key, value = param.split('=', 1)
                     params[key] = unquote(value)
-
             logger.debug(f"Parsed parameters: {params}")
         except Exception as e:
             logger.error(f"Failed to parse parameters: {str(e)}")
             return False, f"Failed to parse parameters: {str(e)}"
 
-        # Получаем hash
         received_hash = params.pop('hash', None)
         logger.debug(f"Received hash: {received_hash}")
-        
         if not received_hash:
             logger.error("No hash found in init_data")
             return False, "No hash found in init_data"
 
-        # Сортируем оставшиеся параметры
         data_check_arr = []
         logger.debug("Sorting parameters...")
         for key in sorted(params.keys()):
             data_check_arr.append(f"{key}={params[key]}")
             logger.debug(f"Added sorted parameter: {key}={params[key]}")
-        
-        # Создаем check_string
         data_check_string = '\n'.join(data_check_arr)
         logger.debug(f"Created check_string: {data_check_string}")
 
-        # Создаем секретный ключ
+        # Исправленная логика: секретный ключ — это sha256(bot_token)
         logger.debug("Creating secret key...")
-        secret_key = hmac.new(
-            "WebAppData".encode(),
-            bot_token.encode(),
-            hashlib.sha256
-        ).digest()
+        secret_key = hashlib.sha256(bot_token.encode()).digest()
         logger.debug("Secret key created successfully")
 
-        # Вычисляем хеш
         logger.debug("Calculating hash...")
         calculated_hash = hmac.new(
             secret_key,

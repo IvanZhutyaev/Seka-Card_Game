@@ -17,7 +17,7 @@ class Settings(BaseModel):
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
     REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
-    AVATAR_CACHE_DIR: str = os.getenv("AVATAR_CASH_DIR", "static/avatars")
+    AVATAR_CACHE_DIR: str = os.getenv("AVATAR_CACHE_DIR", "static/avatars")
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     ADMIN_IDS: List[int] = []
 
@@ -25,14 +25,13 @@ class Settings(BaseModel):
     def parse_admin_ids(cls, v):
         if v is None:
             return []
-
         if isinstance(v, str):
-            # Полностью ручной парсинг без попыток JSON
             v = v.strip().replace('"', '').replace("'", "")
             if not v:
                 return []
             return [int(x.strip()) for x in v.split(',') if x.strip().isdigit()]
-
+        if isinstance(v, list):
+            return [int(x) for x in v if isinstance(x, int) or (isinstance(x, str) and x.isdigit())]
         return []
 
     class Config:

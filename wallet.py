@@ -44,6 +44,12 @@ class WalletManager:
             # Обновляем баланс
             player.balance += amount
 
+            # Дополнительная проверка на отрицательный баланс (на случай гонки)
+            if player.balance < 0:
+                self.db.rollback()
+                logger.error(f"Баланс стал отрицательным для пользователя {telegram_id}")
+                return False, "Ошибка: баланс не может быть отрицательным"
+
             # Создаем запись о транзакции
             transaction = Transaction(
                 player_id=player.id,
@@ -56,8 +62,11 @@ class WalletManager:
 
             return True, f"Баланс успешно обновлен. Новый баланс: {player.balance}"
         except SQLAlchemyError as e:
-            self.db.rollback()
-            logger.error(f"Error updating balance for user {telegram_id}: {e}")
+            try:
+                self.db.rollback()
+            except Exception as rollback_exc:
+                logger.error(f"Rollback error: {rollback_exc}")
+            logger.error(f"Error updating balance for user {telegram_id}: {e}", exc_info=True)
             return False, "Ошибка при обновлении баланса"
 
     def get_transaction_history(self, telegram_id: int, limit: int = 10) -> list:
