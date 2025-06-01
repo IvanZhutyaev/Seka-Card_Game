@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useGameState } from '../store/gameStore';
 import Avatar from './Avatar';
+import { BET_FILTERS, MATCHMAKING_TIMEOUT } from '../../../src/config/gameConfig';
 import './MatchmakingWindow.css';
 
 const MatchmakingWindow: React.FC = () => {
@@ -19,20 +20,56 @@ const MatchmakingWindow: React.FC = () => {
     const [showLobbyList, setShowLobbyList] = useState(false);
     const [lobbyName, setLobbyName] = useState('');
     const [lobbyType, setLobbyType] = useState<'public' | 'private'>('public');
+    const [bet, setBet] = useState(gameState.matchmaking.minBet);
+    const [betError, setBetError] = useState<string | null>(null);
+    const [searchTimer, setSearchTimer] = useState<number>(MATCHMAKING_TIMEOUT / 1000);
+    const [searchActive, setSearchActive] = useState(false);
 
-    // Подключаемся к WebSocket при монтировании компонента
     useEffect(() => {
         connect();
     }, [connect]);
 
-    // Загружаем список лобби при показе списка
     useEffect(() => {
-        if (showLobbyList) {
-            getAvailableLobbies();
+        let interval: NodeJS.Timeout | null = null;
+        if (gameState.matchmaking.isSearching) {
+            setSearchActive(true);
+            setSearchTimer(MATCHMAKING_TIMEOUT / 1000);
+            interval = setInterval(() => {
+                setSearchTimer((prev) => {
+                    if (prev <= 1) {
+                        cancelMatchmaking();
+                        setSearchActive(false);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        } else {
+            setSearchActive(false);
+            setSearchTimer(MATCHMAKING_TIMEOUT / 1000);
         }
-    }, [showLobbyList, getAvailableLobbies]);
+        return () => { if (interval) clearInterval(interval); };
+    }, [gameState.matchmaking.isSearching, cancelMatchmaking]);
 
-    // Если нет данных пользователя, показываем загрузку
+    const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = Number(e.target.value);
+        setBet(value);
+        if (value < gameState.matchmaking.minBet || value > gameState.matchmaking.maxBet) {
+            setBetError(`Ставка должна быть от ${gameState.matchmaking.minBet} до ${gameState.matchmaking.maxBet}`);
+        } else {
+            setBetError(null);
+        }
+    };
+
+    const handleBetFilter = (filter: number) => {
+        setBet(filter);
+        if (filter < gameState.matchmaking.minBet || filter > gameState.matchmaking.maxBet) {
+            setBetError(`Ставка должна быть от ${gameState.matchmaking.minBet} до ${gameState.matchmaking.maxBet}`);
+        } else {
+            setBetError(null);
+        }
+    };
+
     if (!telegramUser) {
         return (
             <div className="matchmaking-loading">
@@ -47,6 +84,14 @@ const MatchmakingWindow: React.FC = () => {
             createLobby(lobbyName.trim(), lobbyType);
             setShowLobbyForm(false);
         }
+    };
+
+    const handleStartSearch = () => {
+        if (bet < gameState.matchmaking.minBet || bet > gameState.matchmaking.maxBet) {
+            setBetError(`Ставка должна быть от ${gameState.matchmaking.minBet} до ${gameState.matchmaking.maxBet}`);
+            return;
+        }
+        setSearchActive(true);
     };
 
     return (
@@ -68,6 +113,47 @@ const MatchmakingWindow: React.FC = () => {
             </div>
 
             <div className="matchmaking-content">
+                <div className="bet-filters">
+                    {BET_FILTERS.map((filter) => (
+                        <button
+                            key={filter}
+                            className={`bet-filter-btn${bet === filter ? ' active' : ''}`}
+                            onClick={() => handleBetFilter(filter)}
+                        >
+                            {filter}
+                        </button>
+                    ))}
+                </div>
+                <div className="bet-input-block">
+                    <input
+                        type="number"
+                        min={gameState.matchmaking.minBet}
+                        max={gameState.matchmaking.maxBet}
+                        value={bet}
+                        onChange={handleBetChange}
+                        disabled={gameState.matchmaking.isSearching}
+                    />
+                    <span>💰</span>
+                </div>
+                {betError && <div className="bet-error">{betError}</div>}
+                {!gameState.matchmaking.isSearching && (
+                    <button
+                        className="start-search-btn"
+                        onClick={handleStartSearch}
+                        disabled={!!betError}
+                    >
+                        Найти игру
+                    </button>
+                )}
+                {gameState.matchmaking.isSearching && (
+                    <div className="search-timer-block">
+                        <div className="search-timer">Поиск игры: {searchTimer} сек.</div>
+                        <button className="cancel-search-btn" onClick={cancelMatchmaking}>
+                            Отменить поиск
+                        </button>
+                    </div>
+                )}
+
                 {!gameState.matchmaking.lobbyId && !showLobbyForm && !showLobbyList && (
                     <div className="matchmaking-actions">
                         <button 

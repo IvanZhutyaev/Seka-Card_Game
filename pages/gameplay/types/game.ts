@@ -92,6 +92,11 @@ export interface GameState {
         amount: number;
         eligiblePlayers: string[];
     }[];
+    connectionStatus: 'connecting' | 'open' | 'closed' | 'reconnecting' | 'error';
+    moveTimer: number | null;
+    moveTimeoutAt: number | null;
+    wasDisconnected: boolean;
+    lastError: string | null;
 }
 
 // Игровое действие

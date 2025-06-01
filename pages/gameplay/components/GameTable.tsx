@@ -5,6 +5,31 @@ import GameControls from './GameControls';
 import MatchmakingWindow from './MatchmakingWindow';
 import './GameTable.css';
 
+// Индикатор состояния подключения
+const ConnectionStatusIndicator: React.FC<{ status: string }> = ({ status }) => {
+    let color = '#aaa';
+    let text = 'Нет соединения';
+    switch (status) {
+        case 'connecting':
+            color = '#f0ad4e'; text = 'Подключение...'; break;
+        case 'open':
+            color = '#5cb85c'; text = 'Онлайн'; break;
+        case 'reconnecting':
+            color = '#5bc0de'; text = 'Переподключение...'; break;
+        case 'error':
+            color = '#d9534f'; text = 'Ошибка соединения'; break;
+        case 'closed':
+        default:
+            color = '#aaa'; text = 'Нет соединения'; break;
+    }
+    return (
+        <div className="connection-status-indicator" style={{ color }}>
+            <span className="dot" style={{ background: color }} />
+            {text}
+        </div>
+    );
+};
+
 const GameTable: React.FC = () => {
     const { 
         connect, 
@@ -17,6 +42,8 @@ const GameTable: React.FC = () => {
     } = useGameState();
     
     const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
+    // Таймер обратного отсчета для хода
+    const [moveTimer, setMoveTimer] = useState<number>(0);
     
     // Инициализация при монтировании
     useEffect(() => {
@@ -79,6 +106,20 @@ const GameTable: React.FC = () => {
         }
     }, [gameState.status, gameState.reconnectAttempts]);
 
+    // Таймер обратного отсчета для хода
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        if (gameState.moveTimeoutAt && gameState.current_turn === telegramUser?.id.toString()) {
+            interval = setInterval(() => {
+                const left = Math.max(0, Math.floor((gameState.moveTimeoutAt! - Date.now()) / 1000));
+                setMoveTimer(left);
+            }, 250);
+        } else {
+            setMoveTimer(0);
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [gameState.moveTimeoutAt, gameState.current_turn, telegramUser]);
+
     const handleSoundToggle = () => {
         setIsSoundEnabled(!isSoundEnabled);
         // TODO: Добавить звуковые эффекты
@@ -135,18 +176,26 @@ const GameTable: React.FC = () => {
                 <div className="player-queue-info">
                     {!isConnected ? 'Подключение...' : 'Игра идет'}
                 </div>
+                {/* Индикатор состояния подключения */}
+                <ConnectionStatusIndicator status={gameState.connectionStatus} />
             </div>
             
             <div className="poker-table">
                 <div className="table-logo">СЕКА</div>
                 <div className="bank">Банк: {gameState.bank}</div>
+                {/* Таймер хода */}
+                {gameState.current_turn === telegramUser?.id.toString() && gameState.moveTimeoutAt && (
+                    <div className="move-timer">
+                        Ваш ход! Осталось: <span className={moveTimer <= 5 ? 'danger' : ''}>{moveTimer}</span> сек.
+                    </div>
+                )}
                 
                 {/* Рендерим игроков в правильном порядке */}
                 <div className="players-grid">
                     {/* Верхний ряд (3 игрока) */}
                     <div className="top-players">
                         {Object.entries(gameState.players).slice(0, 3).map(([playerId, player]) => (
-                            <div key={playerId} className="player-container">
+                            <div key={playerId} className={`player-container ${player.status === 'folded' ? 'folded-anim' : ''}`}>
                                 <PlayerHand playerId={playerId} />
                             </div>
                         ))}
@@ -163,7 +212,7 @@ const GameTable: React.FC = () => {
                     {/* Нижний ряд (3 игрока) */}
                     <div className="bottom-players">
                         {Object.entries(gameState.players).slice(3, 6).map(([playerId, player]) => (
-                            <div key={playerId} className="player-container">
+                            <div key={playerId} className={`player-container ${player.status === 'folded' ? 'folded-anim' : ''}`}>
                                 <PlayerHand playerId={playerId} />
                             </div>
                         ))}

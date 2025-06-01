@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { GameState, GameAction, Player, TelegramUser, WebSocketMessage } from '../types/game';
+import { MOVE_TIMEOUT } from '../../../src/config/gameConfig';
 
 // Константы
 const MAX_RECONNECT_ATTEMPTS = 5;  // Максимальное количество попыток переподключения
@@ -26,7 +27,12 @@ const initialGameState: GameState = {
         lobbyType: 'public'
     },
     reconnectAttempts: 0,
-    lastActionTime: 0
+    lastActionTime: 0,
+    connectionStatus: 'closed',
+    moveTimer: null,
+    moveTimeoutAt: null,
+    wasDisconnected: false,
+    lastError: null
 };
 
 // Интерфейс store
@@ -46,6 +52,10 @@ interface GameStore {
     createLobby: (lobbyName: string, lobbyType: 'public' | 'private') => void;
     leaveLobby: () => void;
     getAvailableLobbies: () => void;
+    startMoveTimer: (timeout?: number) => void;
+    stopMoveTimer: () => void;
+    setConnectionStatus: (status: GameState['connectionStatus']) => void;
+    setLastError: (error: string) => void;
 }
 
 // Создаем store
@@ -440,6 +450,65 @@ export const useGameState = create<GameStore>((set, get) => ({
                 timestamp: Date.now()
             }));
         }
+    },
+
+    // Таймер хода
+    startMoveTimer: (timeout = MOVE_TIMEOUT) => {
+        const { gameState } = get();
+        if (gameState.moveTimer) {
+            clearTimeout(gameState.moveTimer);
+        }
+        const moveTimeoutAt = Date.now() + timeout;
+        const timer = window.setTimeout(() => {
+            // Автоматический фолд при истечении времени
+            const { makeAction, gameState } = get();
+            if (gameState.current_turn === get().telegramUser?.id.toString()) {
+                makeAction({ type: 'game_action', action: 'fold', timestamp: Date.now() });
+            }
+            set(state => ({
+                gameState: {
+                    ...state.gameState,
+                    moveTimer: null,
+                    moveTimeoutAt: null
+                }
+            }));
+        }, timeout);
+        set(state => ({
+            gameState: {
+                ...state.gameState,
+                moveTimer: timer,
+                moveTimeoutAt
+            }
+        }));
+    },
+    stopMoveTimer: () => {
+        const { gameState } = get();
+        if (gameState.moveTimer) {
+            clearTimeout(gameState.moveTimer);
+        }
+        set(state => ({
+            gameState: {
+                ...state.gameState,
+                moveTimer: null,
+                moveTimeoutAt: null
+            }
+        }));
+    },
+    setConnectionStatus: (status) => {
+        set(state => ({
+            gameState: {
+                ...state.gameState,
+                connectionStatus: status
+            }
+        }));
+    },
+    setLastError: (error) => {
+        set(state => ({
+            gameState: {
+                ...state.gameState,
+                lastError: error
+            }
+        }));
     }
 }));
 
