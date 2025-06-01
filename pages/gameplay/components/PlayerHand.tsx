@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGameState } from '../store/gameStore';
+import Avatar from './Avatar';
 import './PlayerHand.css';
 
 interface PlayerHandProps {
@@ -14,15 +15,20 @@ const PlayerHand: React.FC<PlayerHandProps> = ({ playerId }) => {
 
     const isCurrentPlayer = playerId === telegramUser?.id.toString();
     const isActive = playerId === gameState.current_turn;
-    const isFolded = player.folded;
+    const isFolded = player.status === 'folded';
     
     return (
-        <div className={`player-hand ${isActive ? 'current' : ''} ${isFolded ? 'folded' : ''} ${isCurrentPlayer ? 'self' : ''}`}>
+        <div 
+            className={`player-hand ${isActive ? 'active' : ''} ${isFolded ? 'folded' : ''} ${isCurrentPlayer ? 'self' : ''}`}
+        >
             <div className="player-info">
                 <div className="player-details">
                     <div className="player-identity">
-                        <span className="player-name">{player.name}</span>
-                        {isCurrentPlayer && <span className="player-tag">Вы</span>}
+                        {player.user_info && <Avatar user={player.user_info} size="small" />}
+                        <span className="player-name">
+                            {player.user_info?.first_name || 'Игрок'}
+                            {isCurrentPlayer && <span className="player-tag">Вы</span>}
+                        </span>
                     </div>
                     <div className="player-stats">
                         <span className="player-balance">{player.balance} 💰</span>
@@ -49,12 +55,12 @@ const PlayerHand: React.FC<PlayerHandProps> = ({ playerId }) => {
                 ))}
             </div>
             
-            {gameState.lastAction?.playerId === playerId && (
+            {player.lastAction && (
                 <div className="last-action">
-                    {gameState.lastAction.type === 'bet' && 
-                        `Ставка: ${gameState.lastAction.amount}`}
-                    {gameState.lastAction.type === 'fold' && 'Пас'}
-                    {gameState.lastAction.type === 'check' && 'Чек'}
+                    {player.lastAction === 'bet' && 
+                        `Ставка: ${player.bet}`}
+                    {player.lastAction === 'fold' && 'Пас'}
+                    {player.lastAction === 'check' && 'Чек'}
                 </div>
             )}
 

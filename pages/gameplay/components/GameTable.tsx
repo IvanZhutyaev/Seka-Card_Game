@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useGameState } from '../store/gameStore';
 import PlayerHand from './PlayerHand';
-import Avatar from './Avatar';
-import './GameTable.css';
 import GameControls from './GameControls';
+import MatchmakingWindow from './MatchmakingWindow';
+import './GameTable.css';
 
 const GameTable: React.FC = () => {
     const { 
@@ -13,16 +13,13 @@ const GameTable: React.FC = () => {
         exitGame,
         telegramUser,
         isConnected,
-        makeAction,
-        cancelMatchmaking,
         handleError
     } = useGameState();
     
-    const [selectedChip, setSelectedChip] = useState<number>(100);
     const [isSoundEnabled, setIsSoundEnabled] = useState<boolean>(true);
     
+    // Инициализация при монтировании
     useEffect(() => {
-        // Логируем инициализацию компонента
         console.info('GameTable component mounted');
 
         // Инициализируем Telegram WebApp
@@ -86,41 +83,8 @@ const GameTable: React.FC = () => {
         setIsSoundEnabled(!isSoundEnabled);
         // TODO: Добавить звуковые эффекты
     };
-    
-    const handleChipSelect = (value: number) => {
-        setSelectedChip(value);
-    };
 
-    const handleBet = () => {
-        makeAction({
-            type: 'game_action',
-            action: 'bet',
-            amount: selectedChip,
-            timestamp: Date.now()
-        });
-    };
-
-    const handleFold = () => {
-        makeAction({
-            type: 'game_action',
-            action: 'fold',
-            timestamp: Date.now()
-        });
-    };
-
-    const handleCheck = () => {
-        makeAction({
-            type: 'game_action',
-            action: 'check',
-            timestamp: Date.now()
-        });
-    };
-    
-    // Логируем ошибки рендеринга
-    const handleError = (error: Error) => {
-        console.error('Render error in GameTable:', error);
-    };
-
+    // Если нет данных пользователя
     if (!telegramUser) {
         return (
             <div className="game-loading">
@@ -130,6 +94,7 @@ const GameTable: React.FC = () => {
         );
     }
 
+    // Если произошла ошибка
     if (gameState.status === 'error') {
         return (
             <div className="error-container">
@@ -144,44 +109,31 @@ const GameTable: React.FC = () => {
         );
     }
 
+    // Если идет переподключение
     if (gameState.status === 'reconnecting') {
         return (
             <div className="game-loading">
                 <div className="loader" />
-                <p>Переподключение к серверу... ({gameState.reconnectAttempts}/{MAX_RECONNECT_ATTEMPTS})</p>
+                <p>Переподключение к серверу... ({gameState.reconnectAttempts}/5)</p>
             </div>
         );
+    }
+
+    // Если идет поиск игры, показываем окно матчмейкинга
+    if (gameState.status === 'waiting' || gameState.status === 'matchmaking') {
+        return <MatchmakingWindow />;
     }
 
     return (
         <div className="table-container">
             <div className="header">
-                <button className="menu-button" onClick={() => {/* TODO: Добавить меню */}} />
                 <button 
                     className={`sound-button ${isSoundEnabled ? 'enabled' : 'disabled'}`} 
                     onClick={handleSoundToggle} 
                 />
                 <button className="exit-button" onClick={exitGame} />
                 <div className="player-queue-info">
-                    {!isConnected ? 'Подключение...' : 
-                     gameState.status === 'waiting' ? (
-                        <div className="matchmaking-info">
-                            <div className="matchmaking-status">
-                                Поиск игры... ({gameState.matchmaking.playersCount}/{gameState.matchmaking.requiredPlayers})
-                            </div>
-                            <div className="matchmaking-bets">
-                                Ставки: {gameState.matchmaking.minBet} - {gameState.matchmaking.maxBet}
-                            </div>
-                            {gameState.matchmaking.isSearching && (
-                                <button 
-                                    className="cancel-search-button"
-                                    onClick={cancelMatchmaking}
-                                >
-                                    Отменить поиск
-                                </button>
-                            )}
-                        </div>
-                     ) : 'Игра идет'}
+                    {!isConnected ? 'Подключение...' : 'Игра идет'}
                 </div>
             </div>
             
@@ -195,7 +147,6 @@ const GameTable: React.FC = () => {
                     <div className="top-players">
                         {Object.entries(gameState.players).slice(0, 3).map(([playerId, player]) => (
                             <div key={playerId} className="player-container">
-                                {player.user && <Avatar user={player.user} size="medium" />}
                                 <PlayerHand playerId={playerId} />
                             </div>
                         ))}
@@ -205,7 +156,7 @@ const GameTable: React.FC = () => {
                     <div className="table-center">
                         <div className="bank-info">
                             <span>Банк: {gameState.bank}</span>
-                            <span>Текущая ставка: {gameState.currentBet}</span>
+                            <span>Текущая ставка: {gameState.minBet || 0}</span>
                         </div>
                     </div>
                     
@@ -213,59 +164,14 @@ const GameTable: React.FC = () => {
                     <div className="bottom-players">
                         {Object.entries(gameState.players).slice(3, 6).map(([playerId, player]) => (
                             <div key={playerId} className="player-container">
-                                {player.user && <Avatar user={player.user} size="medium" />}
                                 <PlayerHand playerId={playerId} />
                             </div>
                         ))}
                     </div>
                 </div>
-                
-                {/* Панель управления */}
-                <div className="controls-panel">
-                    <div className="chips-select">
-                        {[100, 200, 500, 1000].map(value => (
-                            <button 
-                                key={value}
-                                className={`chip-btn ${selectedChip === value ? 'selected' : ''}`}
-                                onClick={() => handleChipSelect(value)}
-                            >
-                                {value}
-                            </button>
-                        ))}
-                    </div>
-                    <input 
-                        type="range" 
-                        min="100" 
-                        max="2000" 
-                        value={selectedChip}
-                        onChange={(e) => handleChipSelect(Number(e.target.value))}
-                        className="bet-slider" 
-                    />
-                    <div className="action-btns">
-                        <button 
-                            className="action-btn bet"
-                            onClick={handleBet}
-                            disabled={gameState.status !== 'playing' || gameState.current_turn !== telegramUser?.id.toString()}
-                        >
-                            Ставка
-                        </button>
-                        <button 
-                            className="action-btn fold"
-                            onClick={handleFold}
-                            disabled={gameState.status !== 'playing' || gameState.current_turn !== telegramUser?.id.toString()}
-                        >
-                            Пас
-                        </button>
-                        <button 
-                            className="action-btn check"
-                            onClick={handleCheck}
-                            disabled={gameState.status !== 'playing' || gameState.current_turn !== telegramUser?.id.toString()}
-                        >
-                            Чек
-                        </button>
-                    </div>
-                </div>
             </div>
+            
+            {/* Панель управления */}
             <GameControls />
         </div>
     );

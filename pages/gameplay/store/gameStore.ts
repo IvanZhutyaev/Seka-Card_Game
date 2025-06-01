@@ -1,10 +1,35 @@
 import { create } from 'zustand';
 import { GameState, GameAction, Player, TelegramUser, WebSocketMessage } from '../types/game';
 
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 5000;
-const ACTION_COOLDOWN = 1000; // 1 секунда между действиями
+// Константы
+const MAX_RECONNECT_ATTEMPTS = 5;  // Максимальное количество попыток переподключения
+const RECONNECT_DELAY = 5000;      // Задержка между попытками (5 секунд)
+const ACTION_COOLDOWN = 1000;      // Задержка между действиями (1 секунда)
+const MESSAGE_TIMEOUT = 30000;     // Таймаут сообщений (30 секунд)
 
+// WebSocket URL
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+
+// Начальное состояние игры
+const initialGameState: GameState = {
+    status: 'waiting',
+    bank: 0,
+    current_turn: null,
+    players: {},
+    matchmaking: {
+        playersCount: 0,
+        requiredPlayers: 6,
+        minBet: 100,
+        maxBet: 2000,
+        waitingPlayers: [],
+        isSearching: false,
+        lobbyType: 'public'
+    },
+    reconnectAttempts: 0,
+    lastActionTime: 0
+};
+
+// Интерфейс store
 interface GameStore {
     gameState: GameState;
     telegramUser: TelegramUser | null;
@@ -17,41 +42,30 @@ interface GameStore {
     exitGame: () => void;
     cancelMatchmaking: () => void;
     handleError: (error: string) => void;
+    joinLobby: (lobbyId: string) => void;
+    createLobby: (lobbyName: string, lobbyType: 'public' | 'private') => void;
+    leaveLobby: () => void;
+    getAvailableLobbies: () => void;
 }
 
-const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
-
-const initialGameState: GameState = {
-    status: 'waiting',
-    bank: 0,
-    current_turn: null,
-    players: {},
-    matchmaking: {
-        playersCount: 0,
-        requiredPlayers: 6,
-        minBet: 100,
-        maxBet: 2000,
-        waitingPlayers: [],
-        isSearching: false
-    },
-    reconnectAttempts: 0,
-    lastActionTime: 0
-};
-
+// Создаем store
 export const useGameState = create<GameStore>((set, get) => ({
     gameState: initialGameState,
     telegramUser: null,
     isConnected: false,
     ws: null,
 
+    // Подключение к WebSocket
     connect: () => {
         const { telegramUser, gameState } = get();
+        
+        // Проверяем наличие ID пользователя
         if (!telegramUser?.id) {
             console.error('Cannot connect: no user ID');
             return;
         }
 
-        // Если превышено количество попыток переподключения
+        // Проверяем количество попыток переподключения
         if (gameState.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             set(state => ({
                 gameState: {
@@ -68,9 +82,11 @@ export const useGameState = create<GameStore>((set, get) => ({
             attempt: gameState.reconnectAttempts + 1
         });
 
+        // Создаем WebSocket соединение
         const wsUrl = `${WS_URL}/${telegramUser.id}`;
         const ws = new WebSocket(wsUrl);
         
+        // Обработчик открытия соединения
         ws.onopen = () => {
             set({ isConnected: true, ws });
             console.log('WebSocket connected successfully');
@@ -100,41 +116,50 @@ export const useGameState = create<GameStore>((set, get) => ({
             }
         };
 
+        // Обработчик сообщений
         ws.onmessage = (event) => {
             try {
                 console.log('Received WebSocket message:', event.data);
                 const data: WebSocketMessage = JSON.parse(event.data);
                 
                 // Проверяем timestamp сообщения
-                if (Date.now() - data.timestamp > 30000) { // 30 секунд
+                if (Date.now() - data.timestamp > MESSAGE_TIMEOUT) {
                     console.warn('Received outdated message');
                     return;
                 }
 
+                // Обрабатываем различные типы сообщений
                 switch (data.type) {
                     case 'init_success':
                         console.log('Init successful');
                         break;
+
                     case 'matchmaking_update':
                         console.log('Matchmaking update:', data);
                         set(state => ({
                             gameState: {
                                 ...state.gameState,
                                 matchmaking: {
+                                    ...state.gameState.matchmaking,
                                     playersCount: data.data.players_count,
                                     requiredPlayers: data.data.required_players,
                                     minBet: data.data.min_bet,
                                     maxBet: data.data.max_bet,
                                     waitingPlayers: data.data.waiting_players || [],
-                                    isSearching: true
+                                    isSearching: true,
+                                    lobbyId: data.data.lobby_id,
+                                    lobbyName: data.data.lobby_name,
+                                    lobbyType: data.data.lobby_type
                                 }
                             }
                         }));
                         break;
+
                     case 'game_state':
                         console.log('Updating game state:', data.data);
                         set({ gameState: { ...data.data, reconnectAttempts: 0 } });
                         break;
+
                     case 'error':
                         console.error('Game error:', data.data.message);
                         set(state => ({
@@ -145,6 +170,7 @@ export const useGameState = create<GameStore>((set, get) => ({
                             }
                         }));
                         break;
+
                     case 'player_joined':
                         console.log('Player joined:', data.data.player);
                         set(state => ({
@@ -157,6 +183,7 @@ export const useGameState = create<GameStore>((set, get) => ({
                             }
                         }));
                         break;
+
                     case 'player_left':
                         console.log('Player left:', data.data.playerId);
                         set(state => {
@@ -169,6 +196,52 @@ export const useGameState = create<GameStore>((set, get) => ({
                             };
                         });
                         break;
+
+                    case 'lobby_created':
+                        console.log('Lobby created:', data.data);
+                        set(state => ({
+                            gameState: {
+                                ...state.gameState,
+                                matchmaking: {
+                                    ...state.gameState.matchmaking,
+                                    lobbyId: data.data.lobby_id,
+                                    lobbyName: data.data.lobby_name,
+                                    lobbyType: data.data.lobby_type,
+                                    isSearching: true
+                                }
+                            }
+                        }));
+                        break;
+
+                    case 'lobby_joined':
+                        console.log('Joined lobby:', data.data);
+                        set(state => ({
+                            gameState: {
+                                ...state.gameState,
+                                matchmaking: {
+                                    ...state.gameState.matchmaking,
+                                    lobbyId: data.data.lobby_id,
+                                    lobbyName: data.data.lobby_name,
+                                    lobbyType: data.data.lobby_type,
+                                    isSearching: true
+                                }
+                            }
+                        }));
+                        break;
+
+                    case 'available_lobbies':
+                        console.log('Available lobbies:', data.data);
+                        set(state => ({
+                            gameState: {
+                                ...state.gameState,
+                                matchmaking: {
+                                    ...state.gameState.matchmaking,
+                                    availableLobbies: data.data.lobbies
+                                }
+                            }
+                        }));
+                        break;
+
                     default:
                         console.log('Unknown message type:', data.type);
                 }
@@ -178,6 +251,7 @@ export const useGameState = create<GameStore>((set, get) => ({
             }
         };
 
+        // Обработчик закрытия соединения
         ws.onclose = (event) => {
             console.log('WebSocket closed:', {
                 code: event.code,
@@ -201,12 +275,14 @@ export const useGameState = create<GameStore>((set, get) => ({
             }, RECONNECT_DELAY);
         };
 
+        // Обработчик ошибок
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
             get().handleError('Ошибка соединения с сервером');
         };
     },
 
+    // Отключение от WebSocket
     disconnect: () => {
         const { ws } = get();
         if (ws) {
@@ -215,6 +291,7 @@ export const useGameState = create<GameStore>((set, get) => ({
         }
     },
 
+    // Инициализация пользователя Telegram
     initTelegramUser: () => {
         if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
             const user = window.Telegram.WebApp.initDataUnsafe.user;
@@ -224,8 +301,9 @@ export const useGameState = create<GameStore>((set, get) => ({
         return null;
     },
 
+    // Выполнение игрового действия
     makeAction: (action: GameAction) => {
-        const { ws, isConnected, gameState } = get();
+        const { ws, isConnected, gameState, telegramUser } = get();
         
         // Проверяем cooldown
         if (Date.now() - gameState.lastActionTime < ACTION_COOLDOWN) {
@@ -241,6 +319,7 @@ export const useGameState = create<GameStore>((set, get) => ({
         if (ws && isConnected) {
             const actionWithTimestamp = {
                 ...action,
+                playerId: telegramUser?.id.toString(),
                 timestamp: Date.now()
             };
             ws.send(JSON.stringify(actionWithTimestamp));
@@ -256,6 +335,7 @@ export const useGameState = create<GameStore>((set, get) => ({
         }
     },
 
+    // Выход из игры
     exitGame: () => {
         const { ws } = get();
         if (ws) {
@@ -272,6 +352,7 @@ export const useGameState = create<GameStore>((set, get) => ({
         });
     },
 
+    // Отмена поиска игры
     cancelMatchmaking: () => {
         const { ws, isConnected } = get();
         if (ws && isConnected) {
@@ -291,6 +372,54 @@ export const useGameState = create<GameStore>((set, get) => ({
         }
     },
 
+    // Присоединение к лобби
+    joinLobby: (lobbyId: string) => {
+        const { ws, isConnected } = get();
+        if (ws && isConnected) {
+            ws.send(JSON.stringify({
+                type: 'join_lobby',
+                lobbyId,
+                timestamp: Date.now()
+            }));
+        }
+    },
+
+    // Создание лобби
+    createLobby: (lobbyName: string, lobbyType: 'public' | 'private') => {
+        const { ws, isConnected } = get();
+        if (ws && isConnected) {
+            ws.send(JSON.stringify({
+                type: 'create_lobby',
+                lobbyName,
+                lobbyType,
+                timestamp: Date.now()
+            }));
+        }
+    },
+
+    // Выход из лобби
+    leaveLobby: () => {
+        const { ws, isConnected } = get();
+        if (ws && isConnected) {
+            ws.send(JSON.stringify({
+                type: 'leave_lobby',
+                timestamp: Date.now()
+            }));
+            set(state => ({
+                gameState: {
+                    ...state.gameState,
+                    matchmaking: {
+                        ...state.gameState.matchmaking,
+                        isSearching: false,
+                        lobbyId: undefined,
+                        lobbyName: undefined
+                    }
+                }
+            }));
+        }
+    },
+
+    // Обработка ошибок
     handleError: (error: string) => {
         console.error('Game error:', error);
         set(state => ({
@@ -300,6 +429,17 @@ export const useGameState = create<GameStore>((set, get) => ({
                 error
             }
         }));
+    },
+
+    // Добавляем новый метод в store
+    getAvailableLobbies: () => {
+        const { ws, isConnected } = get();
+        if (ws && isConnected) {
+            ws.send(JSON.stringify({
+                type: 'get_available_lobbies',
+                timestamp: Date.now()
+            }));
+        }
     }
 }));
 
@@ -314,7 +454,11 @@ function validateAction(action: GameAction): boolean {
     }
     
     // Проверяем валидность ставки
-    if (action.action === 'bet' && action.amount) {
+    if (action.action === 'bet' || action.action === 'raise' || action.action === 'all-in') {
+        if (!action.amount) {
+            console.error('No bet amount specified');
+            return false;
+        }
         if (action.amount < gameState.matchmaking.minBet || 
             action.amount > gameState.matchmaking.maxBet) {
             console.error('Invalid bet amount');

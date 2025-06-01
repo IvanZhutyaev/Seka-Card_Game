@@ -397,21 +397,21 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
             
         await websocket.accept()
         logger.info("WebSocket connection accepted")
-        
+
         # Ожидаем initData от клиента
         try:
-            init_data = await websocket.receive_json()
-            logger.debug(f"Received init data: {init_data}")
+        init_data = await websocket.receive_json()
+        logger.debug(f"Received init data: {init_data}")
         except Exception as e:
             logger.error(f"Error receiving init data: {e}")
             await websocket.close(code=4000)
             return
-            
+
         if not init_data.get('initData'):
             logger.error("No initData provided in WebSocket message")
             await websocket.close(code=4000)
             return
-            
+
         # Валидация initData
         try:
             if not verify_telegram_data(init_data['initData']):
@@ -422,7 +422,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
             logger.error(f"Error validating initData: {e}")
             await websocket.close(code=4001)
             return
-            
+
         # Получаем player_id из initData
         try:
             params = dict(param.split('=') for param in init_data['initData'].split('&'))
@@ -449,10 +449,10 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
                     data = await websocket.receive_json()
                     logger.debug(f"Received message from player {player_id}: {data}")
                     await handle_websocket_message(websocket, player_id, data)
-                except WebSocketDisconnect:
+    except WebSocketDisconnect:
                     logger.info(f"Player {player_id} disconnected")
                     break
-                except Exception as e:
+    except Exception as e:
                     logger.error(f"Error handling message from player {player_id}: {e}")
                     await manager.send_personal_message({
                         "type": "error",
@@ -465,7 +465,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:
-            await websocket.close(code=1011)
+        await websocket.close(code=1011)
         except:
             pass
 

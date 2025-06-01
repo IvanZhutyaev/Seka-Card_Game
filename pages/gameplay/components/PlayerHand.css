@@ -1,0 +1,180 @@
+.player-hand {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.player-hand.active {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.player-hand.folded {
+    opacity: 0.5;
+}
+
+.player-hand.self {
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.player-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.player-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-name {
+    color: white;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.player-tag {
+    background: #4CAF50;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin-left: 8px;
+}
+
+.player-stats {
+    display: flex;
+    gap: 10px;
+    color: #ccc;
+    font-size: 0.9em;
+}
+
+.cards-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    min-height: 100px;
+}
+
+.card {
+    width: 60px;
+    height: 90px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    animation: cardDeal 0.5s ease-out forwards;
+    animation-delay: var(--card-delay);
+    opacity: 0;
+    transform: translateY(-20px);
+}
+
+.card.active {
+    transform: translateY(-10px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.card.inactive {
+    opacity: 0.7;
+}
+
+.card.red {
+    color: #e74c3c;
+}
+
+.card.black {
+    color: #2c3e50;
+}
+
+.last-action {
+    text-align: center;
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 1.1em;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.folded-indicator {
+    text-align: center;
+    color: #e74c3c;
+    font-weight: bold;
+    font-size: 1.1em;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes cardDeal {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .player-hand {
+        padding: 10px;
+    }
+
+    .card {
+        width: 45px;
+        height: 68px;
+        font-size: 1.2em;
+    }
+
+    .player-name {
+        font-size: 1em;
+    }
+
+    .player-stats {
+        font-size: 0.8em;
+    }
+}
+
+/* Ландшафтная ориентация */
+@media (max-height: 500px) and (orientation: landscape) {
+    .player-hand {
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .cards-container {
+        min-height: auto;
+    }
+
+    .card {
+        width: 40px;
+        height: 60px;
+        font-size: 1em;
+    }
+} 

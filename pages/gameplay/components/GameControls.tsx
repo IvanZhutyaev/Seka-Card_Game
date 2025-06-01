@@ -1,75 +1,113 @@
 import React, { useState } from 'react';
+import { useGameState } from '../store/gameStore';
 import './GameControls.css';
 
-interface GameControlsProps {
-    onBet: (amount: number) => void;
-    onFold: () => void;
-    minBet: number;
-    maxBet: number;
-}
+const GameControls: React.FC = () => {
+    const { gameState, telegramUser, makeAction } = useGameState();
+    const [selectedChip, setSelectedChip] = useState<number>(100);
 
-const GameControls: React.FC<GameControlsProps> = ({
-    onBet,
-    onFold,
-    minBet,
-    maxBet
-}) => {
-    const [betAmount, setBetAmount] = useState(minBet);
+    // Проверяем, может ли игрок сделать действие
+    const canAct = gameState.status === 'playing' && 
+                  gameState.current_turn === telegramUser?.id.toString();
 
-    const handleBetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = parseInt(e.target.value);
-        if (!isNaN(value)) {
-            setBetAmount(Math.min(Math.max(value, minBet), maxBet));
-        }
+    // Обработчики действий
+    const handleBet = () => {
+        if (!canAct) return;
+        
+        makeAction({
+            type: 'game_action',
+            action: 'bet',
+            amount: selectedChip,
+            timestamp: Date.now()
+        });
     };
 
-    const handleBetSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onBet(betAmount);
+    const handleFold = () => {
+        if (!canAct) return;
+        
+        makeAction({
+            type: 'game_action',
+            action: 'fold',
+            timestamp: Date.now()
+        });
     };
+
+    const handleCheck = () => {
+        if (!canAct) return;
+        
+        makeAction({
+            type: 'game_action',
+            action: 'check',
+            timestamp: Date.now()
+        });
+    };
+
+    // Обработчик изменения ставки
+    const handleChipSelect = (value: number) => {
+        setSelectedChip(Math.min(Math.max(value, gameState.matchmaking.minBet), gameState.matchmaking.maxBet));
+    };
+
+    // Быстрые ставки
+    const quickBets = [
+        { label: 'Мин', value: gameState.matchmaking.minBet },
+        { label: 'Средняя', value: Math.floor((gameState.matchmaking.minBet + gameState.matchmaking.maxBet) / 2) },
+        { label: 'Макс', value: gameState.matchmaking.maxBet }
+    ];
 
     return (
         <div className="game-controls">
-            <form onSubmit={handleBetSubmit} className="bet-controls">
+            <div className="bet-controls">
                 <div className="bet-input-group">
                     <label htmlFor="bet-amount">Ставка:</label>
                     <input
                         id="bet-amount"
                         type="number"
-                        min={minBet}
-                        max={maxBet}
-                        value={betAmount}
-                        onChange={handleBetChange}
+                        min={gameState.matchmaking.minBet}
+                        max={gameState.matchmaking.maxBet}
+                        value={selectedChip}
+                        onChange={(e) => handleChipSelect(Number(e.target.value))}
+                        disabled={!canAct}
                     />
                     <span className="bet-range">
-                        {minBet} - {maxBet} 💰
+                        {gameState.matchmaking.minBet} - {gameState.matchmaking.maxBet} 💰
                     </span>
                 </div>
                 
                 <div className="bet-buttons">
-                    <button type="submit" className="bet-button">
+                    <button 
+                        className="bet-button"
+                        onClick={handleBet}
+                        disabled={!canAct}
+                    >
                         Сделать ставку
                     </button>
                     <button
-                        type="button"
                         className="fold-button"
-                        onClick={onFold}
+                        onClick={handleFold}
+                        disabled={!canAct}
                     >
                         Сбросить карты
                     </button>
+                    <button
+                        className="check-button"
+                        onClick={handleCheck}
+                        disabled={!canAct}
+                    >
+                        Чек
+                    </button>
                 </div>
-            </form>
+            </div>
 
             <div className="quick-bets">
-                <button onClick={() => setBetAmount(minBet)}>
-                    Мин ({minBet})
-                </button>
-                <button onClick={() => setBetAmount(Math.floor((minBet + maxBet) / 2))}>
-                    Средняя ({Math.floor((minBet + maxBet) / 2)})
-                </button>
-                <button onClick={() => setBetAmount(maxBet)}>
-                    Макс ({maxBet})
-                </button>
+                {quickBets.map(({ label, value }) => (
+                    <button
+                        key={label}
+                        onClick={() => handleChipSelect(value)}
+                        disabled={!canAct}
+                    >
+                        {label} ({value})
+                    </button>
+                ))}
             </div>
         </div>
     );
