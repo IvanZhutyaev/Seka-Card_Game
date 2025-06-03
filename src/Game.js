@@ -30,9 +30,9 @@ const Game = () => {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
-              'Telegram-Web-App-Init-Data': initData // только строка!
+              'Telegram-Web-App-Init-Data': initData
           },
-          body: JSON.stringify({ /* ваши данные */ })
+          body: JSON.stringify({})
       });
       setUserData(window.Telegram.WebApp.initDataUnsafe.user);
     }

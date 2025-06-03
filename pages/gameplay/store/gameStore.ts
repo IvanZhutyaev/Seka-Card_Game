@@ -111,9 +111,9 @@ export const useGameState = create<GameStore>((set, get) => ({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Telegram-Web-App-Init-Data': initData // только строка!
+                    'Telegram-Web-App-Init-Data': initData
                 },
-                body: JSON.stringify({ /* ваши данные */ })
+                body: JSON.stringify({})
             });
 
             // Если был в процессе поиска игры, возобновляем поиск

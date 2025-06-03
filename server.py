@@ -1,4 +1,5 @@
 import logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Header, Request
@@ -7,17 +8,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from game.engine import GameState
 from typing import Dict, Set, Optional
-import hashlib
-import hmac
-from urllib.parse import parse_qsl
 import os
-from datetime import datetime
-import redis.asyncio as redis
 import time
+import redis.asyncio as redis
 from config import REDIS_CONFIG
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import sys
 import asyncio
+import hashlib
+import hmac
+from urllib.parse import parse_qsl
 
 # Настройка логирования
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
@@ -256,16 +256,16 @@ game_manager = GameStateManager(redis_master, redis_slave)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 def verify_telegram_data(init_data: str, bot_token: str) -> bool:
-    """
-    Проверяет подлинность строки initData из Telegram WebApp.
-    """
     try:
         data = dict(parse_qsl(init_data, strict_parsing=True))
         received_hash = data.pop('hash', None)
+        print("Parsed data:", data)
+        print("Received hash:", received_hash)
         if not received_hash:
+            print("No hash in init_data")
             return False
-
         data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
+        print("data_check_string:", data_check_string)
         secret_key = hmac.new(
             key=bot_token.encode(),
             msg=b"WebAppData",
@@ -276,8 +276,11 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
             msg=data_check_string.encode(),
             digestmod=hashlib.sha256
         ).hexdigest()
+        print("calculated_hash:", calculated_hash)
+        print("received_hash:", received_hash)
         return calculated_hash == received_hash
-    except Exception:
+    except Exception as e:
+        print("Exception in verify_telegram_data:", e)
         return False
 
 class ConnectionManager:
@@ -718,13 +721,19 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
 async def validate_telegram_init_data(request: Request) -> dict:
     """Получение и валидация данных инициализации Telegram WebApp"""
     try:
+        print("=== DEBUG START ===")
+        print("BOT_TOKEN:", repr(BOT_TOKEN))
+        init_data = request.headers.get("Telegram-Web-App-Init-Data")
+        print("initData from header:", repr(init_data))
+        print("=== DEBUG END ===")
+        
         init_data = request.headers.get("Telegram-Web-App-Init-Data")
         is_valid = verify_telegram_data(init_data, BOT_TOKEN)
         logger.info(f"Received initData: {init_data}")
         logger.info(f"Validation result: {is_valid}")
         
         if not is_valid:
-            logger.error("Invalid Telegram WebApp data")
+            print("Invalid Telegram WebApp data")
             return JSONResponse(status_code=403, content={"error": "Invalid Telegram WebApp data"})
         
         logger.debug(f"Received init_data: {init_data}")

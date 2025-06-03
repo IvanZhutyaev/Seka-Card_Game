@@ -4,8 +4,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import hmac
 import hashlib
+import hmac
+from urllib.parse import parse_qsl
 import json
 from typing import Optional
 from config import settings
@@ -13,13 +14,11 @@ from sqlalchemy.orm import Session
 from db import get_db
 from wallet import WalletManager
 from models import Player
-from urllib.parse import parse_qs, unquote, parse_qsl
 import logging
 
 app = FastAPI()
 security = HTTPBearer()
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -53,16 +52,19 @@ ALLOWED_PAGES = {
     "game": "build/index.html"  # React приложение
 }
 
-import os
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     try:
         data = dict(parse_qsl(init_data, strict_parsing=True))
         received_hash = data.pop('hash', None)
+        print("Parsed data:", data)
+        print("Received hash:", received_hash)
         if not received_hash:
+            print("No hash in init_data")
             return False
         data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
+        print("data_check_string:", data_check_string)
         secret_key = hmac.new(
             key=bot_token.encode(),
             msg=b"WebAppData",
@@ -73,8 +75,11 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
             msg=data_check_string.encode(),
             digestmod=hashlib.sha256
         ).hexdigest()
+        print("calculated_hash:", calculated_hash)
+        print("received_hash:", received_hash)
         return calculated_hash == received_hash
-    except Exception:
+    except Exception as e:
+        print("Exception in verify_telegram_data:", e)
         return False
 
 async def verify_telegram_request(request: Request) -> bool:
@@ -344,8 +349,10 @@ async def get_wallet_transactions(
 ):
     """Получить историю транзакций пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, BOT_TOKEN):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    is_valid = verify_telegram_data(init_data, BOT_TOKEN)
+    if not is_valid:
+        print("Invalid Telegram WebApp data")
+        return JSONResponse(status_code=403, content={"error": "Invalid Telegram WebApp data"})
 
     wallet = WalletManager(db)
     transactions = await wallet.get_transaction_history(telegram_id, limit)
