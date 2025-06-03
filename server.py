@@ -7,7 +7,7 @@ from game.engine import GameState
 from typing import Dict, Set, Optional
 import hashlib
 import hmac
-import json
+from urllib.parse import parse_qsl, unquote
 import os
 from datetime import datetime
 import redis.asyncio as redis
@@ -16,7 +16,6 @@ from config import REDIS_CONFIG
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import sys
 import asyncio
-from urllib.parse import unquote
 
 # Настройка логирования
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
@@ -252,67 +251,31 @@ class GameStateManager:
 # Инициализация менеджера состояний
 game_manager = GameStateManager(redis_master, redis_slave)
 
-def verify_telegram_data(init_data: str) -> bool:
-    """Проверка подлинности данных от Telegram WebApp"""
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # используйте только одну переменную
+
+def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:
+    """
+    Проверяет подлинность строки initData из Telegram WebApp.
+    """
     try:
-        logger.debug(f"Raw init_data: {init_data}")
-        
-        # Разбираем параметры
-        params = {}
-        for param in init_data.split('&'):
-            if '=' not in param:
-                continue
-            key, value = param.split('=', 1)
-            # Декодируем значение из URL-encoded формата
-            params[key] = unquote(value)
-        
-        logger.debug(f"Parsed parameters: {params}")
-        
-        # Получаем хеш
-        received_hash = params.pop('hash', None)
+        data = dict(parse_qsl(init_data, strict_parsing=True))
+        received_hash = data.pop('hash', None)
         if not received_hash:
-            logger.error("No hash value in initData")
             return False
-            
-        # Получаем токен бота
-        bot_token = os.getenv("BOT_TOKEN", TELEGRAM_BOT_TOKEN)
-        if not bot_token:
-            logger.error("No bot token available")
-            return False
-            
-        logger.debug(f"Using bot token: {bot_token[:5]}...{bot_token[-5:]}")
-        
-        # Создаем секретный ключ
-        secret = hmac.new(
+
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
+        secret_key = hmac.new(
             key=bot_token.encode(),
             msg=b"WebAppData",
             digestmod=hashlib.sha256
         ).digest()
-        
-        # Формируем отсортированный массив пар ключ=значение
-        data_check_arr = []
-        for key in sorted(params.keys()):
-            data_check_arr.append(f"{key}={params[key]}")
-        
-        # Соединяем пары через \n
-        data_check_string = '\n'.join(data_check_arr)
-        logger.debug(f"Data check string: {data_check_string}")
-        
-        # Вычисляем хеш
         calculated_hash = hmac.new(
-            key=secret,
+            key=secret_key,
             msg=data_check_string.encode(),
             digestmod=hashlib.sha256
         ).hexdigest()
-        
-        logger.debug(f"Calculated hash: {calculated_hash}")
-        logger.debug(f"Received hash: {received_hash}")
-        
         return calculated_hash == received_hash
-        
-    except Exception as e:
-        logger.error(f"Error verifying Telegram data: {str(e)}")
-        logger.exception(e)
+    except Exception:
         return False
 
 class ConnectionManager:
@@ -439,7 +402,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
 
         # Валидация initData
         try:
-            if not verify_telegram_data(init_data['initData']):
+            if not verify_telegram_data(init_data['initData'], BOT_TOKEN):
                 logger.error("Invalid initData")
                 await websocket.close(code=4001)
                 return
@@ -507,7 +470,7 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 logger.error("No initData in init message")
                 return
                 
-            if not verify_telegram_data(init_data):
+            if not verify_telegram_data(init_data, BOT_TOKEN):
                 logger.error("Invalid initData")
                 await websocket.close(code=4001)
                 return
@@ -1017,7 +980,7 @@ async def handle_client_logs(
         if not telegram_web_app_init_data:
             raise HTTPException(status_code=400, detail="Missing Telegram WebApp init data")
             
-        if not verify_telegram_data(telegram_web_app_init_data):
+        if not verify_telegram_data(telegram_web_app_init_data, BOT_TOKEN):
             raise HTTPException(status_code=401, detail="Invalid Telegram WebApp data")
         
         # Получаем логи из тела запроса

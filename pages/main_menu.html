@@ -666,6 +666,23 @@
                 window.Telegram.WebApp.showAlert('Ошибка при запуске игры: ' + (error.message || error));
             }
         }
+
+        // Пример отправки запроса на сервер с корректным заголовком
+        async function sendRequestToServer(data) {
+            const initData = window.Telegram?.WebApp?.initData;
+            if (!initData) {
+                window.Telegram?.WebApp?.showAlert('Нет данных инициализации Telegram!');
+                return;
+            }
+            await fetch('/api/endpoint', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Telegram-Web-App-Init-Data': initData // только строка!
+                },
+                body: JSON.stringify(data)
+            });
+        }
     </script>
 </body>
 </html>

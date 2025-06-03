@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from db import get_db
 from wallet import WalletManager
 from models import Player
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, parse_qsl
 import logging
 
 app = FastAPI()
@@ -53,75 +53,32 @@ ALLOWED_PAGES = {
     "game": "build/index.html"  # React приложение
 }
 
-def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
-    """Проверка подлинности данных от Telegram WebApp согласно официальной документации"""
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:
+    """
+    Проверяет подлинность строки initData из Telegram WebApp.
+    """
     try:
-        logger.info("Starting Telegram WebApp data verification")
-        logger.debug(f"Received init_data: {init_data}")
-        logger.debug(f"Bot token (first 5 chars): {bot_token[:5]}...")
-
-        if not init_data:
-            logger.error("Init data is empty")
-            return False, "Init data is empty"
-
-        try:
-            try:
-                json_data = json.loads(init_data)
-                if isinstance(json_data, dict):
-                    params = json_data
-                    logger.debug("Successfully parsed init_data as JSON")
-                else:
-                    raise ValueError("JSON data is not a dictionary")
-            except json.JSONDecodeError:
-                params = {}
-                logger.debug("Parsing init_data as query string")
-                for param in init_data.split('&'):
-                    if '=' not in param:
-                        continue
-                    key, value = param.split('=', 1)
-                    params[key] = unquote(value)
-            logger.debug(f"Parsed parameters: {params}")
-        except Exception as e:
-            logger.error(f"Failed to parse parameters: {str(e)}")
-            return False, f"Failed to parse parameters: {str(e)}"
-
-        received_hash = params.pop('hash', None)
-        logger.debug(f"Received hash: {received_hash}")
+        data = dict(parse_qsl(init_data, strict_parsing=True))
+        received_hash = data.pop('hash', None)
         if not received_hash:
-            logger.error("No hash found in init_data")
-            return False, "No hash found in init_data"
+            return False
 
-        data_check_arr = []
-        logger.debug("Sorting parameters...")
-        for key in sorted(params.keys()):
-            data_check_arr.append(f"{key}={params[key]}")
-            logger.debug(f"Added sorted parameter: {key}={params[key]}")
-        data_check_string = '\n'.join(data_check_arr)
-        logger.debug(f"Created check_string: {data_check_string}")
-
-        # Исправленная логика: секретный ключ — это sha256(bot_token)
-        logger.debug("Creating secret key...")
-        secret_key = hashlib.sha256(bot_token.encode()).digest()
-        logger.debug("Secret key created successfully")
-
-        logger.debug("Calculating hash...")
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
+        secret_key = hmac.new(
+            key=bot_token.encode(),
+            msg=b"WebAppData",
+            digestmod=hashlib.sha256
+        ).digest()
         calculated_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
+            key=secret_key,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
         ).hexdigest()
-        logger.debug(f"Calculated hash: {calculated_hash}")
-
-        if calculated_hash != received_hash:
-            logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
-            logger.error(f"Data used for hash calculation: {data_check_string}")
-            return False, f"Hash mismatch: received {received_hash}, calculated {calculated_hash}"
-
-        logger.info("Verification successful")
-        return True, "Verification successful"
-    except Exception as e:
-        logger.exception(f"Verification error: {str(e)}")
-        return False, f"Verification error: {str(e)}"
+        return calculated_hash == received_hash
+    except Exception:
+        return False
 
 async def verify_telegram_request(request: Request) -> bool:
     """Проверка запроса от Telegram"""
@@ -388,7 +345,7 @@ async def get_wallet_transactions(
 ):
     """Получить историю транзакций пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
+    if not verify_telegram_data(init_data, BOT_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)
@@ -407,7 +364,7 @@ async def update_wallet_balance(
 ):
     """Обновить баланс кошелька пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
+    if not verify_telegram_data(init_data, BOT_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)

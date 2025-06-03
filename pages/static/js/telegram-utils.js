@@ -280,7 +280,22 @@
                 console.error('Error closing WebApp:', error);
                 window.close();
             }
-        }
+        },
+
+        sendDataToServer: function(data, endpoint) {
+            const initData = window.Telegram?.WebApp?.initData;
+            if (!initData) {
+                throw new Error('No Telegram WebApp init data available');
+            }
+            return fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Telegram-Web-App-Init-Data': initData // только строка!
+                },
+                body: JSON.stringify(data)
+            });
+        },
     };
 
     // Экспортируем в глобальную область видимости
@@ -317,4 +332,4 @@ console.log('[TelegramUtils] Initialization check:', {
     'window.TelegramUtils exists': typeof window !== 'undefined' && !!window.TelegramUtils,
     'global.TelegramUtils exists': typeof global !== 'undefined' && !!global.TelegramUtils,
     'self.TelegramUtils exists': typeof self !== 'undefined' && !!self.TelegramUtils
-}); 
+});
