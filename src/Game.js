@@ -26,7 +26,6 @@ const Game = () => {
           alert('Нет данных инициализации Telegram!');
           return;
       }
-      // Пример отправки запроса
       fetch('/api/validate-init-data', {
           method: 'POST',
           headers: {

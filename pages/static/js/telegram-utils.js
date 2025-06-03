@@ -294,7 +294,7 @@
                     'Content-Type': 'application/json',
                     'Telegram-Web-App-Init-Data': initData // только строка!
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({ /* ваши данные */ })
             });
         },
     };

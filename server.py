@@ -9,7 +9,7 @@ from game.engine import GameState
 from typing import Dict, Set, Optional
 import hashlib
 import hmac
-from urllib.parse import parse_qsl, unquote
+from urllib.parse import parse_qsl
 import os
 from datetime import datetime
 import redis.asyncio as redis
@@ -255,7 +255,7 @@ game_manager = GameStateManager(redis_master, redis_slave)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:
+def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     """
     Проверяет подлинность строки initData из Telegram WebApp.
     """
@@ -719,10 +719,11 @@ async def validate_telegram_init_data(request: Request) -> dict:
     """Получение и валидация данных инициализации Telegram WebApp"""
     try:
         init_data = request.headers.get("Telegram-Web-App-Init-Data")
-        logger.info(f"Received initData: {init_data}")
         is_valid = verify_telegram_data(init_data, BOT_TOKEN)
+        logger.info(f"Received initData: {init_data}")
         logger.info(f"Validation result: {is_valid}")
-        if not init_data or not is_valid:
+        
+        if not is_valid:
             logger.error("Invalid Telegram WebApp data")
             return JSONResponse(status_code=403, content={"error": "Invalid Telegram WebApp data"})
         

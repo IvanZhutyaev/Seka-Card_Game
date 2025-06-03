@@ -56,16 +56,12 @@ ALLOWED_PAGES = {
 import os
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:
-    """
-    Проверяет подлинность строки initData из Telegram WebApp.
-    """
+def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     try:
         data = dict(parse_qsl(init_data, strict_parsing=True))
         received_hash = data.pop('hash', None)
         if not received_hash:
             return False
-
         data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
         secret_key = hmac.new(
             key=bot_token.encode(),
@@ -181,7 +177,7 @@ async def get_page(page_name: str):
     print(f"Serving file: {file_path}")
     return FileResponse(file_path)
 
-# Добавляем обработку всех путей для React приложения
+# Добавляем обработчик для всех путей внутри /game
 @app.get("/game/{full_path:path}")
 async def serve_game_app(full_path: str):
     """Обработчик для всех путей внутри /game"""
@@ -229,6 +225,8 @@ async def validate_init_data(request: Request):
             )
 
         is_valid, verify_message = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        logger.info(f"Received initData: {init_data}")
+        logger.info(f"Validation result: {is_valid}")
         return JSONResponse(
             status_code=200,
             content={
