@@ -53,6 +53,7 @@ ALLOWED_PAGES = {
     "game": "build/index.html"  # React приложение
 }
 
+import os
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:

@@ -1,4 +1,6 @@
 import logging
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Header, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -251,7 +253,7 @@ class GameStateManager:
 # Инициализация менеджера состояний
 game_manager = GameStateManager(redis_master, redis_slave)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")  # используйте только одну переменную
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 def verify_telegram_data(init_data: str, bot_token: str = BOT_TOKEN) -> bool:
     """
@@ -717,10 +719,13 @@ async def validate_telegram_init_data(request: Request) -> dict:
     """Получение и валидация данных инициализации Telegram WebApp"""
     try:
         init_data = request.headers.get("Telegram-Web-App-Init-Data")
-        if not init_data:
-            logger.error("Missing Telegram-Web-App-Init-Data header")
-            raise HTTPException(status_code=400, detail="Missing Telegram WebApp init data")
-            
+        logger.info(f"Received initData: {init_data}")
+        is_valid = verify_telegram_data(init_data, BOT_TOKEN)
+        logger.info(f"Validation result: {is_valid}")
+        if not init_data or not is_valid:
+            logger.error("Invalid Telegram WebApp data")
+            return JSONResponse(status_code=403, content={"error": "Invalid Telegram WebApp data"})
+        
         logger.debug(f"Received init_data: {init_data}")
         
         # Парсим параметры
