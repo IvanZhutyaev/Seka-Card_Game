@@ -671,16 +671,16 @@
         async function sendRequestToServer(data) {
             const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
-                window.Telegram?.WebApp?.showAlert('Нет данных инициализации Telegram!');
+                alert('Нет данных инициализации Telegram!');
                 return;
             }
-            await fetch('/api/endpoint', {
+            fetch('/api/validate-init-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Telegram-Web-App-Init-Data': initData // только строка!
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({ /* ваши данные */ })
             });
         }
     </script>

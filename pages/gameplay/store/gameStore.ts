@@ -104,13 +104,17 @@ export const useGameState = create<GameStore>((set, get) => ({
             // Отправляем initData при подключении
             const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
-                throw new Error('No Telegram WebApp init data available');
+                alert('Нет данных инициализации Telegram!');
+                return;
             }
-            ws.send(JSON.stringify({
-                type: 'init',
-                initData: window.Telegram.WebApp.initData,
-                timestamp: Date.now()
-            }));
+            fetch('/api/validate-init-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Telegram-Web-App-Init-Data': initData // только строка!
+                },
+                body: JSON.stringify({ /* ваши данные */ })
+            });
 
             // Если был в процессе поиска игры, возобновляем поиск
             if (get().gameState.matchmaking.isSearching) {

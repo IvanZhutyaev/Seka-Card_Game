@@ -28,6 +28,20 @@
             TelegramUtils.hapticFeedback('light');
             TelegramUtils.openLink('main_menu');
         }
+
+        const initData = window.Telegram?.WebApp?.initData;
+        if (!initData) {
+            alert('Нет данных инициализации Telegram!');
+            return;
+        }
+        fetch('/api/validate-init-data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Telegram-Web-App-Init-Data': initData // только строка!
+            },
+            body: JSON.stringify({ /* ваши данные */ })
+        });
     </script>
     <style>
         :root {

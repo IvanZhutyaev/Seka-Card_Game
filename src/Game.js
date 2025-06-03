@@ -21,9 +21,13 @@ const Game = () => {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
       // Получаем строку initData для передачи на сервер
-      const initData = window.Telegram.WebApp.initData;
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+          alert('Нет данных инициализации Telegram!');
+          return;
+      }
       // Пример отправки запроса
-      fetch('/api/endpoint', {
+      fetch('/api/validate-init-data', {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',

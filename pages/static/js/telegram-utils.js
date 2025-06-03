@@ -285,9 +285,10 @@
         sendDataToServer: function(data, endpoint) {
             const initData = window.Telegram?.WebApp?.initData;
             if (!initData) {
-                throw new Error('No Telegram WebApp init data available');
+                alert('Нет данных инициализации Telegram!');
+                return;
             }
-            return fetch(endpoint, {
+            fetch('/api/validate-init-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
