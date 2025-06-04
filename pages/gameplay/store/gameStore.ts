@@ -102,27 +102,29 @@ export const useGameState = create<GameStore>((set, get) => ({
             console.log('WebSocket connected successfully');
             
             // Отправляем initData при подключении
-            if (window.Telegram?.WebApp?.initData) {
-                console.log('Sending initData...');
-                ws.send(JSON.stringify({
-                    type: 'init',
-                    initData: window.Telegram.WebApp.initData,
-                    timestamp: Date.now()
-                }));
+            const initData = window.Telegram?.WebApp?.initData;
+            if (!initData) {
+                alert('Нет данных инициализации Telegram!');
+                return;
+            }
+            fetch('/api/validate-init-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Telegram-Web-App-Init-Data': initData
+                },
+                body: JSON.stringify({})
+            });
 
-                // Если был в процессе поиска игры, возобновляем поиск
-                if (get().gameState.matchmaking.isSearching) {
-                    setTimeout(() => {
-                        console.log('Resuming game search...');
-                        ws.send(JSON.stringify({ 
-                            type: 'find_game',
-                            timestamp: Date.now()
-                        }));
-                    }, 1000);
-                }
-            } else {
-                console.error('No Telegram WebApp init data available');
-                ws.close();
+            // Если был в процессе поиска игры, возобновляем поиск
+            if (get().gameState.matchmaking.isSearching) {
+                setTimeout(() => {
+                    console.log('Resuming game search...');
+                    ws.send(JSON.stringify({ 
+                        type: 'find_game',
+                        timestamp: Date.now()
+                    }));
+                }, 1000);
             }
         };
 
@@ -536,4 +538,4 @@ function validateAction(action: GameAction): boolean {
     }
     
     return true;
-} 
+}

@@ -4,8 +4,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import hmac
 import hashlib
+import hmac
+from urllib.parse import parse_qsl
 import json
 from typing import Optional
 from config import settings
@@ -13,13 +14,11 @@ from sqlalchemy.orm import Session
 from db import get_db
 from wallet import WalletManager
 from models import Player
-from urllib.parse import parse_qs, unquote
 import logging
 
 app = FastAPI()
 security = HTTPBearer()
 
-# Настройка логирования
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -106,9 +105,9 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
 
         logger.debug("Calculating hash...")
         calculated_hash = hmac.new(
-            secret_key,
-            data_check_string.encode(),
-            hashlib.sha256
+            key=secret_key,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
         ).hexdigest()
         logger.debug(f"Calculated hash: {calculated_hash}")
 
@@ -223,7 +222,7 @@ async def get_page(page_name: str):
     print(f"Serving file: {file_path}")
     return FileResponse(file_path)
 
-# Добавляем обработку всех путей для React приложения
+# Добавляем обработчик для всех путей внутри /game
 @app.get("/game/{full_path:path}")
 async def serve_game_app(full_path: str):
     """Обработчик для всех путей внутри /game"""
@@ -386,8 +385,16 @@ async def get_wallet_transactions(
 ):
     """Получить историю транзакций пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
+    if not is_valid:
+        logger.error("Invalid Telegram WebApp data")
+        raise HTTPException(
+            status_code=401, 
+            detail={
+                "error": "Invalid Telegram WebApp data",
+                "init_data": init_data
+            }
+        )
 
     wallet = WalletManager(db)
     transactions = await wallet.get_transaction_history(telegram_id, limit)

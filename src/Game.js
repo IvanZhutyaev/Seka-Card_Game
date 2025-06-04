@@ -20,6 +20,20 @@ const Game = () => {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
+      // Получаем строку initData для передачи на сервер
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+          alert('Нет данных инициализации Telegram!');
+          return;
+      }
+      fetch('/api/validate-init-data', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Telegram-Web-App-Init-Data': initData
+          },
+          body: JSON.stringify({})
+      });
       setUserData(window.Telegram.WebApp.initDataUnsafe.user);
     }
   }, []);
@@ -145,4 +159,4 @@ const Game = () => {
   );
 };
 
-export default Game; 
+export default Game;

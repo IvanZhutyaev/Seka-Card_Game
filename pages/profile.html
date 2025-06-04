@@ -414,6 +414,19 @@
             document.getElementById('user-name').textContent = user.first_name || 'Не указано';
             document.getElementById('user-id').textContent = user.id || 'Не указано';
         }
+        const initData = window.Telegram?.WebApp?.initData;
+if (!initData) {
+    alert('Нет данных инициализации Telegram!');
+    return;
+}
+fetch('/api/validate-init-data', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Telegram-Web-App-Init-Data': initData
+    },
+    body: JSON.stringify({})
+});
     </script>
 </body>
 </html>

@@ -1,21 +1,23 @@
 import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Header, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from game.engine import GameState
 from typing import Dict, Set, Optional
-import hashlib
-import hmac
-import json
 import os
-from datetime import datetime
-import redis
 import time
+import redis.asyncio as redis
 from config import REDIS_CONFIG
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import sys
 import asyncio
+import hashlib
+import hmac
+from urllib.parse import parse_qsl
 
 # Настройка логирования
 LOG_FORMAT = '%(asctime)s - %(levelname)s - %(message)s'
@@ -51,15 +53,10 @@ app = FastAPI()
 # Настройка CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://localhost:3000",
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:3000"
-    ],
+    allow_origins=["*"],  # В продакшене заменить на конкретные домены
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "Telegram-Web-App-Init-Data"],
     expose_headers=["*"]
 )
 
@@ -94,18 +91,28 @@ class GameStateManager:
         self.players_key = "player_balances"
         self.waiting_key = "waiting_players"
         self.player_games_key = "player_active_games"
+        self._initialized = False
         
-        # Проверяем подключение к Redis при инициализации
-        try:
-            self.redis_master.ping()
-            self.redis_slave.ping()
-            logger.info("Successfully connected to Redis master and slave")
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            raise
-    
+    async def initialize(self):
+        """Асинхронная инициализация и проверка подключения к Redis"""
+        if not self._initialized:
+            try:
+                await self.redis_master.ping()
+                await self.redis_slave.ping()
+                logger.info("Successfully connected to Redis master and slave")
+                self._initialized = True
+            except Exception as e:
+                logger.error(f"Failed to connect to Redis: {e}")
+                raise
+            
+    async def ensure_initialized(self):
+        """Убедиться, что менеджер инициализирован перед использованием"""
+        if not self._initialized:
+            await self.initialize()
+            
     async def add_waiting_player(self, player_id: str):
         """Добавление игрока в очередь ожидания в Redis master"""
+        await self.ensure_initialized()
         try:
             # Проверяем подключение к Redis
             if not await self.redis_master.ping():
@@ -132,6 +139,7 @@ class GameStateManager:
     
     async def get_waiting_players(self) -> Set[str]:
         """Получение списка ожидающих игроков из Redis slave"""
+        await self.ensure_initialized()
         try:
             players = await self.redis_slave.smembers(self.waiting_key)
             result = set(player.decode() for player in players)
@@ -143,6 +151,7 @@ class GameStateManager:
     
     async def remove_waiting_player(self, player_id: str):
         """Удаление игрока из очереди ожидания в Redis master"""
+        await self.ensure_initialized()
         try:
             result = await self.redis_master.srem(self.waiting_key, player_id)
             logger.info(f"Removed player {player_id} from waiting queue, result: {result}")
@@ -153,6 +162,7 @@ class GameStateManager:
     
     async def save_game(self, game_id: str, game_state: GameState):
         """Сохранение состояния игры в Redis master"""
+        await self.ensure_initialized()
         try:
             game_data = game_state.to_dict()
             await self.redis_master.hset(self.games_key, game_id, json.dumps(game_data))
@@ -168,6 +178,7 @@ class GameStateManager:
     
     async def get_game(self, game_id: str) -> Optional[GameState]:
         """Получение состояния игры из Redis slave"""
+        await self.ensure_initialized()
         try:
             game_data = await self.redis_slave.hget(self.games_key, game_id)
             if game_data:
@@ -184,6 +195,7 @@ class GameStateManager:
     
     async def get_player_balance(self, player_id: str) -> int:
         """Получение баланса игрока из Redis slave"""
+        await self.ensure_initialized()
         try:
             balance = await self.redis_slave.hget(self.players_key, player_id)
             result = int(balance) if balance else 1000  # Начальный баланс
@@ -195,10 +207,12 @@ class GameStateManager:
     
     async def save_player_balance(self, player_id: str, balance: int):
         """Сохранение баланса игрока в Redis master"""
+        await self.ensure_initialized()
         await self.redis_master.hset(self.players_key, player_id, str(balance))
     
     async def get_player_active_game(self, player_id: str) -> Optional[str]:
         """Получение ID активной игры игрока"""
+        await self.ensure_initialized()
         game_id = await self.redis_slave.hget(self.player_games_key, player_id)
         if game_id:
             # Проверяем, существует ли еще игра
@@ -211,6 +225,7 @@ class GameStateManager:
         
     async def remove_player_from_game(self, player_id: str, game_id: str):
         """Удаление игрока из игры"""
+        await self.ensure_initialized()
         game = await self.get_game(game_id)
         if game and player_id in game.players:
             game.remove_player(player_id)
@@ -223,6 +238,7 @@ class GameStateManager:
         
     async def cleanup_inactive_games(self):
         """Очистка неактивных игр"""
+        await self.ensure_initialized()
         games = await self.redis_slave.hgetall(self.games_key)
         for game_id, game_data in games.items():
             game_id = game_id.decode()
@@ -237,30 +253,34 @@ class GameStateManager:
 # Инициализация менеджера состояний
 game_manager = GameStateManager(redis_master, redis_slave)
 
-def verify_telegram_data(init_data: str) -> bool:
-    """Проверка подлинности данных от Telegram (Telegram WebApp) по официальной документации"""
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     try:
-        logger.debug(f"Verifying Telegram data: {init_data}")
-        params = {}
-        for param in init_data.split('&'):
-            if '=' not in param:
-                continue
-            key, value = param.split('=', 1)
-            params[key] = value
-        logger.debug(f"Parsed params: {params}")
-        hash_value = params.pop('hash', None)
-        if not hash_value:
-            logger.error("No hash value in initData")
+        data = dict(parse_qsl(init_data, strict_parsing=True))
+        received_hash = data.pop('hash', None)
+        print("Parsed data:", data)
+        print("Received hash:", received_hash)
+        if not received_hash:
+            print("No hash in init_data")
             return False
-        # Новый секретный ключ по документации Telegram
-        secret_key = hashlib.sha256(TELEGRAM_BOT_TOKEN.encode()).digest()
-        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(params.items(), key=lambda x: x[0]))
-        logger.debug(f"Data check string: {data_check_string}")
-        calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
-        logger.debug(f"Calculated hash: {calculated_hash}, Received hash: {hash_value}")
-        return calculated_hash == hash_value
+        data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(data.items()))
+        print("data_check_string:", data_check_string)
+        secret_key = hmac.new(
+            key=bot_token.encode(),
+            msg=b"WebAppData",
+            digestmod=hashlib.sha256
+        ).digest()
+        calculated_hash = hmac.new(
+            key=secret_key,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
+        ).hexdigest()
+        print("calculated_hash:", calculated_hash)
+        print("received_hash:", received_hash)
+        return calculated_hash == received_hash
     except Exception as e:
-        logger.error(f"Error verifying Telegram data: {e}")
+        print("Exception in verify_telegram_data:", e)
         return False
 
 class ConnectionManager:
@@ -341,10 +361,8 @@ async def cleanup_waiting_queue():
 async def startup_event():
     """Запуск приложения и инициализация компонентов"""
     try:
-        # Проверяем подключение к Redis
-        await game_manager.redis_master.ping()
-        await game_manager.redis_slave.ping()
-        logger.info("Successfully connected to Redis")
+        # Инициализируем GameStateManager
+        await game_manager.initialize()
         
         # Запускаем мониторинг
         asyncio.create_task(monitor_game_state())
@@ -389,7 +407,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str):
 
         # Валидация initData
         try:
-            if not verify_telegram_data(init_data['initData']):
+            if not verify_telegram_data(init_data['initData'], BOT_TOKEN):
                 logger.error("Invalid initData")
                 await websocket.close(code=4001)
                 return
@@ -457,7 +475,7 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
                 logger.error("No initData in init message")
                 return
                 
-            if not verify_telegram_data(init_data):
+            if not verify_telegram_data(init_data, BOT_TOKEN):
                 logger.error("Invalid initData")
                 await websocket.close(code=4001)
                 return
@@ -700,48 +718,106 @@ async def handle_websocket_message(websocket: WebSocket, player_id: str, data: d
 
 # REST API endpoints
 
-async def get_telegram_init_data(telegram_web_app_init_data: str = Header(None, alias="Telegram-Web-App-Init-Data")):
+async def validate_telegram_init_data(request: Request) -> dict:
     """Получение и валидация данных инициализации Telegram WebApp"""
-    if not telegram_web_app_init_data:
-        raise HTTPException(status_code=400, detail="Missing Telegram WebApp init data")
-        
     try:
-        # Парсим данные
-        data = json.loads(telegram_web_app_init_data)
+        print("=== DEBUG START ===")
+        print("BOT_TOKEN:", repr(BOT_TOKEN))
+        init_data = request.headers.get("Telegram-Web-App-Init-Data")
+        print("initData from header:", repr(init_data))
+        print("=== DEBUG END ===")
         
-        # Проверяем наличие необходимых полей
-        if not data.get('user'):
-            raise HTTPException(status_code=400, detail="User data not found in init data")
-            
-        # Проверяем подпись данных
-        if not verify_telegram_data(telegram_web_app_init_data):
-            raise HTTPException(status_code=401, detail="Invalid Telegram WebApp data")
-            
-        return telegram_web_app_init_data
+        init_data = request.headers.get("Telegram-Web-App-Init-Data")
+        is_valid = verify_telegram_data(init_data, BOT_TOKEN)
+        logger.info(f"Received initData: {init_data}")
+        logger.info(f"Validation result: {is_valid}")
         
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON in init data")
+        if not is_valid:
+            print("Invalid Telegram WebApp data")
+            return JSONResponse(status_code=403, content={"error": "Invalid Telegram WebApp data"})
+        
+        logger.debug(f"Received init_data: {init_data}")
+        
+        # Парсим параметры
+        params = {}
+        for param in init_data.split('&'):
+            if '=' not in param:
+                continue
+            key, value = param.split('=', 1)
+            params[key] = unquote(value)
+        
+        logger.debug(f"Parsed parameters: {params}")
+        
+        # Получаем хеш
+        received_hash = params.get('hash')
+        if not received_hash:
+            logger.error("No hash value in initData")
+            raise HTTPException(status_code=400, detail="No hash value in initData")
+        
+        # Создаем копию параметров без hash
+        check_params = params.copy()
+        check_params.pop('hash', None)
+        
+        # Формируем строку для проверки
+        data_check_arr = []
+        for key in sorted(check_params.keys()):
+            data_check_arr.append(f"{key}={check_params[key]}")
+        data_check_string = '\n'.join(data_check_arr)
+        
+        logger.debug(f"Data check string: {data_check_string}")
+        
+        # Получаем токен бота
+        bot_token = os.getenv("BOT_TOKEN", TELEGRAM_BOT_TOKEN)
+        if not bot_token:
+            logger.error("No bot token available")
+            raise HTTPException(status_code=500, detail="Bot token not configured")
+            
+        logger.debug(f"Using bot token: {bot_token[:5]}...{bot_token[-5:]}")
+        
+        # Создаем секретный ключ
+        secret = hmac.new(
+            key=bot_token.encode(),
+            msg=b"WebAppData",
+            digestmod=hashlib.sha256
+        ).digest()
+        
+        # Вычисляем хеш
+        calculated_hash = hmac.new(
+            key=secret,
+            msg=data_check_string.encode(),
+            digestmod=hashlib.sha256
+        ).hexdigest()
+        
+        logger.debug(f"Calculated hash: {calculated_hash}")
+        logger.debug(f"Received hash: {received_hash}")
+        
+        if calculated_hash != received_hash:
+            logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
+            logger.error(f"Data used for hash calculation: {data_check_string}")
+            raise HTTPException(status_code=401, detail="Invalid hash")
+        
+        # Получаем данные пользователя
+        try:
+            user_data = json.loads(params.get('user', '{}'))
+            if not user_data.get('id'):
+                raise HTTPException(status_code=400, detail="User ID not found in data")
+            return user_data
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse user data: {e}")
+            raise HTTPException(status_code=400, detail="Invalid user data format")
+            
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error validating Telegram init data: {e}")
-        raise HTTPException(status_code=500, detail="Error validating Telegram data")
-
-@app.post("/api/validate-init-data")
-async def validate_init_data(init_data: str = Depends(get_telegram_init_data)):
-    """Валидация данных инициализации Telegram WebApp"""
-    try:
-        # Если мы дошли до этой точки, значит валидация прошла успешно
-        return {"valid": True}
-    except Exception as e:
-        logger.error(f"Init data validation error: {e}")
-        return {"valid": False}
+        logger.error(f"Validation error: {str(e)}")
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/game/create")
-async def create_game(init_data: str = Depends(get_telegram_init_data)):
+async def create_game(request: Request):
     try:
-        # Получаем данные пользователя из init_data
-        data = json.loads(init_data)
-        user = data.get('user', {})
-        user_id = str(user.get('id'))
+        user_data = await validate_telegram_init_data(request)
+        user_id = str(user_data.get('id'))
         
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID not found")
@@ -791,17 +867,17 @@ async def create_game(init_data: str = Depends(get_telegram_init_data)):
                 "required_players": 6
             }
             
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating game: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/game/state")
-async def get_game_state(init_data: str = Depends(get_telegram_init_data)):
+async def get_game_state(request: Request):
     try:
-        # Получаем данные пользователя из init_data
-        data = json.loads(init_data)
-        user = data.get('user', {})
-        user_id = str(user.get('id'))
+        user_data = await validate_telegram_init_data(request)
+        user_id = str(user_data.get('id'))
         
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID not found")
@@ -821,17 +897,17 @@ async def get_game_state(init_data: str = Depends(get_telegram_init_data)):
             "state": game.to_dict()
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting game state: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/game/status")
-async def get_game_status(init_data: str = Depends(get_telegram_init_data)):
+async def get_game_status(request: Request):
     try:
-        # Получаем данные пользователя из init_data
-        data = json.loads(init_data)
-        user = data.get('user', {})
-        user_id = str(user.get('id'))
+        user_data = await validate_telegram_init_data(request)
+        user_id = str(user_data.get('id'))
         
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID not found")
@@ -862,17 +938,17 @@ async def get_game_status(init_data: str = Depends(get_telegram_init_data)):
             "waiting": False
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting game status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/game/cancel-waiting")
-async def cancel_waiting(init_data: str = Depends(get_telegram_init_data)):
+async def cancel_waiting(request: Request):
     try:
-        # Получаем данные пользователя из init_data
-        data = json.loads(init_data)
-        user = data.get('user', {})
-        user_id = str(user.get('id'))
+        user_data = await validate_telegram_init_data(request)
+        user_id = str(user_data.get('id'))
         
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID not found")
@@ -882,18 +958,18 @@ async def cancel_waiting(init_data: str = Depends(get_telegram_init_data)):
         
         return {"status": "success"}
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error canceling waiting: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/user/balance")
-async def get_user_balance(init_data: str = Depends(get_telegram_init_data)):
+async def get_user_balance(request: Request):
     """Получение баланса пользователя"""
     try:
-        # Получаем данные пользователя из init_data
-        data = json.loads(init_data)
-        user = data.get('user', {})
-        user_id = str(user.get('id'))
+        user_data = await validate_telegram_init_data(request)
+        user_id = str(user_data.get('id'))
         
         if not user_id:
             raise HTTPException(status_code=400, detail="User ID not found")
@@ -902,6 +978,8 @@ async def get_user_balance(init_data: str = Depends(get_telegram_init_data)):
         balance = await game_manager.get_player_balance(user_id)
         return {"balance": balance}
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error getting user balance: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -917,7 +995,7 @@ async def handle_client_logs(
         if not telegram_web_app_init_data:
             raise HTTPException(status_code=400, detail="Missing Telegram WebApp init data")
             
-        if not verify_telegram_data(telegram_web_app_init_data):
+        if not verify_telegram_data(telegram_web_app_init_data, BOT_TOKEN):
             raise HTTPException(status_code=401, detail="Invalid Telegram WebApp data")
         
         # Получаем логи из тела запроса
@@ -959,6 +1037,38 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     logger.debug(f"Response status: {response.status_code}")
     return response
+
+@app.post("/api/validate-init-data")
+async def validate_init_data(request: Request):
+    """Валидация данных инициализации Telegram WebApp"""
+    try:
+        user_data = await validate_telegram_init_data(request)
+        return JSONResponse(
+            status_code=200,
+            content={
+                "valid": True,
+                "user": user_data
+            }
+        )
+    except HTTPException as e:
+        logger.error(f"Validation failed: {e.detail}")
+        return JSONResponse(
+            status_code=e.status_code,
+            content={
+                "valid": False,
+                "error": str(e.detail)
+            }
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in validate_init_data: {str(e)}")
+        logger.exception(e)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "valid": False,
+                "error": "Internal server error"
+            }
+        )
 
 if __name__ == "__main__":
     import uvicorn

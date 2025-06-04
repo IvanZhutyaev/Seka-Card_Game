@@ -417,6 +417,20 @@
             }
         });
 
+        const initData = window.Telegram?.WebApp?.initData;
+if (!initData) {
+    alert('Нет данных инициализации Telegram!');
+    return;
+}
+fetch('/api/validate-init-data', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Telegram-Web-App-Init-Data': initData
+    },
+    body: JSON.stringify({})
+});
+
         function validateForm() {
             const amount = document.getElementById('amount').value;
             const username = document.getElementById('username').value;
