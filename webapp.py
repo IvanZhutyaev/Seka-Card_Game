@@ -54,6 +54,7 @@ ALLOWED_PAGES = {
 
 def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     try:
+        logger.debug(f"initData (raw): {init_data}")
         params = dict(parse_qsl(init_data, keep_blank_values=True))
         received_hash = params.pop('hash', None)
         if not received_hash:
@@ -67,9 +68,17 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         logger.debug(f"data_check_string: {data_check_string}")
-        logger.debug(f"calculated_hash: {calculated_hash}, received_hash: {received_hash}")
+        logger.debug(f"calculated_hash: {calculated_hash}")
+        logger.debug(f"received_hash: {received_hash}")
+        logger.debug(f"bot_token: {bot_token[:4]}...{bot_token[-4:]}")
 
-        return calculated_hash == received_hash
+        if calculated_hash != received_hash:
+            logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
+            logger.error(f"Data used for hash calculation: {data_check_string}")
+            return False
+
+        logger.info("Verification successful")
+        return True
     except Exception as e:
         logger.exception(f"Verification error: {str(e)}")
         return False
