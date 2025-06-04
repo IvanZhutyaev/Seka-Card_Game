@@ -53,7 +53,7 @@ ALLOWED_PAGES = {
     "game": "build/index.html"  # React приложение
 }
 
-def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
+def verify_telegram_data(init_data: str, bot_token: str) -> bool:
     """Проверка подлинности данных от Telegram WebApp согласно официальной документации"""
     try:
         logger.info("Starting Telegram WebApp data verification")
@@ -62,7 +62,7 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
 
         if not init_data:
             logger.error("Init data is empty")
-            return False, "Init data is empty"
+            return False
 
         try:
             try:
@@ -83,13 +83,13 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
             logger.debug(f"Parsed parameters: {params}")
         except Exception as e:
             logger.error(f"Failed to parse parameters: {str(e)}")
-            return False, f"Failed to parse parameters: {str(e)}"
+            return False
 
         received_hash = params.pop('hash', None)
         logger.debug(f"Received hash: {received_hash}")
         if not received_hash:
             logger.error("No hash found in init_data")
-            return False, "No hash found in init_data"
+            return False
 
         data_check_arr = []
         logger.debug("Sorting parameters...")
@@ -115,13 +115,13 @@ def verify_telegram_data(init_data: str, bot_token: str) -> tuple[bool, str]:
         if calculated_hash != received_hash:
             logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
             logger.error(f"Data used for hash calculation: {data_check_string}")
-            return False, f"Hash mismatch: received {received_hash}, calculated {calculated_hash}"
+            return False
 
         logger.info("Verification successful")
-        return True, "Verification successful"
+        return True
     except Exception as e:
         logger.exception(f"Verification error: {str(e)}")
-        return False, f"Verification error: {str(e)}"
+        return False
 
 async def verify_telegram_request(request: Request) -> bool:
     """Проверка запроса от Telegram"""
@@ -141,8 +141,8 @@ async def verify_telegram_request(request: Request) -> bool:
             return False
 
         # Проверяем подпись
-        is_valid, message = verify_telegram_data(init_data, settings.BOT_TOKEN)
-        logger.debug(f"Verification result: valid={is_valid}, message={message}")
+        is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        logger.debug(f"Verification result: valid={is_valid}")
         return is_valid
     except Exception as e:
         logger.exception(f"Error verifying Telegram request: {e}")
@@ -270,12 +270,11 @@ async def validate_init_data(request: Request):
                 }
             )
 
-        is_valid, verify_message = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
         return JSONResponse(
             status_code=200,
             content={
-                "valid": is_valid, 
-                "message": verify_message,
+                "valid": is_valid,
                 "init_data": init_data
             }
         )
@@ -337,15 +336,14 @@ async def get_wallet_balance(
 
         # Проверяем подлинность данных
         logger.info("Verifying Telegram WebApp data...")
-        is_valid, verify_message = verify_telegram_data(init_data, settings.BOT_TOKEN)
+        is_valid = verify_telegram_data(init_data, settings.BOT_TOKEN)
         
         if not is_valid:
-            logger.error(f"Invalid Telegram WebApp data: {verify_message}")
+            logger.error(f"Invalid Telegram WebApp data")
             raise HTTPException(
                 status_code=401, 
                 detail={
                     "error": "Invalid Telegram WebApp data",
-                    "details": verify_message,
                     "init_data": init_data
                 }
             )
@@ -388,7 +386,7 @@ async def get_wallet_transactions(
 ):
     """Получить историю транзакций пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)
@@ -407,7 +405,7 @@ async def update_wallet_balance(
 ):
     """Обновить баланс кошелька пользователя"""
     # Проверка подлинности данных
-    if not verify_telegram_data(init_data, settings.BOT_TOKEN)[0]:
+    if not verify_telegram_data(init_data, settings.BOT_TOKEN):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     wallet = WalletManager(db)
