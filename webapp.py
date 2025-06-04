@@ -64,7 +64,9 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
         data_check_arr = [f'{k}={v}' for k, v in sorted(params.items())]
         data_check_string = '\n'.join(data_check_arr)
 
-        secret_key = hashlib.sha256(bot_token.encode()).digest()
+        # Первый HMAC: ключ 'WebAppData', данные — bot_token
+        secret_key = hmac.new(b'WebAppData', bot_token.encode(), hashlib.sha256).digest()  # binary!
+        # Второй HMAC: ключ — результат первого HMAC, данные — data_check_string
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         logger.debug(f"data_check_string: {data_check_string}")
