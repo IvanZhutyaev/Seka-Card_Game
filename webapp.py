@@ -72,9 +72,20 @@ def verify_telegram_data(init_data: str, bot_token: str) -> bool:
         logger.debug(f"received_hash: {received_hash}")
         logger.debug(f"bot_token: {bot_token[:4]}...{bot_token[-4:]}")
 
+        # Для ручной проверки в онлайн-валидаторе Telegram:
+        logger.info("=== Telegram WebApp Signature Debug Info ===")
+        logger.info(f"initData (raw): {init_data}")
+        logger.info(f"data_check_string (copy to validator): {data_check_string}")
+        logger.info(f"bot_token (copy to validator): {bot_token}")
+        logger.info(f"received_hash: {received_hash}")
+        logger.info(f"calculated_hash: {calculated_hash}")
+        logger.info("Проверьте подпись на https://core.telegram.org/bots/webapps#checking-the-authorization")
+        logger.info("==========================================")
+
         if calculated_hash != received_hash:
             logger.error(f"Hash mismatch: received {received_hash}, calculated {calculated_hash}")
             logger.error(f"Data used for hash calculation: {data_check_string}")
+            logger.error("Скопируйте data_check_string и bot_token в онлайн-валидатор Telegram для ручной проверки: https://core.telegram.org/bots/webapps#checking-the-authorization")
             return False
 
         logger.info("Verification successful")
