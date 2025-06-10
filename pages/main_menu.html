@@ -553,9 +553,9 @@
                     if (!window.Telegram?.WebApp) {
                         throw new Error('WebApp не инициализирован');
                     }
-                    // Формируем URL
-                    const url = `/${page}`;
-                    // Используем window.location.href для внутренней навигации
+                    // Формируем URL: для React-приложения игры он особый
+                    const url = page === 'game' ? '/game' : `/${page}.html`;
+                    
                     window.location.href = url;
                     document.getElementById('dropdownMenu').classList.remove('show');
                 } catch (error) {
