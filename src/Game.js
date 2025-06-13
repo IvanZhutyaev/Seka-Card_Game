@@ -41,7 +41,14 @@ const Game = () => {
   // WebSocket подключение
   useEffect(() => {
     if (userData?.id) {
-      const socket = new WebSocket(`ws://${window.location.host}/ws/${userData.id}`);
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+        alert('Ошибка: initData не найдены!');
+        return;
+      }
+      
+      const encodedInitData = encodeURIComponent(initData);
+      const socket = new WebSocket(`wss://${window.location.host}/ws/${userData.id}?initData=${encodedInitData}`);
       
       socket.onopen = () => {
         console.log('WebSocket connected');
