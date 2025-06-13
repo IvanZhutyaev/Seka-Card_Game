@@ -1,7 +1,13 @@
 import React from 'react';
 import styled from 'styled-components';
+import { Card as CardType } from '../types'; // Import CardType from types.ts
 
-const CardContainer = styled.div`
+interface CardContainerProps {
+  suit?: string;
+  isHidden?: boolean;
+}
+
+const CardContainer = styled.div<CardContainerProps>`
   width: 100px;
   height: 140px;
   background-color: white;
@@ -35,7 +41,12 @@ const CardContainer = styled.div`
   }
 `;
 
-const Card = ({ value, suit, isHidden = false }) => {
+interface CardProps {
+  card: CardType; // Use the imported CardType
+  isHidden?: boolean;
+}
+
+const Card: React.FC<CardProps> = ({ card, isHidden = false }) => {
   if (isHidden) {
     return (
       <CardContainer isHidden={isHidden}>
@@ -47,14 +58,14 @@ const Card = ({ value, suit, isHidden = false }) => {
   }
 
   return (
-    <CardContainer suit={suit}>
+    <CardContainer suit={card.suit}>
       <div className="top">
-        <div className="value">{value}</div>
-        <div className="suit">{suit}</div>
+        <div className="value">{card.rank}</div>
+        <div className="suit">{card.suit}</div>
       </div>
       <div className="bottom">
-        <div className="value">{value}</div>
-        <div className="suit">{suit}</div>
+        <div className="value">{card.rank}</div>
+        <div className="suit">{card.suit}</div>
       </div>
     </CardContainer>
   );

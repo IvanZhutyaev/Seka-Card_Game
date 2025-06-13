@@ -1,11 +1,25 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import Card from './Card';
-import { GameContainer, PlayerArea, TableCenter, OpponentArea, UserInfo } from './styles';
+import Card from './Card.tsx'; // Update import to .tsx
+import { GameContainer, PlayerArea, TableCenter, OpponentArea, UserInfo as UserInfoStyle } from './styles';
+import { Player, Card as CardType, UserInfo as UserInfoType } from './types'; // Import types
 
-const Game = ({ userData }) => {
-  const [ws, setWs] = useState(null);
-  const [gameState, setGameState] = useState({
+interface GameProps {
+  userData: UserInfoType;
+}
+
+interface GameState {
+  bank: number;
+  currentBet: number;
+  isMyTurn: boolean;
+  playerCards: CardType[];
+  opponentCards: CardType[];
+  gameId: string | null;
+}
+
+const Game: React.FC<GameProps> = ({ userData }) => {
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [gameState, setGameState] = useState<GameState>({
     bank: 0,
     currentBet: 0,
     isMyTurn: false,
@@ -17,8 +31,15 @@ const Game = ({ userData }) => {
   // WebSocket подключение
   useEffect(() => {
     if (userData?.id) {
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+        console.error('Ошибка: initData не найдены!');
+        return;
+      }
+      
+      const encodedInitData = encodeURIComponent(initData);
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/${userData.id}`);
+      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/${userData.id}?initData=${encodedInitData}`);
       
       socket.onopen = () => {
         console.log('WebSocket connected');
@@ -32,11 +53,20 @@ const Game = ({ userData }) => {
             setGameState(prev => ({ ...prev, ...data.state }));
             break;
           case 'game_over':
-            alert(data.winner === userData.id ? 'Вы победили!' : 'Вы проиграли!');
+            const message = data.winner === userData.id ? 'Вы победили!' : 'Вы проиграли!';
+            if (window.Telegram?.WebApp) {
+              window.Telegram.WebApp.showAlert(message);
+            } else {
+              alert(message);
+            }
             setTimeout(() => socket.send(JSON.stringify({ type: 'find_game' })), 3000);
             break;
           case 'error':
-            alert(data.message);
+            if (window.Telegram?.WebApp) {
+              window.Telegram.WebApp.showAlert(data.message);
+            } else {
+              alert(data.message);
+            }
             break;
         }
       };
@@ -55,9 +85,16 @@ const Game = ({ userData }) => {
   const handleBet = useCallback(() => {
     if (!ws || !gameState.isMyTurn) return;
     
-    const amount = parseInt(document.getElementById('bet-amount').value);
+    const betAmountInput = document.getElementById('bet-amount') as HTMLInputElement | null;
+    if (!betAmountInput) return; 
+
+    const amount = parseInt(betAmountInput.value);
     if (isNaN(amount) || amount < 100 || amount > 2000) {
-      alert('Некорректная сумма ставки');
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showAlert('Некорректная сумма ставки');
+      } else {
+        alert('Некорректная сумма ставки');
+      }
       return;
     }
 
@@ -82,15 +119,15 @@ const Game = ({ userData }) => {
   return (
     <GameContainer>
       {userData && (
-        <UserInfo>
+        <UserInfoStyle>
           {userData.photo_url && <img src={userData.photo_url} alt="avatar" />}
           <span>{userData.first_name}</span>
-        </UserInfo>
+        </UserInfoStyle>
       )}
 
       <OpponentArea>
         {gameState.opponentCards.map((card, index) => (
-          <Card key={index} {...card} />
+          <Card key={index} card={card} isHidden={true} /> 
         ))}
       </OpponentArea>
 
@@ -102,7 +139,7 @@ const Game = ({ userData }) => {
       <PlayerArea>
         <div className="cards">
           {gameState.playerCards.map((card, index) => (
-            <Card key={index} {...card} />
+            <Card key={index} card={card} isHidden={false} /> 
           ))}
         </div>
         
@@ -136,4 +173,4 @@ const Game = ({ userData }) => {
   );
 };
 
-export default Game;
+export default Game; 
