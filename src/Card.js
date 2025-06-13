@@ -2,47 +2,60 @@ import React from 'react';
 import styled from 'styled-components';
 
 const CardContainer = styled.div`
-  width: 80px;
-  height: 120px;
-  background: ${props => props.isJoker 
-    ? 'linear-gradient(45deg, #ffd700, #ffa500)'
-    : 'white'};
-  border-radius: 5px;
+  width: 100px;
+  height: 140px;
+  background-color: white;
+  border-radius: 8px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 24px;
-  color: ${props => 
-    props.suit === 'hearts' || props.suit === 'diamonds' 
-      ? 'red' 
-      : 'black'};
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  position: relative;
-  transition: transform 0.2s;
-  border: ${props => props.isJoker ? '2px solid #ffd700' : 'none'};
-  
-  &:hover {
-    transform: translateY(-5px);
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px;
+  color: ${props => props.suit === '♥' || props.suit === '♦' ? 'red' : 'black'};
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: ${props => props.isHidden ? 'rotateY(180deg)' : 'none'};
+  transition: transform 0.3s ease;
+
+  .top, .bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
-  
-  &::after {
-    content: ${props => props.isJoker ? '"Джокер"' : 'none'};
-    position: absolute;
-    bottom: 5px;
-    font-size: 12px;
-    color: #000;
+
+  .bottom {
+    transform: rotate(180deg);
+  }
+
+  .value {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .suit {
+    font-size: 32px;
   }
 `;
 
-const Card = ({ rank, suit, isJoker }) => {
-  const cardText = isJoker ? '9♣*' : rank;
-  
+const Card = ({ value, suit, isHidden = false }) => {
+  if (isHidden) {
+    return (
+      <CardContainer isHidden={isHidden}>
+        <div className="back">
+          <div className="pattern"></div>
+        </div>
+      </CardContainer>
+    );
+  }
+
   return (
-    <CardContainer 
-      suit={suit} 
-      isJoker={isJoker}
-    >
-      {cardText}
+    <CardContainer suit={suit}>
+      <div className="top">
+        <div className="value">{value}</div>
+        <div className="suit">{suit}</div>
+      </div>
+      <div className="bottom">
+        <div className="value">{value}</div>
+        <div className="suit">{suit}</div>
+      </div>
     </CardContainer>
   );
 };

@@ -10,113 +10,110 @@ export const GlobalStyle = createGlobalStyle`
 
   body {
     font-family: Arial, sans-serif;
-    background-color: #0a1a3a;
+    background-color: #1a1a1a;
     color: white;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.2s;
-  }
-
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  }
-
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  input {
-    width: 100px;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    font-size: 16px;
   }
 `;
 
 export const GameContainer = styled.div`
-  height: 100vh;
   display: flex;
   flex-direction: column;
+  height: 100vh;
   padding: 20px;
+  gap: 20px;
 `;
 
 export const UserInfo = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 8px;
 
   img {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    object-fit: cover;
-  }
-
-  span {
-    font-size: 18px;
-    font-weight: bold;
   }
 `;
 
 export const OpponentArea = styled.div`
-  flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
   gap: 10px;
+  min-height: 150px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
 `;
 
 export const TableCenter = styled.div`
-  text-align: center;
-  margin: 20px 0;
-  font-size: 18px;
-
-  div {
-    margin: 5px 0;
-  }
-`;
-
-export const PlayerArea = styled.div`
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 10px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+`;
+
+export const PlayerArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 200px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
 
   .cards {
     display: flex;
+    justify-content: center;
     gap: 10px;
-    margin-bottom: 20px;
   }
 
   .actions {
     display: flex;
-    gap: 20px;
+    justify-content: center;
+    gap: 10px;
     align-items: center;
 
-    .fold-btn {
-      background: #f44336;
-      color: white;
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      &.fold-btn {
+        background-color: #ff4444;
+        color: white;
+      }
+
+      &.bet-btn {
+        background-color: #4CAF50;
+        color: white;
+      }
     }
 
-    .bet-btn {
-      background: #4CAF50;
-      color: white;
+    input {
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      width: 100px;
+      text-align: center;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     }
   }
 `; 

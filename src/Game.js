@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import Card from './Card';
 import { GameContainer, PlayerArea, TableCenter, OpponentArea, UserInfo } from './styles';
 
-const Game = () => {
+const Game = ({ userData }) => {
   const [ws, setWs] = useState(null);
   const [gameState, setGameState] = useState({
     bank: 0,
@@ -13,42 +13,12 @@ const Game = () => {
     opponentCards: [],
     gameId: null
   });
-  const [userData, setUserData] = useState(null);
-
-  // Инициализация Telegram WebApp
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
-      // Получаем строку initData для передачи на сервер
-      const initData = window.Telegram?.WebApp?.initData;
-      if (!initData) {
-          alert('Нет данных инициализации Telegram!');
-          return;
-      }
-      fetch('/api/validate-init-data', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Telegram-Web-App-Init-Data': initData
-          },
-          body: JSON.stringify({})
-      });
-      setUserData(window.Telegram.WebApp.initDataUnsafe.user);
-    }
-  }, []);
 
   // WebSocket подключение
   useEffect(() => {
     if (userData?.id) {
-      const initData = window.Telegram?.WebApp?.initData;
-      if (!initData) {
-        alert('Ошибка: initData не найдены!');
-        return;
-      }
-      
-      const encodedInitData = encodeURIComponent(initData);
-      const socket = new WebSocket(`wss://${window.location.host}/ws/${userData.id}?initData=${encodedInitData}`);
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${window.location.host}/ws/${userData.id}`);
       
       socket.onopen = () => {
         console.log('WebSocket connected');
