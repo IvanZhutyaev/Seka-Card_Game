@@ -3,12 +3,6 @@ import Game from './Game.tsx'; // Update import to .tsx
 import { GlobalStyle } from './styles';
 import { UserInfo as UserInfoType } from './types'; // Import UserInfo type
 
-declare global {
-  interface Window {
-    Telegram?: { WebApp?: any; };
-  }
-}
-
 function App() {
   const [userData, setUserData] = useState<UserInfoType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +29,7 @@ function App() {
       })
       .then(response => response.json())
       .then(data => {
-        if (data.success) {
+        if (data.success && window.Telegram?.WebApp?.initDataUnsafe?.user) {
           setUserData(window.Telegram.WebApp.initDataUnsafe.user);
         } else {
           alert('Ошибка валидации данных Telegram!');
